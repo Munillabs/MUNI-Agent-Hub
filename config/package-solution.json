@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "MUNI Agent Hub",
+    "id": "226991f4-059f-45db-ae63-582bee5b2330",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "무늬랩스",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.23.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "muni-agent-hub description"
+      },
+      "longDescription": {
+        "default": "muni-agent-hub description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "muni-agent-hub Feature",
+        "description": "The feature that activates elements of the muni-agent-hub solution.",
+        "id": "f09976ee-096c-4e89-96c6-d725cbfd1c8d",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/muni-agent-hub.sppkg"
+  }
+}

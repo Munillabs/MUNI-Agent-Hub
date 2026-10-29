@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "muni-agent-hub-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/muniAgentHub/MuniAgentHubWebPart.js",
+          "manifest": "./src/webparts/muniAgentHub/MuniAgentHubWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "MuniAgentHubWebPartStrings": "lib/webparts/muniAgentHub/loc/{locale}.js"
+  }
+}

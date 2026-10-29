@@ -1,0 +1,19 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "useGulp": false,
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.23.4",
+    "sdksVersions": {},
+    "version": "1.23.2",
+    "libraryName": "muni-agent-hub",
+    "libraryId": "226991f4-059f-45db-ae63-582bee5b2330",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "muni-agent-hub",
+    "solutionShortDescription": "muni-agent-hub description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}
