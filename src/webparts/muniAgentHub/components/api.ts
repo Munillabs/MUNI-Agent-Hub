@@ -7,6 +7,7 @@ export interface IHubApi {
   likeCount(t: TargetType, id: number): number;
   liked(t: TargetType, id: number): boolean;
   feedbackCount(agentId: number): number;
+  commentCount(ideaId: number): number;
   toggleLike(t: TargetType, id: number): void;
   go(view: HubView): void;
   /** Agent 둘러보기로 이동하며 검색어·카테고리를 미리 채웁니다 (홈 검색창, 카테고리 바로가기). */

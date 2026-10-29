@@ -254,6 +254,11 @@ export class HubService {
     return { id: d.Id, targetType, targetId, kind, body, created: str(d.Created) || new Date().toISOString() };
   }
 
+  public async updateReactionBody(id: number, body: string): Promise<void> {
+    await this.send(`${this.listUrl(this.lists.reactions)}/items(${id})`, { ReactionBody: body },
+      { 'X-HTTP-Method': 'MERGE', 'IF-MATCH': '*' }, this.lists.reactions);
+  }
+
   public async removeReaction(id: number): Promise<void> {
     await this.send(`${this.listUrl(this.lists.reactions)}/items(${id})`, undefined,
       { 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }, this.lists.reactions);

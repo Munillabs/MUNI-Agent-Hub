@@ -154,6 +154,33 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     } catch (e) { fail(e); return false; }
   };
 
+  const addIdeaComment = async (ideaId: number, body: string): Promise<boolean> => {
+    if (!me) { return false; }
+    try {
+      const saved = await service.addReaction('Idea', ideaId, '댓글', body);
+      setData(d => ({ ...d, reactions: d.reactions.concat([{ ...saved, author: { id: me.id, name: me.name, email: me.email } }]) }));
+      toast('댓글을 남겼습니다.');
+      return true;
+    } catch (e) { fail(e); return false; }
+  };
+
+  const editComment = async (reactionId: number, body: string): Promise<boolean> => {
+    try {
+      await service.updateReactionBody(reactionId, body);
+      setData(d => ({ ...d, reactions: d.reactions.map(r => r.id === reactionId ? { ...r, body } : r) }));
+      toast('댓글을 수정했습니다.');
+      return true;
+    } catch (e) { fail(e); return false; }
+  };
+  const deleteComment = async (reactionId: number): Promise<boolean> => {
+    try {
+      await service.removeReaction(reactionId);
+      setData(d => ({ ...d, reactions: d.reactions.filter(r => r.id !== reactionId) }));
+      toast('댓글을 삭제했습니다.');
+      return true;
+    } catch (e) { fail(e); return false; }
+  };
+
   /* ---------- 신청 ---------- */
   const submitRequest = async (req: INewAgentRequest): Promise<boolean> => {
     if (!me) { return false; }
@@ -212,6 +239,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     likeCount: (t, id) => data.reactions.filter(r => r.targetType === t && r.targetId === id && r.kind === '좋아요').length,
     liked: (t, id) => !!mine(t, id),
     feedbackCount: id => data.reactions.filter(r => r.targetType === 'Agent' && r.targetId === id && r.kind !== '좋아요').length,
+    commentCount: id => data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '댓글').length,
     toggleLike: (t, id) => { toggleLike(t, id).catch(fail); },
     go,
     browse: f => { setBrowseInit(b => ({ q: f.q || '', cat: f.cat || '전체', key: b.key + 1 })); go('agents'); },
@@ -244,7 +272,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       panelBody = s ? <InsightDetail insight={s} onClose={closePanel} /> : null;
     } else if (panel.kind === 'ideaDetail') {
       const idea = first(data.ideas, x => x.id === panel.id);
-      panelBody = idea ? <IdeaDetail api={api} idea={idea} onClose={closePanel} /> : null;
+      panelBody = idea ? <IdeaDetail api={api} idea={idea} onClose={closePanel} onComment={addIdeaComment} onEditComment={editComment} onDeleteComment={deleteComment} /> : null;
     } else if (panel.kind === 'register') {
       panelBody = <RegisterForm me={api.me} existingTitles={data.agents.map(a => a.title).concat(data.myRequests.filter(r => r.status === '검토 중').map(r => r.title))} onCancel={closePanel} onSubmit={submitRequest} />;
     } else if (panel.kind === 'insightForm') {

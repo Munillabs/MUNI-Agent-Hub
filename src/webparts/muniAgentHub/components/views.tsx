@@ -52,6 +52,7 @@ function IdeaRow(props: { api: IHubApi; idea: IIdea; q?: string }): JSX.Element 
   const hrs = monthlyHours(i.frequency, i.minutes);
   const mine = !!(i.author && i.author.id === api.me.id);
   const likes = api.likeCount('Idea', i.id);
+  const comments = api.commentCount(i.id);
   const open = (): void => api.openIdeaDetail(i.id);
   return (
     <div className="irow" tabIndex={0} role="button" aria-label={`${i.title} 아이디어 보기`} onClick={open}
@@ -62,7 +63,8 @@ function IdeaRow(props: { api: IHubApi; idea: IIdea; q?: string }): JSX.Element 
       <div className="itx">
         <h3><Highlight text={i.title} q={props.q || ''} /></h3>
         <p><Highlight text={i.summary} q={props.q || ''} /></p>
-        <small>{mine ? <><b className="mine">내 아이디어</b> · </> : null}{i.team} · {mmdd(i.created)}{hrs !== undefined ? ` · 월 약 ${hrs}시간 업무` : ''}</small>
+        <small>{mine ? <><b className="mine">내 아이디어</b> · </> : null}{i.team} · {mmdd(i.created)}{hrs !== undefined ? ` · 월 약 ${hrs}시간 업무` : ''}
+          {comments ? <> · <span className="cmt" aria-label={`댓글 ${comments}개`}><IconComment />{comments}</span></> : null}</small>
       </div>
       <div className="iend">
         <StatusPill status={i.status} />

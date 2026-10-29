@@ -9,7 +9,7 @@ export type Sensitivity = '공개' | '사내 일반' | '기밀·개인정보';
 export type IdeaStatus = '아이디어' | '검토 중' | '제작 중' | '등록 완료';
 export type RequestStatus = '검토 중' | '보완 요청' | '승인' | '반려' | '취소';
 export type Frequency = '매일' | '매주' | '매월' | '가끔';
-export type ReactionKind = '좋아요' | '후기' | '개선 요청';
+export type ReactionKind = '좋아요' | '후기' | '개선 요청' | '댓글';
 export type TargetType = 'Agent' | 'Idea';
 export type HubView = 'home' | 'agents' | 'ideas' | 'insights' | 'guide';
 
