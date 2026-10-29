@@ -8,7 +8,7 @@ import { HubView, IHubData, IMe, INewAgentRequest, INewIdea, INewInsight, IReact
 import { first } from '../models/rules';
 import { IHubApi } from './api';
 import { HomeView, AgentsView, IdeasView, InsightsView, GuideView } from './views';
-import { AgentDetail, InsightDetail } from './details';
+import { AgentDetail, IdeaDetail, InsightDetail } from './details';
 import { RegisterForm, IdeaForm, InsightForm } from './forms';
 import { IconMoon, IconSun, SidePanel, Toast } from './ui';
 import { MUNI_LOGO } from '../assets/logo';
@@ -26,6 +26,7 @@ export interface IMuniAgentHubProps {
 type PanelState =
   | { kind: 'agent'; id: number }
   | { kind: 'insight'; id: number }
+  | { kind: 'ideaDetail'; id: number }
   | { kind: 'register' }
   | { kind: 'idea' }
   | { kind: 'insightForm' }
@@ -216,6 +217,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     browse: f => { setBrowseInit(b => ({ q: f.q || '', cat: f.cat || '전체', key: b.key + 1 })); go('agents'); },
     openAgent: id => { setPanel({ kind: 'agent', id }); writeHash('agent-' + id); },
     openInsight: id => setPanel({ kind: 'insight', id }),
+    openIdeaDetail: id => setPanel({ kind: 'ideaDetail', id }),
     openRegister: () => setPanel({ kind: 'register' }),
     openIdea: () => { if (view !== 'ideas') { setView('ideas'); writeHash('ideas'); } setPanel({ kind: 'idea' }); },
     openInsightForm: () => setPanel({ kind: 'insightForm' }),
@@ -240,6 +242,9 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     } else if (panel.kind === 'insight') {
       const s = first(data.insights, x => x.id === panel.id);
       panelBody = s ? <InsightDetail insight={s} onClose={closePanel} /> : null;
+    } else if (panel.kind === 'ideaDetail') {
+      const idea = first(data.ideas, x => x.id === panel.id);
+      panelBody = idea ? <IdeaDetail api={api} idea={idea} onClose={closePanel} /> : null;
     } else if (panel.kind === 'register') {
       panelBody = <RegisterForm me={api.me} existingTitles={data.agents.map(a => a.title).concat(data.myRequests.filter(r => r.status === '검토 중').map(r => r.title))} onCancel={closePanel} onSubmit={submitRequest} />;
     } else if (panel.kind === 'insightForm') {
@@ -303,8 +308,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
         ) : null}
       </main>
 
-      <SidePanel open={!!panel && !!panelBody} labelId="hub-p-title" onClose={closePanel}
-        center={!!panel && (panel.kind === 'register' || panel.kind === 'idea' || panel.kind === 'insightForm')}>{panelBody}</SidePanel>
+      <SidePanel open={!!panel && !!panelBody} labelId="hub-p-title" onClose={closePanel} center={true}>{panelBody}</SidePanel>
       <Toast message={toastMsg.m} tone={toastMsg.tone} />
     </div>
   );

@@ -13,6 +13,7 @@ export interface IHubApi {
   browse(filter: { q?: string; cat?: string }): void;
   openAgent(id: number): void;
   openInsight(id: number): void;
+  openIdeaDetail(id: number): void;
   openRegister(): void;
   openIdea(): void;
   openInsightForm(): void;

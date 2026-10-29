@@ -256,7 +256,9 @@
     .sum small i { font-style: normal; font-size: 11.5px; color: var(--faint); font-weight: 500; }
     .sum b { font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.1; }
     .ilist { display: flex; flex-direction: column; gap: 10px; }
-    .irow { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 16px; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 18px; box-shadow: var(--sh-1); }
+    .irow { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 16px; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 18px; box-shadow: var(--sh-1); cursor: pointer; transition: border-color .15s, background .15s; }
+    .irow:hover { border-color: var(--line-2); background: var(--brand-ll); }
+    .irow:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .vote { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1.5px solid var(--line-2); border-radius: 12px; height: 56px; background: var(--paper); font-weight: 800; font-size: 16px; gap: 2px; color: var(--ink); transition: all .15s; }
     .vote svg { width: 11px; height: 11px; color: var(--muted); }
     .vote:hover { border-color: var(--hot); }

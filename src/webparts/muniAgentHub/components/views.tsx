@@ -52,9 +52,11 @@ function IdeaRow(props: { api: IHubApi; idea: IIdea; q?: string }): JSX.Element 
   const hrs = monthlyHours(i.frequency, i.minutes);
   const mine = !!(i.author && i.author.id === api.me.id);
   const likes = api.likeCount('Idea', i.id);
+  const open = (): void => api.openIdeaDetail(i.id);
   return (
-    <div className="irow">
-      <button type="button" className="vote num" aria-pressed={api.liked('Idea', i.id)} aria-label={`${i.title}에 좋아요, 현재 ${likes}`} onClick={() => api.toggleLike('Idea', i.id)}>
+    <div className="irow" tabIndex={0} role="button" aria-label={`${i.title} 아이디어 보기`} onClick={open}
+      onKeyDown={e => { if (e.target === e.currentTarget) { onEnter(open)(e); } }}>
+      <button type="button" className="vote num" aria-pressed={api.liked('Idea', i.id)} aria-label={`${i.title}에 좋아요, 현재 ${likes}`} onClick={e => { stop(e); api.toggleLike('Idea', i.id); }}>
         <IconUp />{likes}
       </button>
       <div className="itx">
@@ -64,7 +66,7 @@ function IdeaRow(props: { api: IHubApi; idea: IIdea; q?: string }): JSX.Element 
       </div>
       <div className="iend">
         <StatusPill status={i.status} />
-        {agent ? <button type="button" className="lnk" onClick={() => api.openAgent(agent.id)}>→ {agent.title}</button> : null}
+        {agent ? <button type="button" className="lnk" onClick={e => { stop(e); api.openAgent(agent.id); }}>→ {agent.title}</button> : null}
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 /* 상세 패널: Agent 상세(후기 포함), 인사이트 사례 상세 */
 import * as React from 'react';
-import { IAgent, IInsight, ReactionKind } from '../models/types';
-import { agentCode, first, initials, mmdd } from '../models/rules';
+import { IAgent, IIdea, IInsight, ReactionKind } from '../models/types';
+import { agentCode, first, initials, mmdd, monthlyHours } from '../models/rules';
 import { IHubApi } from './api';
 import { AddButton } from './views';
-import { IconLike, LevelBadge, PanelHead, RiskBadge, Tile } from './ui';
+import { IconLike, IconUp, LevelBadge, PanelHead, RiskBadge, StatusPill, Tile } from './ui';
 
 function Person(props: { name: string; note: string }): JSX.Element {
   return <span className="pp"><span className="av">{initials(props.name)}</span>{props.name} · {props.note}</span>;
@@ -79,6 +79,36 @@ export function AgentDetail(props: {
           </form>
         </div>
         <p className="pfoot">Hub에는 검토를 통과해 '게시'된 Agent만 보입니다.</p>
+      </div>
+    </>
+  );
+}
+
+export function IdeaDetail(props: { api: IHubApi; idea: IIdea; onClose: () => void }): JSX.Element {
+  const { api, idea: i } = props;
+  const agent = i.linkedAgentId ? first(api.data.agents, x => x.id === i.linkedAgentId) : undefined;
+  const hrs = monthlyHours(i.frequency, i.minutes);
+  const mine = !!(i.author && i.author.id === api.me.id);
+  const liked = api.liked('Idea', i.id);
+  return (
+    <>
+      <PanelHead id="hub-p-title" title={i.title} onClose={props.onClose}
+        badges={<><StatusPill status={i.status} />{mine ? <span className="badge b-idea">내 아이디어</span> : null}</>}
+        sub={`${i.team}${i.category ? ' · ' + i.category : ''} · ${mmdd(i.created)}`} />
+      <div className="pb">
+        <div className="blk"><h4>Agent가 해 줬으면 하는 일</h4><p>{i.summary}</p></div>
+        <div className="blk"><h4>지금 겪는 불편</h4><p>{i.pain || '—'}</p></div>
+        <dl className="kv">
+          <dt>빈도</dt><dd>{i.frequency || '—'}</dd>
+          <dt>1회 소요 시간</dt><dd>{i.minutes ? `${i.minutes}분` : '—'}</dd>
+          <dt>제안 팀</dt><dd>{i.team || '—'}</dd>
+        </dl>
+        {hrs !== undefined ? <div className="blk good"><h4>이 업무에 드는 시간</h4><p>한 사람 기준 월 약 {hrs}시간</p></div> : null}
+        <div className="pbtns">
+          <button type="button" className="btn" aria-pressed={liked} onClick={() => api.toggleLike('Idea', i.id)}><IconUp /> 좋아요 <span className="num">{api.likeCount('Idea', i.id)}</span></button>
+          {agent ? <button type="button" className="btn pr" onClick={() => api.openAgent(agent.id)}>만들어진 Agent 보기</button> : null}
+        </div>
+        <p className="pfoot">좋아요가 많은 아이디어와 업무 시간이 큰 아이디어를 월 1회 검토해 제작 담당을 정합니다.</p>
       </div>
     </>
   );
