@@ -12,16 +12,18 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
-    "title": { "default": "MUNI Agent Hub" },
-    "description": { "default": "동료가 만든 Agent를 찾고, 추가하고, 나눕니다." },
+    "title": { "default": "MUNI AI Hub" },
+    "description": { "default": "Agent·Skill을 찾고, 아이디어를 모으고, 사례를 나눕니다." },
     "officeFabricIconFontName": "Robot",
     "properties": {
       "siteUrl": "",
       "agentsList": "Agent Catalog",
-      "requestsList": "Agent Requests",
       "ideasList": "Idea Board",
-      "insightsList": "Agent Insights",
-      "reactionsList": "Hub Reactions",
+      "casesList": "Case Library",
+      "skillsList": "Skill Library",
+      "htmlsList": "HTML Library",
+      "adminEmail": "",
+      "launchDeskUrl": "",
       "showHeader": true,
       "logoUrl": "",
       "loadBrandFonts": true

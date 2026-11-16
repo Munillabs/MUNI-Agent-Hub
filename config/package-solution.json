@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "MUNI Agent Hub",
+    "name": "MUNI AI Hub",
     "id": "226991f4-059f-45db-ae63-582bee5b2330",
     "version": "1.0.0.0",
     "includeClientSideAssets": true,
@@ -16,10 +16,10 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "muni-agent-hub description"
+        "default": "MUNI AI Hub - Agent·Skill Marketplace, Idea Board, Case Library, Maker Lab"
       },
       "longDescription": {
-        "default": "muni-agent-hub description"
+        "default": "무늬랩스 사내 AI Hub. 회사 Agent와 동료가 공유한 Skill을 찾고, 아이디어를 모아 함께 만들고, 고객사 프로젝트 사례를 나눕니다."
       },
       "screenshotPaths": [],
       "videoUrl": "",
