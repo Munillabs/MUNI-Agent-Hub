@@ -4,8 +4,7 @@ declare interface IMuniAgentHubWebPartStrings {
   SiteUrlLabel: string;
   SiteUrlDescription: string;
   AgentsListLabel: string;
-  SkillsListLabel: string;
-  HtmlsListLabel: string;
+  ContentsListLabel: string;
   IdeasListLabel: string;
   CasesListLabel: string;
   LinksGroupName: string;

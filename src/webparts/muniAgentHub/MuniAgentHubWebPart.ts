@@ -10,14 +10,14 @@ import * as strings from 'MuniAgentHubWebPartStrings';
 
 import MuniAgentHub, { IMuniAgentHubProps } from './components/MuniAgentHub';
 import { HubService } from './services/HubService';
+import { initPersonaCard } from './components/persona';
 
 export interface IMuniAgentHubWebPartProps {
   siteUrl: string;
   agentsList: string;
   ideasList: string;
   casesList: string;
-  skillsList: string;
-  htmlsList: string;
+  contentsList: string;
   adminEmail: string;
   launchDeskUrl: string;
   showHeader: boolean;
@@ -36,19 +36,25 @@ export default class MuniAgentHubWebPart extends BaseClientSideWebPart<IMuniAgen
         SPComponentLoader.loadCss('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
       } catch (e) { /* 글꼴 없이 계속 */ }
     }
+    // 이름에 마우스를 올리면 뜨는 Microsoft 365 프로필 카드
+    initPersonaCard(this.context.serviceScope);
     return super.onInit();
   }
 
   private getService(): HubService {
     const site = (this.properties.siteUrl || '').trim() || this.context.pageContext.web.absoluteUrl;
     const lists = {
-      agents: this.properties.agentsList || 'Agent Catalog',
-      ideas: this.properties.ideasList || 'Idea Board',
-      cases: this.properties.casesList || 'Case Library',
-      skills: this.properties.skillsList || 'Skill Library',
-      htmls: this.properties.htmlsList || 'HTML Library'
+      // 예전 기본값(Agent Catalog)이 저장된 웹 파트도 새 목록(AgentList)을 읽게 합니다
+      agents: (this.properties.agentsList && this.properties.agentsList !== 'Agent Catalog') ? this.properties.agentsList : 'AgentList',
+      // 예전 기본값(Idea Board)이 저장된 웹 파트도 새 목록(HubIdeas)을 읽게 합니다
+      ideas: (this.properties.ideasList && this.properties.ideasList !== 'Idea Board') ? this.properties.ideasList : 'HubIdeas',
+      // 예전 기본값(Case Library)이 저장된 웹 파트도 새 목록(HubCases)을 읽게 합니다
+      cases: (this.properties.casesList && this.properties.casesList !== 'Case Library') ? this.properties.casesList : 'HubCases',
+      contents: this.properties.contentsList || 'HubContents',
+      // 프로필 배지 선택 목록. 없으면 모두 최근 배지 자동
+      profiles: 'HubProfiles'
     };
-    const key = [site, lists.agents, lists.ideas, lists.cases, lists.skills, lists.htmls].join('|');
+    const key = [site, lists.agents, lists.ideas, lists.cases, lists.contents, lists.profiles].join('|');
     if (!this.service || key !== this.serviceKey) {
       this.service = new HubService(this.context.spHttpClient, site, lists);
       this.serviceKey = key;
@@ -90,11 +96,10 @@ export default class MuniAgentHubWebPart extends BaseClientSideWebPart<IMuniAgen
             groupName: strings.DataGroupName,
             groupFields: [
               PropertyPaneTextField('siteUrl', { label: strings.SiteUrlLabel, description: strings.SiteUrlDescription, placeholder: 'https://contoso.sharepoint.com/sites/AIHub' }),
-              PropertyPaneTextField('agentsList', { label: strings.AgentsListLabel, placeholder: 'Agent Catalog' }),
-              PropertyPaneTextField('skillsList', { label: strings.SkillsListLabel, placeholder: 'Skill Library' }),
-              PropertyPaneTextField('htmlsList', { label: strings.HtmlsListLabel, placeholder: 'HTML Library' }),
-              PropertyPaneTextField('ideasList', { label: strings.IdeasListLabel, placeholder: 'Idea Board' }),
-              PropertyPaneTextField('casesList', { label: strings.CasesListLabel, placeholder: 'Case Library' })
+              PropertyPaneTextField('agentsList', { label: strings.AgentsListLabel, placeholder: 'AgentList' }),
+              PropertyPaneTextField('contentsList', { label: strings.ContentsListLabel, placeholder: 'HubContents' }),
+              PropertyPaneTextField('ideasList', { label: strings.IdeasListLabel, placeholder: 'HubIdeas' }),
+              PropertyPaneTextField('casesList', { label: strings.CasesListLabel, placeholder: 'HubCases' })
             ]
           },
           {

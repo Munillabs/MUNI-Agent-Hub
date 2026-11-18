@@ -4,18 +4,28 @@ import { IAgent, ICasePrompt, IIdea, IdeaStage, IReaction, ISolution, SolutionKi
 
 /* ---------- 선택지 (바꾸면 이미 저장된 값은 그대로 남습니다. 목록 열은 한 줄 텍스트) ---------- */
 export const AGENT_TOOLS: string[] = ['Copilot Studio', 'Agent Builder'];
-export const WORK_TYPES: string[] = ['회의 정리', '문서 작성', '요약', '검색·답변', '고객 응대', '규정 확인', '데이터 정리', '분류', '번역', '자동 실행 (메일·작업 생성)', '개발 지원'];
-export const OUTPUTS: string[] = ['답변', '문서 초안', '메일 초안', '표', '체크리스트', '기타'];
+/** AgentList 업무 분야(TaskArea) 선택 값과 같아야 필터가 맞습니다 */
+export const WORK_TYPES: string[] = ['회의 정리', '문서 작성', '요약', '검색 및 답변', '고객 응대', '규정 확인', '데이터 정리', '분류', '번역', '자동 실행', '개발 지원'];
+/** AgentList 결과물 형태(Output) 선택 값 */
+export const OUTPUTS: string[] = ['답변', '문서 초안', '메일 초안', '표', '체크리스트'];
 export const SCOPES: string[] = ['사내 업무용', '고객 프로젝트용'];
 export const SKILL_TOOLS: string[] = ['Cowork', 'Copilot', 'Copilot Studio', 'Agent Builder'];
-export const SKILL_KINDS: string[] = ['규칙 (지침)', '양식 (템플릿)', '참조 자료 (용어집·코드표)', '체크리스트', '업무 절차'];
+/* 아래 선택 값은 HubContents 목록의 선택 열 값과 같아야 합니다 (저장과 필터가 맞도록) */
+/** 종류(Category) 중 Skill 용 */
+export const SKILL_KINDS: string[] = ['규칙', '양식', '참조 자료', '체크리스트', '업무 절차'];
+/** 종류(Category) 중 HTML 용 */
+export const HTML_KINDS: string[] = ['계산기', '대시보드', '점검표', '투표 및 설문', '판단 도우미'];
+/** 업무 분야(WorkArea) */
 export const SKILL_AREAS: string[] = ['회의 정리', '문서 작성', '고객 응대', '규정 확인', '데이터 정리', '개발 지원'];
 export const SKILL_EXTS: string[] = ['md', 'txt', 'docx'];
 export const IDEA_TYPES: string[] = ['Agent', 'Skill', 'HTML', '기타'];
 export const CASE_INDUSTRIES: string[] = ['제조', '금융·보험', 'IT·통신·미디어', '유통·커머스', '공공·국제기관', '교육', '의료·복지', '건설·부동산', '에너지·환경',
   '물류·운송', '관광·숙박·외식', '전문·사업서비스', '문화·스포츠·여가', '농림수산·광업', '생활·기타서비스'];
 /** 사례: Copilot 활용 방식 */
-export const CASE_PATTERNS: string[] = ['초안 작성', '요약 · 분류', '검토 · 점검', '비교 분석', '데이터 시각화', '질의응답', '형식 변환'];
+/* 아래 사례 선택 값은 HubCases 목록의 선택 열 값과 같아야 합니다 */
+export const CASE_PATTERNS: string[] = ['초안 작성', '요약 및 분류', '검토 및 점검', '비교 분석', '데이터 시각화', '질의응답', '형식 변환'];
+/** 사례: 시기(Period) 선택 값. 목록에 분기를 더하면 여기도 더해 주세요. */
+export const CASE_PERIODS: string[] = ['2025 3분기', '2025 4분기', '2026 1분기', '2026 2분기', '2026 3분기', '2026 4분기'];
 /** 사례: 활용 제품 (목록의 색 점은 PRODUCT_CLASS) */
 export const CASE_PRODUCTS: string[] = ['Copilot', 'Copilot Cowork', 'Copilot Studio', 'Agent Builder', 'Word', 'Excel', 'PowerPoint', 'Outlook', 'Teams'];
 export const PRODUCT_CLASS: { [p: string]: string } = {
@@ -31,7 +41,8 @@ export const SOLUTION_KINDS: { k: SolutionKind; label: string; hint: string }[] 
 ];
 export const REPORT_KINDS: string[] = ['틀린 답변', '응답 없음·느림', '연결 오류', '권한 오류', '기타'];
 /** HTML 도구를 만든 도구 */
-export const MADE_WITH: string[] = ['Claude', 'ChatGPT', 'Copilot', '기타'];
+/** HTML 만든 도구 (도구(Tools) 열 값 중) */
+export const MADE_WITH: string[] = ['Claude', 'ChatGPT', 'Copilot', 'Cowork'];
 /** 올릴 수 있는 HTML 파일 최대 크기 (2MB) */
 export const HTML_MAX_BYTES = 2 * 1024 * 1024;
 /** 사례 효과 측정 칸: 'before|after' 로 저장 */
@@ -49,11 +60,43 @@ export function solutionLabel(k: string): string {
   return s ? s.label : k;
 }
 
-/** 사례 시기 선택지: 올해부터 2년 전까지 하반기·상반기 */
+/** 사례 시기 선택지: 목록의 분기 중 지금 분기까지, 최근 것이 먼저 */
 export function periodOptions(now: Date): string[] {
-  const out: string[] = [];
-  for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) { out.push(`${y} 하반기`, `${y} 상반기`); }
+  const cur = now.getFullYear() * 10 + Math.floor(now.getMonth() / 3) + 1;
+  const key = (p: string): number => { const m = /^(\d{4})\s*(\d)분기/.exec(p); return m ? Number(m[1]) * 10 + Number(m[2]) : 0; };
+  return CASE_PERIODS.filter(p => key(p) <= cur).sort((a, b) => key(b) - key(a));
+}
+
+/* ---------- HubCases 여러 줄 칸 ---------- */
+/** 전후 비교(Compare): 한 줄에 '항목|도입 전|도입 후' */
+export const CASE_COMPARE_LABELS: string[] = ['시간', '품질 수준', '정신적 노력 수준'];
+export function parseCompare(v: string): { label: string; before: string; after: string }[] {
+  return splitLines(v).map(line => {
+    const p = line.split('|').map(x => x.trim());
+    return p.length >= 3 ? { label: p[0], before: p[1], after: p.slice(2).join('|') } : undefined;
+  }).filter(x => !!x && (!!x.before || !!x.after)) as { label: string; before: string; after: string }[];
+}
+export function compareText(rows: { label: string; before: string; after: string }[]): string {
+  return rows.filter(r => !!r.before || !!r.after).map(r => `${r.label}|${r.before}|${r.after}`).join('\n');
+}
+/** 업무 프로세스(Process): '[Before]' 아래 도입 전 단계, '[After]' 아래 도입 후 단계를 한 줄에 하나.
+    AI가 맡는 After 단계는 끝에 ' [AI]' */
+const AI_MARK = /\s*\[AI\]\s*$/i;
+export function parseProcess(v: string): { before: string[]; after: string[]; aiStep: number } {
+  const out = { before: [] as string[], after: [] as string[], aiStep: -1 };
+  let sec: 'before' | 'after' = 'before';
+  splitLines(v).forEach(line => {
+    if (/^\[?\s*before\s*\]?$/i.test(line)) { sec = 'before'; return; }
+    if (/^\[?\s*after\s*\]?$/i.test(line)) { sec = 'after'; return; }
+    const text = line.replace(AI_MARK, '').replace(/^\d+[.)]\s*/, '');
+    if (!text) { return; }
+    if (sec === 'after' && AI_MARK.test(line) && out.aiStep < 0) { out.aiStep = out.after.length; }
+    out[sec].push(text);
+  });
   return out;
+}
+export function processText(before: string[], after: string[], aiStep: number): string {
+  return ['[Before]'].concat(before, ['[After]'], after.map((s, i) => i === aiStep ? s + ' [AI]' : s)).join('\n');
 }
 
 /* ---------- 여러 값을 한 칸에 저장 ---------- */
@@ -130,17 +173,31 @@ export function newestFirst(a: string, b: string): number {
   return (b || '').localeCompare(a || '');
 }
 
-/* ---------- 아이디어 단계 ----------
-   완성(운영 담당자가 표시) > 제작 중(참여자가 '만들기 시작하기'를 누름) > 보관됨(만들래요 없이 90일) > 모집 중
+/* ---------- 아이디어 단계 (HubIdeas) ----------
+   완성(상태 '완성' 또는 완성일) > 보관됨(상태 '보관' 또는 보관일, 단 그 뒤에 보관 해제했으면 아님)
+   > 제작 중(시작일) > 모집 중. 함께 만드는 사람 없이 90일이 지나면 계산으로도 보관됨.
    모집 중 안에서도 공감 10개 또는 만들래요 1명부터는 '함께할 사람 찾기' 단계로 보여 줍니다. */
 export const IDEA_LIKE_GOAL = 10;
+/** HubIdeas 상태(Status) 선택 값 */
+export const IDEA_STATUS = { live: '모집 중', making: '제작 중', done: '완성', archived: '보관' };
+/** HubIdeas 빈도(Frequency) 선택 값과 한 달 횟수 */
+export const IDEA_FREQS: string[] = ['매일', '매주', '매월', '가끔'];
+const PER_MONTH: { [f: string]: number } = { '매일': 20, '매주': 4, '매월': 1 };
+/** 한 달에 아낄 수 있는 시간(분). 빈도가 '가끔'이거나 비어 있으면 0 */
+export function ideaMonthlyMinutes(i: { frequency: string; minutes?: number }): number {
+  return (PER_MONTH[i.frequency] || 0) * (i.minutes || 0);
+}
 export function ideaStart(i: IIdea): string {
   return i.revivedOn && i.revivedOn > i.created ? i.revivedOn : i.created;
 }
-export function ideaStage(i: IIdea, makers: number, now: Date, started?: boolean): IdeaStage {
-  if (i.status === '완성') { return 'done'; }
-  if (started) { return 'making'; }
-  if (makers > 0) { return 'live'; }
+export function ideaStage(i: IIdea, now: Date): IdeaStage {
+  if (i.status === IDEA_STATUS.done || i.doneAt) { return 'done'; }
+  const revived = (at: string): boolean => !!i.revivedOn && i.revivedOn > at;
+  if (i.archivedOn && !revived(i.archivedOn)) { return 'archived'; }
+  // 보관 해제하면 상태도 '모집 중'으로 바꿔 저장합니다
+  if (i.status === IDEA_STATUS.archived) { return 'archived'; }
+  if (i.startedOn) { return 'making'; }
+  if (i.makers.length > 0) { return 'live'; }
   return daysSince(ideaStart(i), now) >= IDEA_ARCHIVE_DAYS ? 'archived' : 'live';
 }
 /** 보관까지 남은 날 */

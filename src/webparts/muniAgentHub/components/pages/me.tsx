@@ -82,7 +82,7 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
       <div className="dgrid"><section className="dcard dtodo" aria-labelledby="hub-todo-h"><header><span className="dic t-n">{ICON.n}</span><h2 id="hub-todo-h">확인할 일 <span className="pill">{todo.length}</span></h2></header>
         {todo.length ? <ul className="mclist">{todo.map(n => (
           <li key={n.id}><span className="dn"><b>{n.title}</b><small>{n.sub} · {relDay(n.date, api.now)}</small></span>
-            <span className="mcb"><Go go={api.go} view={n.view} id={n.target || undefined} className={'btn sm' + (n.view === 'agentform' ? ' pri' : '')}>{n.btn === '소개 작성' ? n.btn : '자세히'}</Go></span></li>
+            <span className="mcb"><Go go={api.go} view={n.view} id={n.target || undefined} className="btn sm">자세히</Go></span></li>
         ))}</ul> : <p className="note" style={{ margin: '4px 0 0' }}>지금 확인할 일이 없어요.</p>}
       </section></div>
       <section className="dsec mycon" aria-labelledby="hub-mc-h">

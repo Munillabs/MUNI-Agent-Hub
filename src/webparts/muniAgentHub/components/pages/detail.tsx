@@ -4,6 +4,7 @@ import { IAgent, IHtmlTool, IPerson, ISkill, IVersion, TargetType } from '../../
 import { extLabel, first, isEmail, isHttpsUrl, mmdd, ymd } from '../../models/rules';
 import { IHubApi } from '../api';
 import { Clamp, Crumb, DetailTabs, Empty, Go, Pill, RatingSummary, ReviewRow, StarInput } from '../ui';
+import { Person } from '../persona';
 
 function teamsChat(p?: IPerson): string {
   return p && isEmail(p.email) ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(p.email)}` : '';
@@ -146,19 +147,19 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
         <div className="dp-title">
           <h1>{a.title}</h1>
           <p className="sub">{a.summary}</p>
-          <p className="by">{a.tool ? <Pill>{a.tool}</Pill> : null} {a.owner ? <a href={teamsChat(a.owner) || '#'} target="_blank" rel="noopener noreferrer">{a.owner.name}</a> : null}</p>
+          <p className="by">{a.tool ? <Pill>{a.tool}</Pill> : null} {a.owner ? <Person p={a.owner}><a href={teamsChat(a.owner) || '#'} target="_blank" rel="noopener noreferrer">{a.owner.name}</a></Person> : null}</p>
         </div>
         <div className="dp-cta">
           {isHttpsUrl(a.installLink)
             ? <a className="btn pri big" href={a.installLink} target="_blank" rel="noopener noreferrer">Teams에서 열기</a>
             : <button type="button" className="btn pri big" disabled={true} title="열기 링크가 아직 없어요">Teams에서 열기</button>}
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Agent', title: a.title, owner: a.owner }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
-          <OwnBar api={api} t="Agent" id={a.id} view="agent">{mine ? <button type="button" className="fav" onClick={() => api.go('agentform', a.id)}>소개 편집</button> : null}</OwnBar>
+          <OwnBar api={api} t="Agent" id={a.id} view="agent" />
         </div>
       </header>
       <dl className="dp-meta">
         <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>업무 유형</dt><dd>{a.workType || '—'}</dd></div>
+        <div><dt>업무 분야</dt><dd>{a.workType || '—'}</dd></div>
         <div><dt>결과물</dt><dd>{a.output || '—'}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(a.modified)}</dd></div>
       </dl>
@@ -171,15 +172,17 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
             <MakerNote text={a.makerNote} images={a.images} />
             {a.prompts.length ? (
               <section className="dsec"><h2>이렇게 말해 보세요</h2>
-                <ul className="pex">{a.prompts.map((p, k) => <li key={k}>{a.workType ? <span className="ptag">{a.workType}</span> : null}<p>{p}</p><button className="btn sm" type="button" onClick={() => api.copy(p, '복사했어요')}>복사</button></li>)}</ul></section>
+                <ul className="pex">{a.prompts.map((p, k) => <li key={k}>{a.workTypes[0] ? <span className="ptag">{a.workTypes[0]}</span> : null}<p>{p}</p><button className="btn sm" type="button" onClick={() => api.copy(p, '복사했어요')}>복사</button></li>)}</ul></section>
             ) : null}
           </div>
           <aside className="dp-side"><div className="box"><h3>정보</h3>
             <table className="kv"><tbody>
-              <tr><th>사용 범위</th><td>{a.scopes.length ? a.scopes.map(s => s.replace(/(업무용|용)$/, '')).join(' · ') : '—'}</td></tr>
-              <tr><th>Owner</th><td>{a.owner ? a.owner.name : '—'}</td></tr>
-              {a.sponsor ? <tr><th>Sponsor</th><td>{a.sponsor.name}</td></tr> : null}
-              <tr><th>처음 등록</th><td>{ymd(a.created)}</td></tr>
+              <tr><th>사용 범위</th><td>{a.scopes.length ? a.scopes.map(s => s.replace(/\s*(업무용|용)$/, '')).join(' · ') : '—'}</td></tr>
+              <tr><th>Owner</th><td><Person p={a.owner} /></td></tr>
+              {a.sponsor ? <tr><th>Sponsor</th><td><Person p={a.sponsor} /></td></tr> : null}
+              <tr><th>처음 배포</th><td>{ymd(a.created)}</td></tr>
+              {a.uses30 !== undefined ? <tr><th>30일 사용</th><td>{a.uses30}회</td></tr> : null}
+              {a.views !== undefined ? <tr><th>조회수</th><td>{a.views}회</td></tr> : null}
             </tbody></table>
             <AskBtn api={api} who={[a.owner, a.sponsor]} tip={a.sponsor ? 'Owner, Sponsor에게 Teams 채팅을 열어요' : 'Owner에게 Teams 채팅을 열어요'} /></div></aside>
         </div></section>
@@ -222,7 +225,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Skill Store', view: 'skills' }, { label: k.title }]} />
       <header className="dp-head">
         <span className="ad-icon sk" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z" /></svg></span>
-        <div className="dp-title"><h1>{k.title}</h1><p className="sub">{k.summary}</p><p className="by"><Pill>Skill</Pill> {k.author ? <a href={teamsChat(k.author) || '#'} target="_blank" rel="noopener noreferrer">{k.author.name}</a> : null}</p></div>
+        <div className="dp-title"><h1>{k.title}</h1><p className="sub">{k.summary}</p><p className="by"><Pill>Skill</Pill> {k.author ? <Person p={k.author}><a href={teamsChat(k.author) || '#'} target="_blank" rel="noopener noreferrer">{k.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">
           <a className="btn pri big" href={k.fileUrl + '?download=1'} download={k.fileName}>파일 받기</a>
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Skill', title: k.title, owner: k.author }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
@@ -252,8 +255,9 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
           <table className="kv"><tbody>
             <tr><th>사용 범위</th><td>{k.scope || '—'}</td></tr>
             <tr><th>활용 도구</th><td>{k.tools.map((t, i) => <React.Fragment key={t}>{i ? <br /> : null}{t}</React.Fragment>)}</td></tr>
-            <tr><th>등록자</th><td>{k.author ? k.author.name : '—'}</td></tr>
+            <tr><th>등록자</th><td><Person p={k.author} /></td></tr>
             <tr><th>처음 등록</th><td>{ymd(k.created)}</td></tr>
+            {k.views !== undefined ? <tr><th>조회수</th><td>{k.views}회</td></tr> : null}
           </tbody></table>
           <AskBtn api={api} who={[k.author]} tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
         </div></section>
@@ -278,7 +282,7 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'HTML', view: 'htools' }, { label: h.title }]} />
       <header className="dp-head">
         <span className="ad-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 13l-2 2 2 2M15 13l2 2-2 2" /></svg></span>
-        <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p><p className="by"><Pill>HTML</Pill> {h.author ? <a href={teamsChat(h.author) || '#'} target="_blank" rel="noopener noreferrer">{h.author.name}</a> : null}</p></div>
+        <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p><p className="by"><Pill>HTML</Pill> {h.author ? <Person p={h.author}><a href={teamsChat(h.author) || '#'} target="_blank" rel="noopener noreferrer">{h.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">
           <button type="button" className="btn pri big" onClick={() => api.openHtml(h)}>열기 ↗</button>
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'HTML', title: h.title, owner: h.author }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
@@ -290,7 +294,7 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
       </header>
       <dl className="dp-meta">
         <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>업무 유형</dt><dd>{h.workType || '—'}</dd></div>
+        <div><dt>종류</dt><dd>{h.workType || '—'}</dd></div>
         <div><dt>결과물</dt><dd>{h.output || '—'}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(h.modified)}</dd></div>
       </dl>
@@ -302,10 +306,12 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
         </div>
         <aside className="dp-side"><div className="box"><h3>정보</h3>
           <table className="kv"><tbody>
-            <tr><th>사용 범위</th><td>{h.scope ? h.scope.replace(/ 업무용$/, '') : '—'}</td></tr>
+            <tr><th>업무 분야</th><td>{h.area || '—'}</td></tr>
+            <tr><th>사용 범위</th><td>{h.scopes.length ? h.scopes.map(s => s.replace(/\s*(업무용|용)$/, '')).join(' · ') : '—'}</td></tr>
             <tr><th>제작 도구</th><td>{h.madeWith || '—'}</td></tr>
-            <tr><th>등록자</th><td>{h.author ? h.author.name : '—'}</td></tr>
+            <tr><th>등록자</th><td><Person p={h.author} /></td></tr>
             <tr><th>처음 등록</th><td>{ymd(h.created)}</td></tr>
+            {h.views !== undefined ? <tr><th>조회수</th><td>{h.views}회</td></tr> : null}
           </tbody></table>
           <AskBtn api={api} who={[h.author]} tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
         </div></section>

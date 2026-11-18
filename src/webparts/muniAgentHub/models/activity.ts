@@ -1,7 +1,8 @@
 /* 활동 점수 · 부문별 랭킹 · 배지 · 알림
    별도 목록 없이 지금 읽어 온 목록 데이터(아이디어, Agent, 사례, 반응)로 바로 계산합니다.
    점수 기준은 랭킹 화면의 '점수는 이렇게 쌓여요' 표와 같습니다.
-   별점·공감(좋아요)은 SharePoint가 날짜를 남기지 않아 '최근 30일' 계산에서 빠지고, 기간 없는 배지·인기 Agent에만 씁니다. */
+   공감(좋아요)과 댓글 없는 별점은 SharePoint가 날짜를 남기지 않아 '최근 30일' 계산에서 빠지고, 기간 없는 배지에만 씁니다.
+   '지금 부문별 1위'(awards)는 6개 부문 모두 기간 없이 지금까지의 활동으로 셉니다. */
 import { HubView, IHubData, IPerson } from './types';
 import { daysSince, first } from './rules';
 
@@ -15,8 +16,12 @@ export const POINTS = {
   deploy: 10        // Agent 배포 (Marketplace에 올라감)
 };
 
-export interface IRankRow { key: string; name: string; value: number; view?: HubView; id?: number }
-export interface IAward { k: string; title: string; icon: string; crit: string; unit: string; rows: IRankRow[]; mine?: { rank: number; value: number; gap: number; label?: string } }
+/** tie: 주 기준(value)이 같을 때 차례로 비교하는 값 (클수록 앞) */
+/** by: 게시물이 1위 대상일 때 올린 사람 이름 */
+export interface IRankRow { key: string; name: string; value: number; view?: HubView; id?: number; tie?: number[]; by?: string }
+/** tieLabels: tie 값마다 붙일 이름과 표시 방법 (Home의 '2위와 비교' 문구) */
+/** fmt: 값 표시 방법 (없으면 정수 그대로. 인기 Agent는 평점 4.5) */
+export interface IAward { k: string; title: string; icon: string; crit: string; unit: string; rows: IRankRow[]; fmt?: (n: number) => string; tieLabels?: { label: string; fmt: (n: number) => string }[]; mine?: { rank: number; value: number; gap: number; label?: string } }
 export interface IBadge { k: string; title: string; mark: string; desc: string; got: boolean; date?: string; have?: number; need?: number }
 export interface INotice { id: string; kind: 'mine' | 'idea' | 'all'; title: string; sub: string; date: string; view: HubView; target: number; btn?: string }
 
@@ -65,9 +70,19 @@ export function myScore(d: IHubData, me: IPerson, now: Date): { score: number; r
 }
 
 /* ---------- 부문별 랭킹 ---------- */
-function rank(counts: { [key: string]: { name: string; value: number; view?: HubView; id?: number } }): IRankRow[] {
-  return Object.keys(counts).map(k => ({ key: k, name: counts[k].name, value: counts[k].value, view: counts[k].view, id: counts[k].id }))
-    .filter(r => r.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, 'ko'));
+/** 주 기준이 같은 두 줄을 tie 값으로 차례로 비교합니다. 0이면 끝까지 같음 */
+export function tieCompare(a: IRankRow, b: IRankRow): number {
+  const x = a.tie || [];
+  const y = b.tie || [];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (y[i] || 0) - (x[i] || 0);
+    if (d) { return d; }
+  }
+  return 0;
+}
+function rank(counts: { [key: string]: { name: string; value: number; view?: HubView; id?: number; tie?: number[]; by?: string } }): IRankRow[] {
+  return Object.keys(counts).map(k => ({ key: k, name: counts[k].name, value: counts[k].value, view: counts[k].view, id: counts[k].id, tie: counts[k].tie, by: counts[k].by }))
+    .filter(r => r.value > 0).sort((a, b) => b.value - a.value || tieCompare(a, b) || a.name.localeCompare(b.name, 'ko'));
 }
 function mineOf(rows: IRankRow[], key: string): { rank: number; value: number; gap: number } {
   const i = rows.map(r => r.key).indexOf(key);
@@ -82,41 +97,73 @@ export function awards(d: IHubData, me: IPerson, now: Date): IAward[] {
     m[key].value += n;
   };
   const ideaKing: { [k: string]: { name: string; value: number } } = {};
-  d.ideas.forEach(i => {
-    const made = d.reactions.some(r => r.targetType === 'Idea' && r.targetId === i.id && r.kind === '만들래요' && r.author && (!i.author || r.author.id !== i.author.id) && within(r.created, now));
-    if (made && i.author) { add(ideaKing, String(i.author.id), i.author.name, 1); }
-  });
+  // 아이디어왕: Idea Board에 올린 아이디어 수
+  d.ideas.forEach(i => { if (i.author) { add(ideaKing, String(i.author.id), i.author.name, 1); } });
   const maker: { [k: string]: { name: string; value: number } } = {};
-  d.agents.filter(a => a.owner && within(a.created, now)).forEach(a => add(maker, String(a.owner!.id), a.owner!.name, 1));
-  const popular: { [k: string]: { name: string; value: number; view?: HubView; id?: number } } = {};
-  // 인기 Agent: 받은 별점 평가 수 (별점은 날짜가 없어 전체 기간)
-  d.reactions.filter(r => r.kind === '리뷰' && r.targetType === 'Agent' && !!r.rating).forEach(r => {
-    const a = first(d.agents, x => x.id === r.targetId);
-    if (a) { add(popular, String(a.id), a.title, 1, 'agent', a.id); }
+  d.agents.filter(a => a.owner).forEach(a => add(maker, String(a.owner!.id), a.owner!.name, 1));
+  const popular: { [k: string]: { name: string; value: number; view?: HubView; id?: number; tie?: number[] } } = {};
+  // 6개 부문 모두 기간 제한 없이 지금까지의 활동으로 셉니다. (Home에서는 1분마다 다시 계산)
+  // 인기 Agent: 평점(받은 별점의 평균, 소수 첫째 자리). 같으면 ① 조회수(ViewCount) ② 평가 수 ③ 글을 남긴 리뷰 수 순으로 가립니다
+  d.agents.forEach(a => {
+    const rv = d.reactions.filter(r => r.kind === '리뷰' && r.targetType === 'Agent' && r.targetId === a.id);
+    const rated = rv.filter(r => !!r.rating);
+    if (!rated.length) { return; }
+    const avg = Math.round(rated.reduce((s, r) => s + (r.rating || 0), 0) / rated.length * 10) / 10;
+    popular[String(a.id)] = { name: a.title, value: avg, view: 'agent', id: a.id,
+      tie: [a.views || 0, rated.length, rv.filter(r => !!(r.body || '').trim()).length] };
   });
-  const cheer: { [k: string]: { name: string; value: number } } = {};
-  d.reactions.filter(r => r.targetType === 'Idea' && r.kind === '댓글' && r.author && within(r.created, now)).forEach(r => {
+  // 리뷰왕: 다른 사람의 Agent·Skill·HTML에 남긴 리뷰 + 다른 사람 아이디어에 남긴 댓글 수 (내 것에 단 건 빼요)
+  const reviewer: { [k: string]: { name: string; value: number } } = {};
+  const posterOf = (t: string, id: number): IPerson | undefined => {
+    if (t === 'Agent') { const a = first(d.agents, x => x.id === id); return a && a.owner; }
+    if (t === 'Skill') { const s = first(d.skills, x => x.id === id); return s && s.author; }
+    if (t === 'Html') { const h = first(d.htmls, x => x.id === id); return h && h.author; }
+    return undefined;
+  };
+  d.reactions.filter(r => r.kind === '리뷰' && r.author && (r.targetType === 'Agent' || r.targetType === 'Skill' || r.targetType === 'Html')).forEach(r => {
+    const p = posterOf(r.targetType, r.targetId);
+    if (!(p && p.id === r.author!.id)) { add(reviewer, String(r.author!.id), r.author!.name, 1); }
+  });
+  // 아이디어에 남긴 댓글도 리뷰로 셉니다 (내 아이디어에 단 댓글은 빼요)
+  d.reactions.filter(r => r.kind === '댓글' && r.targetType === 'Idea' && r.author).forEach(r => {
     const idea = first(d.ideas, i => i.id === r.targetId);
-    if (idea && !(idea.author && idea.author.id === r.author!.id)) { add(cheer, String(r.author!.id), r.author!.name, 1); }
+    if (idea && !(idea.author && idea.author.id === r.author!.id)) { add(reviewer, String(r.author!.id), r.author!.name, 1); }
   });
-  const record: { [k: string]: { name: string; value: number } } = {};
-  d.cases.filter(c => !c.pending && c.author && within(c.created, now)).forEach(c => add(record, String(c.author!.id), c.author!.name, 1));
+  // 공유왕: Marketplace에 올린 Skill·HTML 수
+  const sharer: { [k: string]: { name: string; value: number } } = {};
+  d.skills.forEach(s => { if (s.author) { add(sharer, String(s.author.id), s.author.name, 1); } });
+  d.htmls.forEach(h => { if (h.author) { add(sharer, String(h.author.id), h.author.name, 1); } });
+  // 조회수왕: Agent·Skill·HTML 중 조회수(ViewCount 열)가 가장 높은 게시물과 올린 사람. 같으면 이름순으로 하나만
+  const viewed: { [k: string]: { name: string; value: number; view?: HubView; id?: number; by?: string; owner?: number } } = {};
+  const post = (t: string, view: HubView, x: { id: number; title: string; views?: number }, p?: IPerson): void => {
+    if (!x.views || !p) { return; }
+    viewed[`${t}:${x.id}`] = { name: x.title, value: x.views, view, id: x.id, by: p.name, owner: p.id };
+  };
+  d.agents.forEach(a => post('Agent', 'agent', a, a.owner));
+  d.skills.forEach(s => post('Skill', 'skill', s, s.author));
+  d.htmls.forEach(h => post('Html', 'htool', h, h.author));
 
   const meKey = String(me.id);
   const list: IAward[] = [
-    { k: 'idea', title: '아이디어왕', icon: '💡', crit: '내 아이디어를 누군가 만들기 시작한 수', unit: '만들어짐', rows: rank(ideaKing) },
-    { k: 'maker', title: '메이커', icon: '🛠', crit: 'Marketplace에 올린 Agent 수', unit: '배포', rows: rank(maker) },
-    { k: 'pop', title: '인기 Agent', icon: '🔥', crit: '받은 별점 평가 수', unit: '평가', rows: rank(popular) },
-    { k: 'cheer', title: '공감왕', icon: '👏', crit: '다른 사람 아이디어에 남긴 댓글 수', unit: '댓글', rows: rank(cheer) },
-    { k: 'record', title: '기록왕', icon: '📚', crit: 'Case Library에 올린 사례 수', unit: '사례', rows: rank(record) }
+    { k: 'idea', title: '아이디어왕', icon: '💡', crit: 'Idea Board에 올린 아이디어 수', unit: '아이디어', rows: rank(ideaKing) },
+    { k: 'maker', title: '메이커', icon: '🛠', crit: 'Marketplace에 올린 Agent 수', unit: 'Agent 배포', rows: rank(maker) },
+    { k: 'pop', title: '인기 Agent', icon: '🔥', crit: '평점 (받은 별점의 평균, 같으면 조회수 → 평가 수 → 리뷰 글 수)', unit: '평점', rows: rank(popular), fmt: n => n.toFixed(1),
+      tieLabels: [{ label: '조회', fmt: n => n + '회' }, { label: '평가', fmt: n => n + '개' }, { label: '리뷰 글', fmt: n => n + '개' }] },
+    { k: 'review', title: '리뷰왕', icon: '⭐', crit: '다른 사람 Agent·Skill·HTML에 남긴 리뷰 + 아이디어에 남긴 댓글 수', unit: '리뷰', rows: rank(reviewer) },
+    { k: 'share', title: '공유왕', icon: '📚', crit: 'Marketplace에 올린 Skill·HTML 수', unit: 'Skill·HTML 공유', rows: rank(sharer) },
+    { k: 'views', title: '조회수왕', icon: '👀', crit: '내가 올린 Agent·Skill·HTML 중 조회수가 가장 높은 게시물', unit: '조회', rows: rank(viewed) }
   ];
   list.forEach(a => {
-    if (a.k === 'pop') {
-      // 인기 Agent는 내 Agent 중 가장 높은 순위
+    if (a.k === 'pop' || a.k === 'views') {
+      // 게시물 부문은 내 게시물 중 가장 높은 순위
+      const mineRow = (r: IRankRow): boolean => {
+        if (a.k === 'views') { const v = viewed[r.key]; return !!v && v.owner === me.id; }
+        const ag = first(d.agents, x => String(x.id) === r.key);
+        return !!(ag && ag.owner && ag.owner.id === me.id);
+      };
       let best: { rank: number; value: number; gap: number; label?: string } | undefined;
       a.rows.forEach((r, i) => {
-        const ag = first(d.agents, x => String(x.id) === r.key);
-        if (ag && ag.owner && ag.owner.id === me.id && !best) { best = { rank: i + 1, value: r.value, gap: i ? a.rows[0].value - r.value : 0, label: ag.title }; }
+        if (!best && mineRow(r)) { best = { rank: i + 1, value: r.value, gap: i ? a.rows[0].value - r.value : 0, label: r.name }; }
       });
       a.mine = best;
     } else {
@@ -179,7 +226,7 @@ export function notices(d: IHubData, me: IPerson, now: Date): INotice[] {
 
   myAgents.forEach(a => {
     if (!a.does.length || !a.prompts.length) {
-      out.push({ id: 'fill-' + a.id + '-' + a.modified, kind: 'mine', title: `${a.title} 소개를 채워 주세요`, sub: "'이런 일을 해요'와 '이렇게 말해 보세요'가 비어 있어요", date: a.modified, view: 'agentform', target: a.id, btn: '소개 작성' });
+      out.push({ id: 'fill-' + a.id + '-' + a.modified, kind: 'mine', title: `${a.title} 소개를 채워 주세요`, sub: "'이런 일을 해요'와 '이렇게 말해 보세요'가 비어 있어요. 배포 Agent에서 Profile Card를 다시 보내 주세요", date: a.modified, view: 'agent', target: a.id, btn: '자세히' });
     }
   });
   d.reactions.filter(r => r.kind === '리뷰' && others(r.author) && within(r.created, now)).forEach(r => {

@@ -2,7 +2,7 @@
    종류 탭(전체 · Agent · Skill · HTML)은 머리글 아래 mksub 에 있습니다. */
 import * as React from 'react';
 import { IAgent, IHtmlTool, ISkill } from '../../models/types';
-import { AGENT_TOOLS, OUTPUTS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_TOOLS, WORK_TYPES, contains, mmdd, newestFirst } from '../../models/rules';
+import { AGENT_TOOLS, HTML_KINDS, MADE_WITH, OUTPUTS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_TOOLS, WORK_TYPES, contains, mmdd, newestFirst } from '../../models/rules';
 import { IHubApi } from '../api';
 import { Empty, Go, Highlight, IconAgent, IconHtml, IconSkill, ListError, Pill } from '../ui';
 import { Applied, BigSearch, FilterState, Filters, IFilterGroup, ListSearch, anyOf, feed, heat, hotList } from './common';
@@ -95,7 +95,7 @@ export function AgentCard(props: { api: IHubApi; agent: IAgent; q?: string }): J
 }
 const AGENT_FILTERS: IFilterGroup[] = [
   { k: 'tool', label: '만든 도구', items: AGENT_TOOLS, single: true, open: true },
-  { k: 'work', label: '업무 유형', items: WORK_TYPES, open: true },
+  { k: 'work', label: '업무 분야', items: WORK_TYPES, open: true },
   { k: 'out', label: '결과물 형태', items: OUTPUTS },
   { k: 'scope', label: '사용 범위', items: SCOPES },
   { k: 'skill', label: 'Skill 사용 여부', items: ['사용함', '사용 안 함'], single: true },
@@ -109,7 +109,7 @@ export function AgentStore(props: { api: IHubApi }): JSX.Element {
   const [more, setMore] = React.useState(6);
   const rows = api.data.agents.filter(a => {
     const sk = fl.skill && fl.skill[0];
-    return anyOf(fl.tool, [a.tool]) && anyOf(fl.work, [a.workType]) && anyOf(fl.out, [a.output]) && anyOf(fl.scope, a.scopes)
+    return anyOf(fl.tool, [a.tool]) && anyOf(fl.work, a.workTypes) && anyOf(fl.out, a.outputs) && anyOf(fl.scope, a.scopes)
       && (!sk || sk === '전체' || (sk === '사용함') === (a.linkedSkills.length > 0)) && starOk(fl.star, api.rating('Agent', a.id).avg)
       && (!q.trim() || [a.title, a.summary, a.workType, a.does.join(' ')].some(x => contains(x, q.trim())));
   }).sort(sort === 'new' ? (a, b) => newestFirst(a.created, b.created)
@@ -126,7 +126,7 @@ export function AgentStore(props: { api: IHubApi }): JSX.Element {
             <Sort id="hub-ag-sort" value={sort} onChange={setSort} options={[['hot', '인기순'], ['new', '최신순'], ['star', '별점순']]} /></div>
           {rows.length ? <div className="g3">{rows.slice(0, more).map(a => <AgentCard key={a.id} api={api} agent={a} q={q} />)}</div>
             : <NoMatch api={api} lab="Agent" ga="가" q={q} filtered={filtered(fl)} total={api.data.agents.length} onClearQ={() => setQ('')} onClearF={() => setFl({})}
-              add={<Go go={api.go} view="agentform" className="btn sm pri">＋ Agent 올리기</Go>} />}
+              add={<Go go={api.go} view="maker" className="btn sm pri">＋ Agent 올리기</Go>} />}
           {rows.length > more ? <div style={{ textAlign: 'center', margin: '28px 0 72px' }}><button type="button" className="btn" onClick={() => setMore(more + 6)}>더 보기 ({more} / {rows.length})</button></div> : <div style={{ height: 72 }} />}
         </div>
       </div>}
@@ -173,7 +173,7 @@ export function SkillCard(props: { api: IHubApi; skill: ISkill; q?: string }): J
 const SKILL_FILTERS: IFilterGroup[] = [
   { k: 'tool', label: '활용 도구', items: SKILL_TOOLS, open: true },
   { k: 'area', label: '업무 분야', items: SKILL_AREAS, open: true },
-  { k: 'kind', label: 'Skill 종류', items: SKILL_KINDS },
+  { k: 'kind', label: '종류', items: SKILL_KINDS },
   { k: 'ext', label: '파일 형식', items: SKILL_EXTS.map(x => '.' + x) },
   { k: 'scope', label: '사용 범위', items: SCOPES },
   STAR_GROUP
@@ -183,8 +183,8 @@ export function SkillStore(props: { api: IHubApi }): JSX.Element {
   const [q, setQ] = React.useState('');
   const [fl, setFl] = React.useState<FilterState>({});
   const [sort, setSort] = React.useState('hot');
-  const rows = api.data.skills.filter(s => anyOf(fl.tool, s.tools) && anyOf(fl.area, [s.area]) && anyOf(fl.kind, [s.kind]) && anyOf(fl.ext, ['.' + s.ext])
-    && anyOf(fl.scope, [s.scope]) && starOk(fl.star, api.rating('Skill', s.id).avg)
+  const rows = api.data.skills.filter(s => anyOf(fl.tool, s.tools) && anyOf(fl.area, s.areas) && anyOf(fl.kind, [s.kind]) && anyOf(fl.ext, ['.' + s.ext])
+    && anyOf(fl.scope, s.scopes) && starOk(fl.star, api.rating('Skill', s.id).avg)
     && (!q.trim() || [s.title, s.summary, s.purpose, s.usage, s.fileName].some(x => contains(x, q.trim()))))
     .sort(sort === 'new' ? (a, b) => newestFirst(a.modified, b.modified)
       : sort === 'star' ? (a, b) => api.rating('Skill', b.id).avg - api.rating('Skill', a.id).avg
@@ -220,31 +220,27 @@ export function HtmlCard(props: { api: IHubApi; tool: IHtmlTool; q?: string }): 
       <div className="bbd">
         <h3><Go go={api.go} view="htool" id={h.id} className="stretch" style={{ textDecoration: 'none' }}><Highlight text={h.title} q={props.q || ''} /></Go></h3>
         <p><Highlight text={h.summary} q={props.q || ''} /></p>
-        <div className="bpills">{h.madeWith ? <Pill>{h.madeWith}로 제작</Pill> : null}<Pill>사내 실행</Pill></div>
+        <div className="bpills">{h.madeWith ? <Pill>{h.tools[0]}로 제작</Pill> : null}<Pill>사내 실행</Pill></div>
         <div className="ft"><span>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</span><span className="aown">{h.author ? h.author.name : ''}</span></div>
       </div>
     </article>
   );
 }
 const HTML_FILTERS: IFilterGroup[] = [
-  { k: 'made', label: '제작 도구', items: ['Claude', 'ChatGPT', 'Copilot', 'Cowork'], open: true },
+  { k: 'made', label: '제작 도구', items: MADE_WITH, open: true },
   { k: 'area', label: '업무 분야', items: SKILL_AREAS, open: true },
-  { k: 'kind', label: 'HTML 종류', items: ['계산기', '대시보드', '점검표', '투표·설문', '판단 도우미'] },
+  { k: 'kind', label: '종류', items: HTML_KINDS },
   { k: 'scope', label: '사용 범위', items: SCOPES },
   STAR_GROUP
 ];
-/** 업무 분야·종류는 따로 저장하는 열이 없어 업무 유형·결과물·소개 글에서 찾습니다 */
-function textHas(sel: string[] | undefined, text: string): boolean {
-  return !sel || !sel.length || sel.some(s => contains(text, s.replace(/·.*$/, '')));
-}
 export function HtmlStore(props: { api: IHubApi }): JSX.Element {
   const { api } = props;
   const [q, setQ] = React.useState('');
   const [fl, setFl] = React.useState<FilterState>({});
   const [sort, setSort] = React.useState('hot');
   const rows = api.data.htmls.filter(h => {
-    const text = [h.title, h.summary, h.workType, h.output, h.does.join(' ')].join(' ');
-    return anyOf(fl.made, [h.madeWith]) && textHas(fl.area, text) && textHas(fl.kind, text) && anyOf(fl.scope, [h.scope])
+    const text = [h.title, h.summary, h.workType, h.area, h.output, h.does.join(' ')].join(' ');
+    return anyOf(fl.made, h.tools) && anyOf(fl.area, h.areas) && anyOf(fl.kind, [h.workType]) && anyOf(fl.scope, h.scopes)
       && starOk(fl.star, api.rating('Html', h.id).avg) && (!q.trim() || contains(text, q.trim()));
   }).sort(sort === 'new' ? (a, b) => newestFirst(a.modified, b.modified)
     : sort === 'star' ? (a, b) => api.rating('Html', b.id).avg - api.rating('Html', a.id).avg

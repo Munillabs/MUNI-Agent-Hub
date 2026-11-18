@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { HubView, IReaction } from '../models/types';
 import { mmdd, stars } from '../models/rules';
+import { Person } from './persona';
 
 /* ---------- 아이콘 (선 아이콘, currentColor) ---------- */
 function Svg(props: { d: React.ReactNode; size?: number; w?: number }): JSX.Element {
@@ -125,7 +126,7 @@ export function ReviewRow(props: { r: IReaction; onEdit?: (rating: number, body:
   }
   return (
     <li><span className="t"><b>{r.rating ? stars(r.rating) : ''} {lines[0]}</b>
-      <span>{lines.length > 1 ? lines.slice(1).join(' ') + ' · ' : ''}{r.author ? r.author.name : '—'}{r.created ? ' · ' + mmdd(r.created) : ''}</span></span>
+      <span>{lines.length > 1 ? lines.slice(1).join(' ') + ' · ' : ''}<Person p={r.author} />{r.created ? ' · ' + mmdd(r.created) : ''}</span></span>
       {props.onEdit ? (
         <button type="button" className="rv-edit" onClick={open} aria-label="내 리뷰 고치기" title="고치기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
@@ -185,7 +186,7 @@ export function CommentRow(props: { r: IReaction; onEdit?: (body: string) => Pro
   };
   return (
     <li>
-      <b>{props.r.author ? props.r.author.name : '나'}</b>{editing ? null : props.r.body} <small>{mmdd(props.r.created)}</small>
+      <b><Person p={props.r.author} fallback="나" /></b>{editing ? null : props.r.body} <small>{mmdd(props.r.created)}</small>
       {(props.onEdit || props.onDelete) && !editing ? (
         <span className="cact">
           {confirming ? <><span>삭제할까요?</span><button type="button" className="del" disabled={busy} onClick={() => { remove().catch(() => undefined); }}>삭제</button><button type="button" onClick={() => setConfirming(false)}>취소</button></>

@@ -4,10 +4,12 @@
    - 열 내부 이름은 README의 'SharePoint 목록'과 같습니다. */
 import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions } from '@microsoft/sp-http';
 import {
-  IAgent, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewAgent, INewCase, INewHtml, INewIdea, INewSkill,
+  IAgent, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill,
   IPerson, IReaction, ISkill, IVersion, TargetType
 } from '../models/types';
-import { extOf, originalSkillName, parseEffect, parsePrompts, parseSolutions, promptsText, solutionsText, splitLines, storedSkillName } from '../models/rules';
+import {
+  IDEA_STATUS, compareText, extOf, originalSkillName, parseCompare, parseProcess, parsePrompts, parseSolutions, processText, promptsText, solutionsText, splitLines, storedSkillName
+} from '../models/rules';
 
 // SPHttpClient(v1)는 OData-Version 이 3.0 또는 4.0 이어야 합니다. odata=nometadata 는 OData 3.0 형식이라 3.0 으로 맞춥니다.
 const JSON_HEADERS: { [k: string]: string } = {
@@ -37,13 +39,21 @@ function person(v: any): IPerson | undefined {
   if (!v || !v.Id) { return undefined; }
   return { id: v.Id, name: v.Title || '', email: v.EMail || '' };
 }
-function splitList(v: any): string[] {
+/** 선택(여러 개) 열: nometadata 는 배열, verbose 는 {results: []} */
+function choices(v: any): string[] {
   if (!v) { return []; }
-  if (Object.prototype.toString.call(v) === '[object Array]') { return v as string[]; }
-  return String(v).split(/\s*;\s*/).filter(x => !!x);
+  if (Object.prototype.toString.call(v) === '[object Array]') { return (v as any[]).map(x => String(x)).filter(x => !!x); }
+  if (v.results) { return choices(v.results); }
+  return String(v).split(/\s*;#?\s*/).filter(x => !!x);
+}
+/** 조회(여러 개) 열에서 보여 줄 값만 */
+function lookups(v: any, field: string): string[] {
+  const list: any[] = Object.prototype.toString.call(v) === '[object Array]' ? v : ((v && v.results) || []);
+  return list.map(x => str(x && x[field])).filter(x => !!x);
 }
 function str(v: any): string { return v === null || v === undefined ? '' : String(v); }
 function num(v: any): number | undefined { return typeof v === 'number' && !isNaN(v) ? v : undefined; }
+function pad2(n: number): string { return (n < 10 ? '0' : '') + n; }
 /** 대표 효과를 큰 글자(62% 감소)와 작은 설명(보고서 작성 시간)으로 나눕니다. 설명 열(KeyEffectNote)이 있으면 그대로 씁니다. */
 function splitEffect(effect: string, note: string): { value: string; note: string } {
   const e = effect.trim();
@@ -53,12 +63,6 @@ function splitEffect(effect: string, note: string): { value: string; note: strin
   return m ? { value: m[2], note: m[1] } : { value: e, note: '' };
 }
 const AUTHOR = ['Author/Id', 'Author/Title', 'Author/EMail'];
-/** Idea Board 항목 댓글 중 이 문구로 시작하면 '만들래요' 참여로 봅니다 (SharePoint 목록 화면에서도 읽히는 문장) */
-export const MAKE_TEXT = '[만들래요]';
-export const MAKE_COMMENT = MAKE_TEXT + ' 이 아이디어를 같이 만들어요.';
-/** 참여자가 '만들기 시작하기'를 누르면 남는 댓글 (지우면 '함께할 사람 찾기'로 돌아감) */
-export const START_TEXT = '[만들기 시작]';
-export const START_COMMENT = START_TEXT + ' 이 아이디어를 만들기 시작했어요.';
 /** 리뷰 댓글 앞에 붙이는 별점 표시: '[★4] ' */
 const REVIEW_STAR = /^\[★([1-5])\]\s*/;
 export function reviewText(rating: number, body: string): string { return `[★${rating}] ${body}`; }
@@ -71,7 +75,7 @@ export class HubService {
   }
 
   /** 웹 파트 설정의 목록 이름 (안내 문구용) */
-  public listName(k: keyof IHubLists): string { return this.lists[k]; }
+  public listName(k: keyof IHubLists): string { return this.lists[k] || ''; }
 
   /* ---------- 공통 ---------- */
   private listUrl(title: string): string {
@@ -125,13 +129,25 @@ export class HubService {
     return (data && data.value) || [];
   }
   /** 새로 생긴 열(opt)까지 읽어 봅니다. 그 열이 아직 목록에 없어 400이 나면 opt 를 빼고 다시 읽어, 목록 화면이 멈추지 않게 합니다. */
-  private async itemsOpt(title: string, select: string[], expand: string[], opt: { select: string[]; expand?: string[] }, filter?: string, top?: number): Promise<any[]> {
+  private async itemsOpt(title: string, select: string[], expand: string[], opt: { select: string[]; expand?: string[] } | { select: string[]; expand?: string[] }[], filter?: string, top?: number): Promise<any[]> {
+    type Opt = { select: string[]; expand?: string[] };
+    const opts = Object.prototype.toString.call(opt) === '[object Array]' ? (opt as Opt[]) : [opt as Opt];
+    const run = (use: Opt[], n?: number): Promise<any[]> =>
+      this.items(title, use.reduce((s, o) => s.concat(o.select), select), use.reduce((x, o) => x.concat(o.expand || []), expand), filter, n || top);
     try {
-      return await this.items(title, select.concat(opt.select), expand.concat(opt.expand || []), filter, top);
+      return await run(opts);
     } catch (e) {
-      if (e instanceof HubError && e.status === 400) { return this.items(title, select, expand, filter, top); }
-      throw e;
+      if (!(e instanceof HubError && e.status === 400)) { throw e; }
     }
+    // 어느 묶음이 문제인지 하나씩 1줄만 읽어 보고, 되는 묶음만 남겨 다시 읽습니다
+    // (예: 조회 열이 깨져도 조회수 열은 계속 읽음)
+    const ok: Opt[] = [];
+    for (const o of opts) {
+      try { await run(ok.concat([o]), 1); ok.push(o); } catch (e) {
+        if (!(e instanceof HubError && e.status === 400)) { throw e; }
+      }
+    }
+    return run(ok);
   }
   private create(list: string, fields: any): Promise<any> {
     return this.send(this.listUrl(list) + '/items', fields, undefined, list);
@@ -141,20 +157,6 @@ export class HubService {
   }
   private remove(list: string, id: number): Promise<any> {
     return this.send(`${this.listUrl(list)}/items(${id})`, undefined, { 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }, list);
-  }
-  /** 항목 버전 기록에서 버전 번호 열이 바뀐 지점만 뽑습니다 (같은 번호는 가장 최근 것 하나). */
-  private async versions(list: string, id: number, verField: string, noteField: string): Promise<IVersion[]> {
-    const d = await this.getJson(`${this.listUrl(list)}/items(${id})/versions`, list);
-    const rows: any[] = ((d && d.value) || []).slice().sort((a: any, b: any) => (Number(b.VersionId) || 0) - (Number(a.VersionId) || 0));
-    const out: IVersion[] = [];
-    const seen: { [v: string]: boolean } = {};
-    rows.forEach((r: any) => {
-      const v = str(r[verField]);
-      if (!v || seen[v]) { return; }
-      seen[v] = true;
-      out.push({ version: v, note: str(r[noteField]), date: str(r.Modified || r.Created) });
-    });
-    return out;
   }
 
   /* ---------- 사용자 ---------- */
@@ -169,107 +171,259 @@ export class HubService {
     const soft = <T>(p: Promise<T[]>, what: string): Promise<{ list: T[]; error?: string }> => p.then(
       (list): { list: T[]; error?: string } => ({ list }),
       (e): { list: T[]; error?: string } => ({ list: [], error: e instanceof Error ? e.message : `${what} 목록을 불러오지 못했습니다.` }));
-    const [ag, id, cs, rx, sk, ht] = await Promise.all([
+    const [ag, id, cs, rx, sk, ht, av] = await Promise.all([
       soft(this.getAgents(), 'Agent'), soft(this.getIdeas(), 'Idea'), soft(this.getCases(), 'Case'), this.getReactions(),
-      soft(this.getSkills(), 'Skill'), soft(this.getHtmls(), 'HTML')
+      soft(this.getSkills(), 'Skill'), soft(this.getHtmls(), 'HTML'),
+      // 프로필 배지는 없어도 됩니다 (열이 없으면 모두 자동: 최근 배지)
+      this.getAvatars().then(v => v, () => ({}))
     ]);
     return {
+      avatars: av,
       agents: ag.list, agentsError: ag.error, ideas: id.list, ideasError: id.error, cases: cs.list, casesError: cs.error,
-      reactions: rx.list, reactionsError: rx.error, skills: sk.list, skillsError: sk.error, htmls: ht.list, htmlsError: ht.error
+      reactions: rx.list.concat(HubService.ideaReactions(id.list)), reactionsError: rx.error, skills: sk.list, skillsError: sk.error, htmls: ht.list, htmlsError: ht.error
     };
   }
 
-  /* ---------- Agent ---------- */
+  /* ---------- 프로필 배지 (HubProfiles) ----------
+     사람마다 한 줄: 만든 사람 = 그 사람, AvatarBadge = 고른 배지 키('photo'면 사진, 비우면 자동).
+     목록이 없으면 모두 자동(최근 배지)으로 보입니다. */
+  public async getAvatars(): Promise<{ [personId: number]: string }> {
+    if (!this.lists.profiles) { return {}; }
+    const rows = await this.items(this.lists.profiles, ['Id', 'AvatarBadge', 'AuthorId'], [], undefined, 5000);
+    const out: { [personId: number]: string } = {};
+    // 최신 행이 먼저 오므로, 같은 사람의 행이 여러 개면 최신 것만
+    rows.forEach((r: any) => { if (r.AuthorId && !(r.AuthorId in out)) { out[r.AuthorId] = str(r.AvatarBadge); } });
+    return out;
+  }
+  /** 내 프로필 배지 저장: 내 행이 있으면 고치고, 없으면 만듭니다 */
+  public async setAvatarBadge(meId: number, email: string, key: string): Promise<void> {
+    const list = this.lists.profiles || 'HubProfiles';
+    const rows = await this.items(list, ['Id'], [], `AuthorId eq ${meId}`, 1);
+    if (rows.length) {
+      await this.merge(list, rows[0].Id, { AvatarBadge: key });
+    } else {
+      await this.create(list, { Title: email, AvatarBadge: key });
+    }
+  }
+
+  /* ---------- 조회수 (AgentList · HubContents 의 ViewCount 열) ----------
+     ViewCount = 지금까지 조회수(숫자). 열이 없으면 조회수만 비고(undefined) 나머지는 그대로 동작합니다. */
+  private static readonly VIEW_COLS = ['ViewCount'];
+  private static viewsOf(r: any): { views?: number } {
+    if (!r || !('ViewCount' in r)) { return {}; }
+    return { views: num(r.ViewCount) || 0 };
+  }
+  /** 상세 화면을 열 때 조회수를 1 올립니다.
+      '수정한 날짜'와 '수정한 사람'은 원래 값으로 되돌려 쓰고, 새 버전을 만들지 않습니다(ValidateUpdateListItem, bNewDocumentUpdate).
+      그래서 '최근 업데이트'가 바뀌지 않습니다. 이 항목을 편집할 권한이 없으면 오류로 끝나고 숫자만 오르지 않습니다. */
+  public async recordView(type: TargetType, id: number): Promise<void> {
+    const list = type === 'Agent' ? this.lists.agents : this.lists.contents;
+    const base = `${this.listUrl(list)}/items(${id})`;
+    const cur = await this.getJson(`${base}?$select=ViewCount,Modified,Editor/Name&$expand=Editor`, list);
+    // 수정한 날짜(UTC)를 사이트 시간대로 바꿉니다
+    const local = cur && cur.Modified ? await this.siteLocal(String(cur.Modified)).then(v => v, () => undefined) : undefined;
+    // 날짜를 못 구하면 '최근 업데이트'가 바뀌지 않도록 저장하지 않습니다
+    if (!local) { throw new HubError('조회수를 저장하지 못했어요: 수정한 날짜를 사이트 시간대로 바꾸지 못했어요.', 400, list); }
+    const base0: { FieldName: string; FieldValue: string }[] = [
+      { FieldName: 'ViewCount', FieldValue: String((num(cur && cur.ViewCount) || 0) + 1) }
+    ];
+    if (cur && cur.Editor && cur.Editor.Name) { base0.push({ FieldName: 'Editor', FieldValue: JSON.stringify([{ Key: cur.Editor.Name }]) }); }
+    // 날짜 글자 형식은 사이트 지역 설정마다 달라서, 맞는 형식을 찾을 때까지 차례로 넣어 봅니다 (찾으면 기억)
+    const order = HubService.DATE_FORMATS.map((f, i) => i).sort((a, b) => (a === this.dateFmt ? -1 : b === this.dateFmt ? 1 : a - b));
+    let lastErr = '';
+    for (const fi of order) {
+      const values = base0.concat([{ FieldName: 'Modified', FieldValue: HubService.DATE_FORMATS[fi](local) }]);
+      const res = await this.send(`${base}/ValidateUpdateListItem`, { formValues: values, bNewDocumentUpdate: true }, undefined, list);
+      const bad = ((res && res.value) || []).filter((v: any) => v && v.HasException);
+      if (!bad.length) { this.dateFmt = fi; return; }
+      lastErr = bad.map((v: any) => `${v.FieldName} ${v.ErrorMessage || ''}`).join(', ');
+      // 날짜 형식만 틀렸으면 다음 형식으로, 다른 칸이 틀렸으면 멈춤
+      if (bad.some((v: any) => v.FieldName !== 'Modified')) { break; }
+    }
+    throw new HubError(`조회수를 저장하지 못했어요: ${lastErr}`, 400, list);
+  }
+  /** 조회수 저장 때 '수정한 날짜'를 되돌려 쓸 형식 (사이트 지역 설정에 맞는 것을 찾으면 기억합니다) */
+  private dateFmt: number = -1;
+  private static readonly DATE_FORMATS: ((t: { y: number; M: number; d: number; H: number; m: number }) => string)[] = [
+    // 한국어: 2012-02-23 오후 2:25
+    t => `${t.y}-${pad2(t.M)}-${pad2(t.d)} ${t.H < 12 ? '오전' : '오후'} ${t.H % 12 || 12}:${pad2(t.m)}`,
+    // 영어(미국): 2/23/2012 2:25 PM
+    t => `${t.M}/${t.d}/${t.y} ${t.H % 12 || 12}:${pad2(t.m)} ${t.H < 12 ? 'AM' : 'PM'}`,
+    // 영어(영국 등): 23/02/2012 14:25
+    t => `${pad2(t.d)}/${pad2(t.M)}/${t.y} ${pad2(t.H)}:${pad2(t.m)}`,
+    // 24시간: 2012-02-23 14:25
+    t => `${t.y}-${pad2(t.M)}-${pad2(t.d)} ${pad2(t.H)}:${pad2(t.m)}`
+  ];
+  /** UTC 시각을 사이트 지역 설정의 시간대로 바꿉니다 */
+  private async siteLocal(utc: string): Promise<{ y: number; M: number; d: number; H: number; m: number } | undefined> {
+    const iso = new Date(utc).toISOString();
+    const r = await this.getJson(`${this.site}/_api/web/RegionalSettings/TimeZone/utcToLocalTime(@d)?@d='${encodeURIComponent(iso)}'`);
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(str(r && (r.value || r.UTCToLocalTime)));
+    return m ? { y: +m[1], M: +m[2], d: +m[3], H: +m[4], m: +m[5] } : undefined;
+  }
+
+  /* ---------- Agent (AgentList) ----------
+     AgentList 는 배포·심사 흐름이 함께 쓰는 목록입니다. Hub는 읽기만 합니다 (조회수 열 ViewCount 만 고칩니다).
+     (Hub 소개 열은 배포 Agent가 Profile Card로 받아 채우고, Owner가 Hub에서 직접 고치지 않습니다)
+     Hub에는 대표 행 중 운영 중인 것만 보입니다: OpsStatus 가 비어 있지 않고 '중단'·'폐기'가 아닌 행.
+     신청 슬롯(_PENDING) 행은 빠집니다. */
   public async getAgents(): Promise<IAgent[]> {
     const rows = await this.itemsOpt(this.lists.agents,
-      ['Id', 'Title', 'AgentSummary', 'AgentTool', 'AgentWorkType', 'UseScope', 'OutputType', 'OutputNote', 'AgentDoes', 'AgentPrompts',
-        'MakerNote', 'AgentInstructions', 'AgentKnowledge', 'AgentActions', 'LinkedAgents', 'LinkedSkills', 'AgentVersion', 'AgentChangeNote',
-        'InstallLink', 'Created', 'Modified', 'AgentOwner/Id', 'AgentOwner/Title', 'AgentOwner/EMail',
+      ['Id', 'Title', 'AgentName', 'Summary', 'BuildTool', 'Env', 'OpsStatus', 'TaskArea', 'Output', 'OutputNote', 'Scope',
+        'Does', 'Prompts', 'MakerNote', 'Instructions', 'Config', 'Releases', 'Version', 'OpenUrl',
+        'FirstDeployedOn', 'DeployedAt', 'Uses30', 'LastUsedOn', 'Created', 'Modified',
+        'Owner/Id', 'Owner/Title', 'Owner/EMail', 'Sponsor/Id', 'Sponsor/Title', 'Sponsor/EMail',
         'AttachmentFiles/FileName', 'AttachmentFiles/ServerRelativeUrl'],
-      ['AgentOwner', 'AttachmentFiles'],
-      { select: ['AgentSponsor/Id', 'AgentSponsor/Title', 'AgentSponsor/EMail'], expand: ['AgentSponsor'] },
-      "AgentStatus eq '게시'");
-    return rows.map((r: any): IAgent => ({
-      id: r.Id, title: str(r.Title), summary: str(r.AgentSummary), tool: str(r.AgentTool), workType: str(r.AgentWorkType),
-      scopes: splitList(r.UseScope), output: str(r.OutputType), outputNote: str(r.OutputNote),
-      does: splitLines(str(r.AgentDoes)), prompts: splitLines(str(r.AgentPrompts)), makerNote: str(r.MakerNote),
-      instructions: str(r.AgentInstructions), knowledge: splitLines(str(r.AgentKnowledge)), actions: splitLines(str(r.AgentActions)),
-      linkedAgents: splitList(r.LinkedAgents), linkedSkills: splitList(r.LinkedSkills),
-      version: str(r.AgentVersion), changeNote: str(r.AgentChangeNote), installLink: str(r.InstallLink),
-      images: this.images(r.AttachmentFiles), thumb: this.thumbOf(r.AttachmentFiles),
-      owner: person(r.AgentOwner), sponsor: person(r.AgentSponsor), created: str(r.Created), modified: str(r.Modified)
-    }));
+      ['Owner', 'Sponsor', 'AttachmentFiles'],
+      // 조회 열은 대상 목록이 바뀌거나 없으면 400 이 나므로 따로 읽어 봅니다
+      // 조회수 열(ViewCount)도 아직 없을 수 있어 따로 읽어 봅니다 (묶음마다 따로 빠짐)
+      [{ select: ['LinkedAgents/AgentName', 'Skills/Title'], expand: ['LinkedAgents', 'Skills'] }, { select: HubService.VIEW_COLS }]);
+    return rows.filter(HubService.onHub).map((r: any): IAgent => {
+      const cfg = HubService.json(r.Config);
+      const releases = HubService.releases(r.Releases);
+      const areas = choices(r.TaskArea);
+      const outputs = choices(r.Output);
+      return {
+        id: r.Id, title: str(r.AgentName) || str(r.Title), summary: str(r.Summary), tool: str(r.BuildTool),
+        workType: areas.join(' · '), workTypes: areas, scopes: choices(r.Scope), output: outputs.join(' · '), outputs, outputNote: str(r.OutputNote),
+        does: splitLines(str(r.Does)), prompts: splitLines(str(r.Prompts)), makerNote: str(r.MakerNote),
+        instructions: str(r.Instructions),
+        knowledge: HubService.cfgLines(cfg && cfg.knowledge, ['where', 'type']),
+        actions: HubService.cfgLines(cfg && cfg.tools, ['connector', 'kind']),
+        linkedAgents: lookups(r.LinkedAgents, 'AgentName'), linkedSkills: lookups(r.Skills, 'Title'),
+        version: str(r.Version), changeNote: releases.length ? releases[0].note : '', releases,
+        installLink: str(r.OpenUrl && (r.OpenUrl.Url || r.OpenUrl)), env: str(r.Env), opsStatus: str(r.OpsStatus),
+        uses30: num(r.Uses30), views: HubService.viewsOf(r).views, lastUsed: str(r.LastUsedOn),
+        images: this.images(r.AttachmentFiles), thumb: this.thumbOf(r.AttachmentFiles),
+        owner: person(r.Owner), sponsor: person(r.Sponsor),
+        // '새로 나온 Agent'·메이커 순위는 처음 배포일 기준 (없으면 항목을 만든 날)
+        created: str(r.FirstDeployedOn) || str(r.DeployedAt) || str(r.Created), modified: str(r.DeployedAt) || str(r.Modified)
+      };
+    });
+  }
+  private static onHub(r: any): boolean {
+    const ops = str(r.OpsStatus).trim();
+    if (!ops || /중단|폐기/.test(ops)) { return false; }
+    return !/_PENDING$/i.test(str(r.Title));
+  }
+  private static json(v: any): any {
+    if (!v) { return undefined; }
+    try { return JSON.parse(String(v)); } catch (e) { return undefined; }
+  }
+  /** 구성 정보(Config) JSON 의 knowledge·tools 를 '이름 · 설명' 줄로 바꿉니다 */
+  private static cfgLines(list: any, extra: string[]): string[] {
+    if (Object.prototype.toString.call(list) !== '[object Array]') { return []; }
+    return (list as any[]).map(x => {
+      if (typeof x === 'string') { return x; }
+      const name = str(x && x.name).trim();
+      const more = extra.map(k => str(x && x[k]).trim()).filter(s => !!s)[0] || '';
+      return name && more ? `${name} · ${more}` : name || more;
+    }).filter(s => !!s);
+  }
+  /** 업데이트 기록(Releases) JSON: [{"v":"1.0.0.3","d":"2026-11-01","n":"변경 내용"}] → 최신이 먼저 */
+  private static releases(v: any): IVersion[] {
+    const list = HubService.json(v);
+    if (Object.prototype.toString.call(list) !== '[object Array]') { return []; }
+    return (list as any[]).map(x => ({ version: str(x && x.v), note: str(x && x.n), date: str(x && x.d) }))
+      .filter(x => !!x.version || !!x.note)
+      // 날짜가 같거나 없으면 뒤에 붙은 것(최근)이 먼저
+      .map((x, i) => ({ x, i })).sort((a, b) => b.x.date.localeCompare(a.x.date) || b.i - a.i).map(o => o.x);
   }
   private thumbOf(files: any): IImage | undefined {
     const list: any[] = Object.prototype.toString.call(files) === '[object Array]' ? files : ((files && files.results) || []);
     const f = list.filter(x => /^thumb\./i.test(str(x.FileName)))[0];
     return f ? { slot: 0, name: str(f.FileName), url: this.origin() + encodeURI(str(f.ServerRelativeUrl)) } : undefined;
   }
-  /** 첨부 파일 중 result-1.*, result-2.* 를 결과 이미지로 */
+  /** 첨부 파일 중 result1.* / result-1.*, result2.* / result-2.* 를 결과 이미지로 */
   private images(files: any): IImage[] {
     const list: any[] = Object.prototype.toString.call(files) === '[object Array]' ? files : ((files && files.results) || []);
     const out: IImage[] = [];
     list.forEach(f => {
-      const m = /^result-([12])\./i.exec(str(f.FileName));
+      const m = /^result-?([12])\./i.exec(str(f.FileName));
       if (m) { out.push({ slot: Number(m[1]), name: str(f.FileName), url: this.origin() + encodeURI(str(f.ServerRelativeUrl)) }); }
     });
     return out.sort((a, b) => a.slot - b.slot);
   }
-  /** 결과 이미지 올리기: 같은 자리의 이전 이미지를 지우고 result-<자리>.<확장자> 로 첨부 */
-  private async saveImages(id: number, a: INewAgent, existing: IImage[], oldThumb?: IImage): Promise<void> {
-    const list = this.lists.agents;
-    if (a.newThumb) {
-      if (oldThumb) { await this.removeAttachment(list, id, oldThumb.name).catch(() => undefined); }
-      await this.addAttachment(list, id, `thumb.${extOf(a.newThumb.name) || 'png'}`, a.newThumb.data);
-    }
-    for (const img of a.newImages || []) {
-      const old = existing.filter(x => x.slot === img.slot);
-      for (const o of old) {
-        await this.send(`${this.listUrl(list)}/items(${id})/AttachmentFiles('${encodeURIComponent(o.name.replace(/'/g, "''"))}')`, undefined, { 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }, list);
-      }
-      const name = `result-${img.slot}.${extOf(img.name) || 'png'}`;
-      const res = await this.client.post(`${this.listUrl(list)}/items(${id})/AttachmentFiles/add(FileName='${encodeURIComponent(name)}')`, SPHttpClient.configurations.v1, {
-        headers: { 'Accept': 'application/json;odata=nometadata', 'odata-version': '3.0' }, body: img.data
-      });
-      if (!res.ok) { await this.fail(res, list); }
-    }
-  }
-  private agentFields(a: INewAgent): any {
-    return {
-      Title: a.title, AgentSummary: a.summary, AgentTool: a.tool, AgentWorkType: a.workType, UseScope: a.scopes.join('; '),
-      OutputType: a.output, OutputNote: a.outputNote, AgentDoes: a.does.join('\n'), AgentPrompts: a.prompts.join('\n'),
-      MakerNote: a.makerNote, AgentInstructions: a.instructions, AgentKnowledge: a.knowledge.join('\n'), AgentActions: a.actions.join('\n'),
-      LinkedAgents: a.linkedAgents.join('; '), LinkedSkills: a.linkedSkills.join('; '),
-      AgentVersion: a.version, AgentChangeNote: a.changeNote, InstallLink: a.installLink
-    };
-  }
-  /** Agent 소개 등록. 승인 단계 없이 '게시' 상태로 저장하므로 바로 Marketplace에 보입니다. */
-  public async createAgent(a: INewAgent, ownerId: number): Promise<number> {
-    const f = this.agentFields(a);
-    f.AgentOwnerId = ownerId;
-    f.AgentStatus = '게시';
-    const d = await this.create(this.lists.agents, f);
-    await this.saveImages(d.Id, a, []);
-    return d.Id;
-  }
-  public async updateAgent(id: number, a: INewAgent, existing: IImage[], oldThumb?: IImage): Promise<void> {
-    await this.merge(this.lists.agents, id, this.agentFields(a));
-    await this.saveImages(id, a, existing, oldThumb);
-  }
-  public getAgentVersions(id: number): Promise<IVersion[]> {
-    return this.versions(this.lists.agents, id, 'AgentVersion', 'AgentChangeNote');
+  /** 업데이트 탭: AgentList 의 업데이트 기록(Releases)을 그대로 씁니다 */
+  public async getAgentVersions(id: number): Promise<IVersion[]> {
+    const d = await this.getJson(`${this.listUrl(this.lists.agents)}/items(${id})?$select=Releases`, this.lists.agents);
+    return HubService.releases(d && d.Releases);
   }
 
-  /* ---------- 아이디어 ---------- */
+  /* ---------- 아이디어 (HubIdeas) ----------
+     공감 = 목록 평점 설정의 좋아요(LikedBy · LikesCount), 만들래요 = 함께 만드는 사람(Makers) 사람 열.
+     만들기 시작 = 시작일(StartedOn) + 상태 '제작 중'. 완성은 운영 담당자가 상태 '완성'·완성일·결과물을 넣습니다.
+     댓글은 항목 댓글을 씁니다. */
   public async getIdeas(): Promise<IIdea[]> {
+    const ppl = (f: string): string[] => [`${f}/Id`, `${f}/Title`, `${f}/EMail`];
+    // 공감은 목록 평점 설정(좋아요)의 '좋아요 표시한 사람(LikedBy)'. 평점 설정이 꺼져 있으면 그 열만 빼고 읽습니다.
     const rows = await this.itemsOpt(this.lists.ideas,
-      ['Id', 'Title', 'IdeaType', 'IdeaStatus', 'LinkedAgentId', 'RevivedOn', 'Created'].concat(AUTHOR), ['Author'], { select: ['IdeaDetail'] });
+      ['Id', 'Title', 'Type', 'Status', 'Detail', 'Pain', 'Frequency', 'MinutesPerRun', 'StartedOn', 'DoneAt', 'ResultRef', 'ArchivedOn', 'RevivedOn', 'Created', 'Modified']
+        .concat(AUTHOR, ppl('Makers')), ['Author', 'Makers'], { select: ppl('LikedBy'), expand: ['LikedBy'] }, undefined, 5000);
+    const people = (v: any): IPerson[] => HubService.users(v).map(person).filter(p => !!p) as IPerson[];
     return rows.map((r: any): IIdea => ({
-      id: r.Id, title: str(r.Title), type: str(r.IdeaType), detail: str(r.IdeaDetail), status: str(r.IdeaStatus), linkedAgentId: num(r.LinkedAgentId),
-      revivedOn: str(r.RevivedOn), author: person(r.Author), created: str(r.Created)
+      id: r.Id, title: str(r.Title), type: str(r.Type), detail: str(r.Detail), status: str(r.Status),
+      likers: people(r.LikedBy), makers: people(r.Makers),
+      startedOn: str(r.StartedOn), doneAt: str(r.DoneAt), resultRef: str(r.ResultRef), archivedOn: str(r.ArchivedOn), revivedOn: str(r.RevivedOn),
+      pain: str(r.Pain), frequency: str(r.Frequency), minutes: num(r.MinutesPerRun),
+      author: person(r.Author), created: str(r.Created), modified: str(r.Modified)
     }));
   }
-  /** 새 열(IdeaDetail)이 아직 없으면 그 칸만 빼고 다시 저장합니다 */
+  /** 아이디어의 공감·만들래요·시작을 반응으로 바꿉니다 (점수·알림·배지가 같은 방식으로 셉니다).
+      사람 열에는 누른 날이 없어서 항목을 마지막으로 고친 날을 씁니다. */
+  public static ideaReactions(ideas: IIdea[]): IReaction[] {
+    const out: IReaction[] = [];
+    ideas.forEach(i => {
+      i.likers.forEach(p => out.push({ id: `lk:Idea:${i.id}:${p.id}`, targetType: 'Idea', targetId: i.id, kind: '좋아요', body: '', author: p, created: '' }));
+      i.makers.forEach(p => out.push({ id: `mk:Idea:${i.id}:${p.id}`, targetType: 'Idea', targetId: i.id, kind: '만들래요', body: '', author: p, created: i.modified }));
+      if (i.startedOn) { out.push({ id: `st:Idea:${i.id}`, targetType: 'Idea', targetId: i.id, kind: '시작', body: '', created: i.startedOn }); }
+    });
+    return out;
+  }
+  private ideaFields(idea: INewIdea): any {
+    return {
+      Title: idea.title, Type: idea.type || null, Detail: idea.detail || '', Pain: idea.pain || '',
+      Frequency: idea.frequency || null, MinutesPerRun: typeof idea.minutes === 'number' && !isNaN(idea.minutes) ? idea.minutes : null
+    };
+  }
+  public async createIdea(idea: INewIdea): Promise<number> {
+    const d = await this.create(this.lists.ideas, { ...this.ideaFields(idea), Status: IDEA_STATUS.live });
+    return d.Id;
+  }
+  /** 내 아이디어 고치기 */
+  public async updateIdea(id: number, idea: INewIdea): Promise<void> {
+    await this.merge(this.lists.ideas, id, this.ideaFields(idea));
+  }
+  /** 사람 열(Makers)에 나를 넣거나 뺍니다. 다른 사람이 방금 누른 것을 지우지 않도록 저장 직전에 다시 읽습니다. */
+  private async togglePerson(id: number, field: 'Makers', meId: number, on: boolean): Promise<number[]> {
+    const d = await this.getJson(`${this.listUrl(this.lists.ideas)}/items(${id})?$select=${field}Id`, this.lists.ideas);
+    const now: number[] = HubService.users(d && d[field + 'Id']).map(Number).filter((x: number) => !isNaN(x));
+    const next = on ? (now.indexOf(meId) >= 0 ? now : now.concat([meId])) : now.filter(x => x !== meId);
+    const fields: any = {};
+    fields[field + 'Id'] = next;
+    if (field === 'Makers' && !next.length) {
+      // 만드는 사람이 아무도 없으면 시작도 되돌립니다
+      fields.StartedOn = null;
+      fields.Status = IDEA_STATUS.live;
+    }
+    await this.merge(this.lists.ideas, id, fields);
+    return next;
+  }
+  /** 공감 켜기·끄기: 목록 평점 설정(좋아요)의 좋아요. '좋아요' 개수(LikesCount)가 함께 바뀝니다. */
+  public setLike(ideaId: number, on: boolean): Promise<void> {
+    return this.reputation('Idea', 'SetLike', ideaId, on);
+  }
+  /** 만들래요 참여·취소 */
+  public setMaker(ideaId: number, meId: number, on: boolean): Promise<number[]> {
+    return this.togglePerson(ideaId, 'Makers', meId, on);
+  }
+  /** 만들기 시작 / 중지 */
+  public async setStarted(ideaId: number, on: boolean): Promise<string> {
+    const at = on ? new Date().toISOString() : '';
+    await this.merge(this.lists.ideas, ideaId, { StartedOn: at || null, Status: on ? IDEA_STATUS.making : IDEA_STATUS.live });
+    return at;
+  }
+  /** 새 열이 아직 없으면 그 칸만 빼고 다시 저장합니다 */
   private async withOptional<T>(fields: any, optional: string[], run: (f: any) => Promise<T>): Promise<T> {
     try { return await run(fields); } catch (e) {
       if (!(e instanceof HubError && e.status === 400) || !optional.some(k => k in fields)) { throw e; }
@@ -278,91 +432,94 @@ export class HubService {
       return run(f);
     }
   }
-  public async createIdea(idea: INewIdea): Promise<number> {
-    const d = await this.withOptional({ Title: idea.title, IdeaType: idea.type, IdeaDetail: idea.detail || '' }, ['IdeaDetail'], f => this.create(this.lists.ideas, f));
-    return d.Id;
-  }
-  /** 내 아이디어 고치기 */
-  public async updateIdea(id: number, idea: INewIdea): Promise<void> {
-    await this.withOptional({ Title: idea.title, IdeaType: idea.type, IdeaDetail: idea.detail || '' }, ['IdeaDetail'], f => this.merge(this.lists.ideas, id, f));
-  }
   /** 내 아이디어 지우기 (사이트 휴지통으로) */
   public async deleteIdea(id: number): Promise<void> {
     await this.send(`${this.listUrl(this.lists.ideas)}/items(${id})/recycle()`, undefined, undefined, this.lists.ideas);
   }
-  /** 보관 해제: 보관까지 남은 날을 오늘부터 다시 셉니다. */
+  /** 보관 해제: 보관까지 남은 날을 오늘부터 다시 셉니다. 보관일을 비우고 상태를 '모집 중'으로 돌립니다. */
   public async reviveIdea(id: number): Promise<string> {
     const now = new Date().toISOString();
-    await this.merge(this.lists.ideas, id, { RevivedOn: now });
+    await this.merge(this.lists.ideas, id, { RevivedOn: now, ArchivedOn: null, Status: IDEA_STATUS.live });
     return now;
   }
 
   /* ---------- 사례 ---------- */
+  /* ---------- 사례 (HubCases) ----------
+     여러 줄 칸 형식: 전후 비교(Compare) '항목|전|후' 줄, 업무 프로세스(Process) [Before]/[After] 줄(AI 단계 끝에 [AI]),
+     솔루션 '종류|이름' 줄 또는 JSON, 프롬프트 JSON [{name, step, text}], 적용 포인트 · 측정 방법은 한 줄에 하나. */
   public async getCases(): Promise<ICase[]> {
-    const rows = await this.itemsOpt(this.lists.cases,
-      ['Id', 'Title', 'Industry', 'ClientName', 'Department', 'Period', 'PainPoint', 'Solutions', 'Progress', 'Created', 'OData__ModerationStatus',
-        'ProjectSummary', 'KeyEffect', 'ApplyPoints', 'BusinessArea', 'AIPattern', 'Products', 'BeforeItems', 'AfterItems', 'AIStep',
-        'EffectTime', 'EffectQuality', 'EffectEffort', 'Verification', 'ReusePrompt'].concat(AUTHOR),
-      ['Author'], { select: ['BeforeText', 'AfterText', 'KeyEffectNote', 'CaseContact'] });
+    const rows = await this.items(this.lists.cases,
+      ['Id', 'Title', 'Industry', 'Client', 'Dept', 'Period', 'Project', 'Area', 'Pattern', 'Products', 'KeyResult', 'KeyDetail',
+        'Compare', 'ChangeBefore', 'ChangeAfter', 'Process', 'Measure', 'Solutions', 'ApplyPoints', 'CasePrompts', 'Created', 'OData__ModerationStatus',
+        'Contact/Id', 'Contact/Title', 'Contact/EMail'].concat(AUTHOR),
+      ['Author', 'Contact'], undefined, 5000);
     return rows.map((r: any): ICase => {
-      const key = splitEffect(str(r.KeyEffect), str(r.KeyEffectNote));
-      const aiStep = typeof r.AIStep === 'number' ? r.AIStep - 1 : -1;
-      const after = str(r.AfterText);
+      const key = splitEffect(str(r.KeyResult), str(r.KeyDetail));
+      const proc = parseProcess(str(r.Process));
+      const after = str(r.ChangeAfter);
+      const contact = person(r.Contact);
       return {
-      id: r.Id, title: str(r.Title), industry: str(r.Industry), client: str(r.ClientName), dept: str(r.Department), period: str(r.Period),
-      pain: str(r.PainPoint), solutions: parseSolutions(str(r.Solutions)), progress: str(r.Progress),
-      oneLine: (after.split(/[.\n]/)[0] || '').trim(), beforeText: str(r.BeforeText), afterText: after, keyValue: key.value, keyNote: key.note,
-      contact: str(r.CaseContact), how: str(r.Verification), prompts: parsePrompts(str(r.ReusePrompt), aiStep),
-      summary: str(r.ProjectSummary), keyEffect: str(r.KeyEffect), points: splitLines(str(r.ApplyPoints)),
-      area: str(r.BusinessArea), pattern: str(r.AIPattern), products: splitList(r.Products),
-      before: splitLines(str(r.BeforeItems)), after: splitLines(str(r.AfterItems)),
-      // 목록에는 사람이 읽는 번호(1부터)로 넣습니다
-      aiStep,
-      effects: [parseEffect('시간', str(r.EffectTime)), parseEffect('품질 수준', str(r.EffectQuality)), parseEffect('정신적 노력 수준', str(r.EffectEffort))]
-        .filter(x => !!x) as { label: string; before: string; after: string }[],
-      verify: splitLines(str(r.Verification)), prompt: str(r.ReusePrompt),
-      author: person(r.Author), created: str(r.Created),
-      // 사례는 승인 없이 바로 공개합니다(목록의 콘텐츠 승인은 끕니다).
-      // 혹시 승인이 켜져 있으면 0 = 승인됨, 그 밖의 값은 본인 글이 아직 검토 중이라 '공개 검토 중'으로 표시합니다.
-      pending: typeof r.OData__ModerationStatus === 'number' && r.OData__ModerationStatus !== 0
+        id: r.Id, title: str(r.Title), industry: str(r.Industry), client: str(r.Client), dept: str(r.Dept), period: str(r.Period),
+        solutions: parseSolutions(str(r.Solutions)), progress: '',
+        oneLine: (after.split(/[.\n]/)[0] || '').trim(), beforeText: str(r.ChangeBefore), afterText: after, keyValue: key.value, keyNote: key.note,
+        contact: contact ? contact.name : '', contactPerson: contact, how: str(r.Measure), prompts: parsePrompts(str(r.CasePrompts), proc.aiStep),
+        summary: str(r.Project), keyEffect: str(r.KeyResult), points: splitLines(str(r.ApplyPoints)),
+        area: str(r.Area), pattern: str(r.Pattern), products: choices(r.Products),
+        before: proc.before, after: proc.after, aiStep: proc.aiStep,
+        effects: parseCompare(str(r.Compare)),
+        verify: splitLines(str(r.Measure)), prompt: str(r.CasePrompts),
+        author: person(r.Author), created: str(r.Created),
+        // 사례는 승인 없이 바로 공개합니다(목록의 콘텐츠 승인은 끕니다).
+        // 혹시 승인이 켜져 있으면 0 = 승인됨, 그 밖의 값은 본인 글이 아직 검토 중이라 '공개 검토 중'으로 표시합니다.
+        pending: typeof r.OData__ModerationStatus === 'number' && r.OData__ModerationStatus !== 0
       };
     });
   }
-  private caseFields(c: INewCase): any {
+  /** 이메일(또는 로그인 이름)로 사이트 사용자 번호를 찾습니다. 사이트에 처음 오는 사람이면 사이트 사용자로 등록됩니다. */
+  private async userId(login: string): Promise<number> {
+    const v = login.trim();
+    const name = /^i:0#\.f\|/.test(v) ? v : `i:0#.f|membership|${v}`;
+    try {
+      const d = await this.send(`${this.site}/_api/web/ensureuser`, { logonName: name }, undefined);
+      if (d && d.Id) { return d.Id; }
+    } catch (e) { /* 아래 안내 */ }
+    throw new HubError(`문의 담당자 '${v}'을(를) 찾지 못했어요. 회사 이메일 주소로 적어 주세요.`, 400, this.lists.cases);
+  }
+  private async caseFields(c: INewCase): Promise<any> {
     const step = c.prompts.filter(p => p.step >= 0)[0];
     return {
-      Title: c.title, Industry: c.industry, ClientName: c.client, Department: c.dept, Period: c.period,
-      ProjectSummary: c.project, BusinessArea: c.area, AIPattern: c.pattern, Products: c.products.join('; '),
-      KeyEffect: c.keyValue, KeyEffectNote: c.keyNote,
-      EffectTime: c.time.join('|'), EffectQuality: c.quality.join('|'), EffectEffort: c.effort.join('|'),
-      BeforeText: c.beforeText, AfterText: c.afterText, BeforeItems: c.beforeSteps.join('\n'), AfterItems: c.afterSteps.join('\n'),
-      // 예전 화면과 맞추려고 첫 Use Case가 연결된 After 단계를 AI 단계 번호(1부터)로도 남깁니다
-      AIStep: step ? step.step + 1 : null,
-      Verification: c.how, Solutions: solutionsText(c.solutions), ReusePrompt: promptsText(c.prompts), CaseContact: c.contact
+      Title: c.title, Industry: c.industry || null, Client: c.client, Dept: c.dept, Period: c.period || null,
+      Project: c.project, Area: c.area, Pattern: c.pattern || null, Products: HubService.multi(c.products),
+      ContactId: c.contact.trim() ? await this.userId(c.contact) : null,
+      KeyResult: c.keyValue, KeyDetail: c.keyNote,
+      Compare: compareText([{ label: '시간', before: c.time[0], after: c.time[1] }, { label: '품질 수준', before: c.quality[0], after: c.quality[1] },
+        { label: '정신적 노력 수준', before: c.effort[0], after: c.effort[1] }]),
+      ChangeBefore: c.beforeText, ChangeAfter: c.afterText,
+      // 첫 Use Case가 연결된 After 단계를 AI 단계로 표시합니다
+      Process: processText(c.beforeSteps, c.afterSteps, step ? step.step : -1),
+      Measure: c.how, Solutions: solutionsText(c.solutions), CasePrompts: promptsText(c.prompts)
     };
   }
-  private static CASE_NEW_COLS = ['KeyEffectNote', 'BeforeText', 'AfterText', 'CaseContact'];
-  /** 사례 올리기. 승인 없이 바로 모두에게 보입니다. (새 열이 아직 없으면 그 칸만 빼고 저장) */
+  /** 사례 올리기. 승인 없이 바로 모두에게 보입니다. */
   public async createCase(c: INewCase): Promise<number> {
-    const d = await this.withOptional(this.caseFields(c), HubService.CASE_NEW_COLS, f => this.create(this.lists.cases, f));
+    const d = await this.create(this.lists.cases, await this.caseFields(c));
     return d.Id;
   }
   /** 내 사례 고치기 */
   public async updateCase(id: number, c: INewCase): Promise<void> {
-    await this.withOptional(this.caseFields(c), HubService.CASE_NEW_COLS, f => this.merge(this.lists.cases, id, f));
+    await this.merge(this.lists.cases, id, await this.caseFields(c));
   }
   public async deleteCase(id: number): Promise<void> {
     await this.send(`${this.listUrl(this.lists.cases)}/items(${id})/recycle()`, undefined, undefined, this.lists.cases);
   }
 
   /* ---------- 반응: 별도 목록 없이 SharePoint 기본 기능을 씁니다 ----------
-     - 리뷰 별점: Agent Catalog · Skill Library · HTML Library 의 평점 설정(별 등급). 한 사람당 하나, 다시 매기면 바뀝니다.
+     - 리뷰 별점: AgentList · HubContents 의 평점 설정(별 등급). 한 사람당 하나, 다시 매기면 바뀝니다.
      - 리뷰 글: 같은 세 목록의 항목 댓글
-     - 공감: Idea Board 평점 설정(좋아요)
-     - 댓글 · 만들래요: Idea Board 항목 댓글. 만들래요는 MAKE_TEXT 로 시작하는 댓글입니다. */
+     - 아이디어 댓글: HubIdeas 항목 댓글 (공감·만들래요는 HubIdeas 사람 열, 위 '아이디어' 참고) */
   private listIds: { [title: string]: string } = {};
   private titleOf(t: TargetType): string {
-    return t === 'Agent' ? this.lists.agents : t === 'Skill' ? this.lists.skills : t === 'Html' ? this.lists.htmls : this.lists.ideas;
+    return t === 'Agent' ? this.lists.agents : t === 'Skill' || t === 'Html' ? this.lists.contents : this.lists.ideas;
   }
   private async listId(title: string): Promise<string> {
     if (!this.listIds[title]) {
@@ -401,28 +558,14 @@ export class HubService {
       return out;
     } catch (e) { return this.ratingFail(e, title, '별 등급'); }
   }
-  private async likeRows(): Promise<IReaction[]> {
-    const title = this.lists.ideas;
-    try {
-      const rows = await this.items(title, ['Id', 'LikedBy/Id', 'LikedBy/Title', 'LikedBy/EMail'], ['LikedBy'], undefined, 5000);
-      const out: IReaction[] = [];
-      rows.forEach((r: any) => HubService.users(r.LikedBy).forEach((u: any) => {
-        const p = person(u);
-        if (p) { out.push({ id: `lk:Idea:${r.Id}:${p.id}`, targetType: 'Idea', targetId: r.Id, kind: '좋아요', body: '', author: p, created: '' }); }
-      }));
-      return out;
-    } catch (e) { return this.ratingFail(e, title, '좋아요'); }
-  }
   private commentOf(t: TargetType, itemId: number, c: any): IReaction {
     const text = str(c && c.text);
-    const make = t === 'Idea' && text.indexOf(MAKE_TEXT) === 0;
-    const start = t === 'Idea' && text.indexOf(START_TEXT) === 0;
     const a = (c && c.author) || {};
     // 리뷰 댓글은 '[★4] 한 줄 평' 처럼 그 리뷰의 별점을 앞에 적어 둡니다 (리뷰를 여러 개 남겨도 각자 별점이 남도록)
     const star = t !== 'Idea' ? REVIEW_STAR.exec(text) : null;
     return {
       id: `cm:${t}:${itemId}:${c.id}`, commentId: Number(c.id), targetType: t, targetId: itemId,
-      kind: make ? '만들래요' : start ? '시작' : t === 'Idea' ? '댓글' : '리뷰', body: make || start ? '' : star ? text.slice(star[0].length) : text,
+      kind: t === 'Idea' ? '댓글' : '리뷰', body: star ? text.slice(star[0].length) : text,
       rating: star ? Number(star[1]) : undefined,
       author: a.id || a.email ? { id: Number(a.id) || 0, name: str(a.name), email: str(a.email) } : undefined,
       created: str(c.createdDate)
@@ -473,14 +616,24 @@ export class HubService {
       if (errs.indexOf(m) < 0) { errs.push(m); }
       return [];
     });
-    const [ar, ac, sr, sc, hr, hc, il, ic] = await Promise.all([
+    const [ar, ac, cr, cc, kinds, ic] = await Promise.all([
       part(this.starRows('Agent')), part(this.commentRows('Agent')), part(this.starRows('Skill')), part(this.commentRows('Skill')),
-      part(this.starRows('Html')), part(this.commentRows('Html')), part(this.likeRows()), part(this.commentRows('Idea'))
+      this.contentKinds().catch((): { [id: number]: TargetType } => ({})), part(this.commentRows('Idea'))
     ]);
+    // HubContents 의 반응은 일단 Skill 로 읽었으니, 구분이 HTML 인 항목은 Html 로 바꿉니다
+    const retag = (r: IReaction): IReaction => kinds[r.targetId] === 'Html' ? { ...r, targetType: 'Html', id: r.id.replace(':Skill:', ':Html:') } : r;
+    // 아이디어 공감·만들래요·시작은 HubIdeas 사람·날짜 열에서 읽어 loadAll 이 더합니다
     return {
-      list: HubService.pairReviews(ar, ac).concat(HubService.pairReviews(sr, sc), HubService.pairReviews(hr, hc), il, ic),
+      list: HubService.pairReviews(ar, ac).concat(HubService.pairReviews(cr, cc).map(retag), ic),
       error: errs.length ? errs.join(' ') : undefined
     };
+  }
+  /** HubContents 항목 번호 → Skill / Html */
+  private async contentKinds(): Promise<{ [id: number]: TargetType }> {
+    const rows = await this.items(this.lists.contents, ['Id', 'Kind'], [], undefined, 5000);
+    const out: { [id: number]: TargetType } = {};
+    rows.forEach((r: any) => { out[r.Id] = str(r.Kind).toUpperCase() === 'HTML' ? 'Html' : 'Skill'; });
+    return out;
   }
   private async reputation(t: TargetType, op: 'SetRating' | 'SetLike', itemId: number, value: number | boolean): Promise<void> {
     const title = this.titleOf(t);
@@ -497,11 +650,7 @@ export class HubService {
   public setRating(t: 'Agent' | 'Skill' | 'Html', itemId: number, rating: number): Promise<void> {
     return this.reputation(t, 'SetRating', itemId, Math.max(1, Math.min(5, Math.round(rating))));
   }
-  /** 아이디어 공감 켜기·끄기 */
-  public setLike(ideaId: number, on: boolean): Promise<void> {
-    return this.reputation('Idea', 'SetLike', ideaId, on);
-  }
-  /** 항목 댓글 달기 (Agent·Skill·HTML 리뷰 글, 아이디어 댓글·만들래요) */
+  /** 항목 댓글 달기 (Agent·Skill·HTML 리뷰 글, 아이디어 댓글) */
   public async addComment(t: TargetType, itemId: number, text: string): Promise<IReaction> {
     const title = this.titleOf(t);
     const d = await this.send(`${this.listUrl(title)}/items(${itemId})/Comments`, { text }, undefined, title);
@@ -512,10 +661,10 @@ export class HubService {
     await this.send(`${this.listUrl(title)}/items(${itemId})/Comments(${commentId})`, undefined, { 'X-HTTP-Method': 'DELETE' }, title);
   }
 
-  /* ---------- Skill · HTML (목록 + 첨부 파일) ----------
+  /* ---------- Skill · HTML 공통 (HubContents 목록 + 첨부 파일) ----------
      항목 하나 = Skill(또는 HTML 도구) 하나이고, 파일은 그 항목의 첨부 파일로 둡니다.
      목록이라 Agent처럼 평점(별 등급)과 항목 댓글(리뷰 글)을 쓸 수 있습니다.
-     새 버전을 올리면 첨부 파일을 바꿉니다. 버전·변경 내용은 항목 버전 기록에 남지만 이전 파일 내용은 남지 않습니다. */
+     새 버전을 올리면 첨부 파일을 바꾸고 업데이트 기록(Releases)에 한 줄을 더합니다. 이전 파일 내용은 남지 않습니다. */
   private fileApi(fileRef: string): string {
     return `${this.site}/_api/web/GetFileByServerRelativePath(decodedurl='${encodeURIComponent(fileRef.replace(/'/g, "''"))}')`;
   }
@@ -560,27 +709,54 @@ export class HubService {
     await this.staged('info', () => this.merge(list, id, fields));
   }
 
+  /* ---------- HubContents: Skill · HTML (한 목록, 구분 열로 나눔) ----------
+     구분(Kind) = Skill / HTML. 숨김(Hidden)이 '예'인 항목은 Hub에 보이지 않습니다.
+     버전은 따로 된 열 없이 업데이트 기록(Releases) JSON 의 가장 최근 항목에서 읽습니다: [{"v":"1.2","d":"2026-11-17","n":"변경 내용"}] */
+  private static readonly CONTENT_COLS = ['Id', 'Title', 'Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 'Does', 'Usage', 'MakerNote', 'Output', 'Releases', 'Hidden',
+    'AttachmentFiles/FileName', 'AttachmentFiles/ServerRelativeUrl', 'Created', 'Modified'];
+  private async contentRows(kind: 'Skill' | 'HTML'): Promise<any[]> {
+    const rows = await this.itemsOpt(this.lists.contents, HubService.CONTENT_COLS.concat(AUTHOR), ['Author', 'AttachmentFiles'], { select: HubService.VIEW_COLS }, `Kind eq '${kind}'`);
+    return rows.filter((r: any) => r.Hidden !== true);
+  }
+  /** 업데이트 기록에 이번 버전을 더합니다. 같은 버전이면 그 줄의 내용만 바꿉니다. 최근 10개만 남깁니다. */
+  private static withRelease(raw: any, version: string, note: string): string {
+    const old = HubService.json(raw);
+    const list: { v: string; d: string; n: string }[] = Object.prototype.toString.call(old) === '[object Array]' ? (old as any[]).map(x => ({ v: str(x && x.v), d: str(x && x.d), n: str(x && x.n) })) : [];
+    const last = list[list.length - 1];
+    const today = new Date().toISOString().slice(0, 10);
+    if (last && last.v === version) { last.n = note || last.n; } else { list.push({ v: version, d: today, n: note }); }
+    return JSON.stringify(list.slice(-10));
+  }
+  private async releasesOf(id: number): Promise<any> {
+    const d = await this.getJson(`${this.listUrl(this.lists.contents)}/items(${id})?$select=Releases`, this.lists.contents);
+    return d && d.Releases;
+  }
+  /** 선택 열에 넣을 값: 빈 값은 빼고 배열로 (여러 개 선택 열) */
+  private static multi(v: string | string[]): string[] {
+    return (typeof v === 'string' ? [v] : v).map(x => (x || '').trim()).filter(x => !!x);
+  }
+
   public async getSkills(): Promise<ISkill[]> {
-    const rows = await this.items(this.lists.skills,
-      ['Id', 'Title', 'SkillSummary', 'SkillPurpose', 'SkillUsage', 'SkillTools', 'SkillKind', 'SkillScope', 'SkillArea', 'SkillVersion', 'SkillChangeNote',
-        'AttachmentFiles/FileName', 'AttachmentFiles/ServerRelativeUrl', 'Created', 'Modified'].concat(AUTHOR),
-      ['Author', 'AttachmentFiles']);
+    const rows = await this.contentRows('Skill');
     return rows.map((r: any): ISkill => {
       const f = this.fileOf(r.AttachmentFiles);
+      const rel = HubService.releases(r.Releases);
+      const areas = choices(r.WorkArea);
+      const scopes = choices(r.Scope);
       return {
-        id: r.Id, title: str(r.Title) || originalSkillName(f.stored), summary: str(r.SkillSummary),
-        purpose: str(r.SkillPurpose), usage: str(r.SkillUsage), tools: splitList(r.SkillTools),
-        kind: str(r.SkillKind), scope: str(r.SkillScope), area: str(r.SkillArea),
-        version: str(r.SkillVersion) || '1.0', changeNote: str(r.SkillChangeNote),
+        id: r.Id, title: str(r.Title) || originalSkillName(f.stored), summary: str(r.Summary),
+        purpose: str(r.Does), usage: str(r.Usage), tools: choices(r.Tools),
+        kind: str(r.Category), scope: scopes.join(' · '), scopes, area: areas.join(' · '), areas,
+        version: rel.length ? rel[0].version : '1.0', changeNote: rel.length ? rel[0].note : '',
         storedName: f.stored, fileName: originalSkillName(f.stored), ext: extOf(f.stored), fileRef: f.ref, fileUrl: f.url,
-        author: person(r.Author), created: str(r.Created), modified: str(r.Modified)
+        author: person(r.Author), created: str(r.Created), modified: str(r.Modified), ...HubService.viewsOf(r)
       };
     });
   }
-  private skillFields(s: INewSkill): any {
+  private skillFields(s: INewSkill, releases: string): any {
     return {
-      Title: s.title, SkillSummary: s.summary, SkillPurpose: s.purpose, SkillUsage: s.usage, SkillTools: s.tools.join('; '),
-      SkillKind: s.kind, SkillScope: s.scope, SkillArea: s.area, SkillVersion: s.version, SkillChangeNote: s.changeNote
+      Title: s.title, Kind: 'Skill', Summary: s.summary, Does: s.purpose, Usage: s.usage, Tools: HubService.multi(s.tools),
+      Category: s.kind || null, Scope: HubService.multi(s.scope), WorkArea: HubService.multi(s.area), Releases: releases
     };
   }
   private fileBody(s: INewSkill): string | ArrayBuffer {
@@ -590,57 +766,61 @@ export class HubService {
   /** Skill 올리기. 승인 없이 바로 모두에게 보입니다. */
   public async createSkill(s: INewSkill): Promise<number> {
     if (!s.file) { throw new HubError('Skill 파일을 골라 주세요.', 400); }
-    return this.createWithFile(this.lists.skills, this.skillFields(s), storedSkillName(s.file.name), this.fileBody(s));
+    return this.createWithFile(this.lists.contents, this.skillFields(s, HubService.withRelease('', s.version, s.changeNote)), storedSkillName(s.file.name), this.fileBody(s));
   }
-  /** Skill 새 버전. 새 파일이 있으면 첨부 파일을 바꾸고, 정보 열을 고칩니다. */
+  /** Skill 새 버전. 새 파일이 있으면 첨부 파일을 바꾸고, 정보 열과 업데이트 기록을 고칩니다. */
   public async updateSkill(skill: ISkill, s: INewSkill): Promise<void> {
-    await this.updateWithFile(this.lists.skills, skill.id, skill.storedName, this.skillFields(s), s.file ? { name: s.file.name, body: this.fileBody(s) } : undefined);
+    const rel = HubService.withRelease(await this.releasesOf(skill.id), s.version, s.changeNote);
+    await this.updateWithFile(this.lists.contents, skill.id, skill.storedName, this.skillFields(s, rel), s.file ? { name: s.file.name, body: this.fileBody(s) } : undefined);
   }
   /** Skill 삭제. 항목과 첨부 파일이 사이트 휴지통으로 갑니다. */
   public async deleteSkill(id: number): Promise<void> {
-    await this.send(`${this.listUrl(this.lists.skills)}/items(${id})/recycle()`, undefined, undefined, this.lists.skills);
+    await this.send(`${this.listUrl(this.lists.contents)}/items(${id})/recycle()`, undefined, undefined, this.lists.contents);
   }
   /** Skill 파일 내용 (md·txt 본문 보기·복사용) */
   public async getSkillText(fileRef: string): Promise<string> {
     const res = await this.client.get(`${this.fileApi(fileRef)}/$value`, SPHttpClient.configurations.v1);
-    if (!res.ok) { return this.fail(res, this.lists.skills); }
+    if (!res.ok) { return this.fail(res, this.lists.contents); }
     return res.text();
   }
-  public getSkillVersions(id: number): Promise<IVersion[]> {
-    return this.versions(this.lists.skills, id, 'SkillVersion', 'SkillChangeNote');
+  public async getSkillVersions(id: number): Promise<IVersion[]> {
+    return HubService.releases(await this.releasesOf(id));
   }
 
-  /* ---------- HTML 도구 (목록 + 첨부 파일) ----------
+  /* ---------- HTML 도구 (HubContents, 구분 = HTML) ----------
      항목 하나 = 도구 하나, .html 파일은 첨부 파일. '열기'는 파일 내용을 읽어 격리된(sandbox) 창에서 보여 줍니다. */
   public async getHtmls(): Promise<IHtmlTool[]> {
-    const rows = await this.items(this.lists.htmls,
-      ['Id', 'Title', 'HtmlSummary', 'HtmlDoes', 'MakerNote', 'MadeWith', 'UseScope', 'WorkType', 'OutputType', 'HtmlVersion', 'HtmlChangeNote',
-        'AttachmentFiles/FileName', 'AttachmentFiles/ServerRelativeUrl', 'Created', 'Modified'].concat(AUTHOR),
-      ['Author', 'AttachmentFiles']);
+    const rows = await this.contentRows('HTML');
     return rows.map((r: any): IHtmlTool => {
       const f = this.fileOf(r.AttachmentFiles);
+      const rel = HubService.releases(r.Releases);
+      const tools = choices(r.Tools);
+      const scopes = choices(r.Scope);
+      const areas = choices(r.WorkArea);
       return {
-        id: r.Id, title: str(r.Title) || originalSkillName(f.stored), summary: str(r.HtmlSummary), does: splitLines(str(r.HtmlDoes)),
-        makerNote: str(r.MakerNote), madeWith: str(r.MadeWith), scope: str(r.UseScope), workType: str(r.WorkType), output: str(r.OutputType),
-        version: str(r.HtmlVersion) || '1.0', changeNote: str(r.HtmlChangeNote),
+        id: r.Id, title: str(r.Title) || originalSkillName(f.stored), summary: str(r.Summary), does: splitLines(str(r.Does)),
+        makerNote: str(r.MakerNote), madeWith: tools.join(' · '), tools, scope: scopes.join(' · '), scopes,
+        workType: str(r.Category), area: areas.join(' · '), areas, output: str(r.Output),
+        version: rel.length ? rel[0].version : '1.0', changeNote: rel.length ? rel[0].note : '',
         storedName: f.stored, fileName: originalSkillName(f.stored), fileRef: f.ref, fileUrl: f.url,
-        author: person(r.Author), created: str(r.Created), modified: str(r.Modified)
+        author: person(r.Author), created: str(r.Created), modified: str(r.Modified), ...HubService.viewsOf(r)
       };
     });
   }
-  private htmlFields(h: INewHtml): any {
+  private htmlFields(h: INewHtml, releases: string): any {
     return {
-      Title: h.title, HtmlSummary: h.summary, HtmlDoes: h.does.join('\n'), MakerNote: h.makerNote, MadeWith: h.madeWith,
-      UseScope: h.scope, WorkType: h.workType, OutputType: h.output, HtmlVersion: h.version, HtmlChangeNote: h.changeNote
+      Title: h.title, Kind: 'HTML', Summary: h.summary, Does: h.does.join('\n'), MakerNote: h.makerNote, Tools: HubService.multi(h.madeWith),
+      Scope: HubService.multi(h.scope), Category: h.workType || null, WorkArea: HubService.multi(h.area), Output: h.output, Releases: releases
     };
   }
   /** HTML 올리기. 승인 없이 바로 보입니다. */
   public async createHtml(h: INewHtml): Promise<number> {
     if (!h.file) { throw new HubError('HTML 파일을 골라 주세요.', 400); }
-    return this.createWithFile(this.lists.htmls, this.htmlFields(h), storedSkillName(h.file.name), h.file.text);
+    return this.createWithFile(this.lists.contents, this.htmlFields(h, HubService.withRelease('', h.version, h.changeNote)), storedSkillName(h.file.name), h.file.text);
   }
   public async updateHtml(tool: IHtmlTool, h: INewHtml): Promise<void> {
-    await this.updateWithFile(this.lists.htmls, tool.id, tool.storedName, this.htmlFields(h), h.file ? { name: h.file.name, body: h.file.text } : undefined);
+    const rel = HubService.withRelease(await this.releasesOf(tool.id), h.version, h.changeNote);
+    await this.updateWithFile(this.lists.contents, tool.id, tool.storedName, this.htmlFields(h, rel), h.file ? { name: h.file.name, body: h.file.text } : undefined);
   }
 
   /** 실패하면 어느 단계(파일 / 정보)였는지 오류에 적어 둡니다. 화면이 알맞은 안내를 고를 수 있게. */
@@ -652,15 +832,15 @@ export class HubService {
     }
   }
   public async deleteHtml(id: number): Promise<void> {
-    await this.send(`${this.listUrl(this.lists.htmls)}/items(${id})/recycle()`, undefined, undefined, this.lists.htmls);
+    await this.send(`${this.listUrl(this.lists.contents)}/items(${id})/recycle()`, undefined, undefined, this.lists.contents);
   }
   public async getFileText(fileRef: string): Promise<string> {
     const res = await this.client.get(`${this.fileApi(fileRef)}/$value`, SPHttpClient.configurations.v1);
     if (!res.ok) { return this.fail(res); }
     return res.text();
   }
-  public getHtmlVersions(id: number): Promise<IVersion[]> {
-    return this.versions(this.lists.htmls, id, 'HtmlVersion', 'HtmlChangeNote');
+  public async getHtmlVersions(id: number): Promise<IVersion[]> {
+    return HubService.releases(await this.releasesOf(id));
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

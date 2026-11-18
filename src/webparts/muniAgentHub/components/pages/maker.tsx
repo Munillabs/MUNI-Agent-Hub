@@ -17,8 +17,7 @@ export function MakerLab(props: { api: IHubApi }): JSX.Element {
           <a className="btn sm" href="#" onClick={e => { e.preventDefault(); api.soon('테스트 기준'); }}>테스트 기준 보기</a></li>
         <li className="step hl"><span className="n">4</span><h3>Launch Desk</h3><p>Teams에서 배포 신청 Agent와 대화하면 신청이 접수돼요. Copilot Studio Agent는 Prod 배포 후, Agent Builder Agent는 배포 없이 Profile Card만으로 Marketplace에 올라가요.</p>
           <button type="button" className="btn sm pri" onClick={() => api.launchDesk()}>배포하러 가기 ↗</button>
-          {/* 배포 기록과 자동 연결되기 전까지는 Profile Card(소개)를 Hub에서 직접 올립니다 */}
-          <button type="button" className="btn sm" style={{ marginTop: 8 }} onClick={() => api.go('agentform')}>Profile Card 올리기</button></li>
+          </li>
       </ol>
       <div className="sec" id="guide" ref={guide}>
         <section><div className="sec-h"><h2>가이드</h2><a href="#" onClick={e => { e.preventDefault(); api.soon('가이드 전체'); }}>전체 →</a></div>

@@ -3,15 +3,16 @@
    - 화면 전환은 주소 끝(#market, #agent-12)으로 하여 링크로 공유하고 브라우저 뒤로 가기도 쓸 수 있습니다. */
 import * as React from 'react';
 import styles from './MuniAgentHub.module.scss';
-import { HubService, HubError, MAKE_COMMENT, START_COMMENT, reviewText } from '../services/HubService';
+import { HubService, HubError, reviewText } from '../services/HubService';
 import {
-  HubView, IHtmlTool, IHubData, IMe, INewAgent, INewCase, INewHtml, INewSkill, IPerson, IReaction, IReportTarget, IVersion, ReactionKind, TargetType
+  HubView, IAgent, IHtmlTool, IHubData, IIdea, IMe, INewCase, INewHtml, INewSkill, IPerson, IReaction, IReportTarget, ISkill, IVersion, ReactionKind, TargetType
 } from '../models/types';
 import { first, ideaStage, isHttpsUrl, mmdd, ratingOf } from '../models/rules';
 import { INotice, badges, notices } from '../models/activity';
 import { IHubApi } from './api';
-import { AgentFormPage, CaseForm, HtmlForm, IdeaEditForm, ReportForm, SkillForm } from './forms';
+import { CaseForm, HtmlForm, IdeaEditForm, ReportForm, SkillForm } from './forms';
 import { Go, IconAgent, IconBell, IconGrid, IconCases, IconHome, IconHtml, IconIdeas, IconMaker, IconMarket, IconSearch, IconSkill, Modal, Toast } from './ui';
+import { BadgeMedal } from './badge';
 import { HomeView } from './pages/home';
 import { AgentStore, HtmlStore, MarketView, SkillStore } from './pages/market';
 import { AgentPage, HtmlPage, SkillPage } from './pages/detail';
@@ -45,38 +46,42 @@ type ModalState =
   | undefined;
 interface IRoute { view: HubView; id?: number }
 
-const LIST_VIEWS: HubView[] = ['home', 'market', 'agents', 'skills', 'htools', 'ideas', 'cases', 'maker', 'search', 'me', 'agentform'];
-const ITEM_VIEWS: HubView[] = ['agent', 'skill', 'htool', 'idea', 'case', 'agentform'];
+const LIST_VIEWS: HubView[] = ['home', 'market', 'agents', 'skills', 'htools', 'ideas', 'cases', 'maker', 'search', 'me'];
+const ITEM_VIEWS: HubView[] = ['agent', 'skill', 'htool', 'idea', 'case'];
 /** 상세·하위 화면이 머리글 메뉴의 어디에 속하는지 (시안 NAVMAP) */
-const NAV_OF: { [v: string]: string } = { htool: 'market', agentform: 'maker', agents: 'market', skills: 'market', htools: 'market', agent: 'market', skill: 'market', case: 'cases', idea: 'ideas' };
+const NAV_OF: { [v: string]: string } = { htool: 'market', agents: 'market', skills: 'market', htools: 'market', agent: 'market', skill: 'market', case: 'cases', idea: 'ideas' };
 /** Marketplace 아래 종류 탭(전체 m · Agent a · Skill s · HTML h)이 보이는 화면 (시안 MKMAP) */
 const MK_OF: { [v: string]: string } = { market: 'm', agents: 'a', agent: 'a', skills: 's', skill: 's', htools: 'h', htool: 'h' };
 /** 시안 CSS가 #ideas, #agent 처럼 화면 id로 모양을 정하는 부분은 [data-hub-page="ideas"] 로 바꿔 두었습니다.
     (주소와 같은 id를 붙이면 브라우저가 그 위치로 스크롤하므로 id 대신 data 속성) */
 const PAGE_ID: { [v: string]: string } = {
   home: 'home', market: 'market', agents: 'store', skills: 'toolkit', htools: 'htools', agent: 'agent', htool: 'htmlitem', skill: 'skill',
-  ideas: 'ideas', idea: 'idea', cases: 'cases', case: 'case', maker: 'maker', agentform: 'agentform', search: 'search', me: 'me'
+  ideas: 'ideas', idea: 'idea', cases: 'cases', case: 'case', maker: 'maker', search: 'search', me: 'me'
 };
+/** Home 자동 새로 고침 간격 (1분) */
+const REFRESH_MS = 60000;
 const EMPTY: IHubData ={ agents: [], ideas: [], cases: [], reactions: [], skills: [], htmls: [] };
-const TITLES: { [v: string]: string } = { search: '검색', case: '사례', skill: 'Skill', idea: '아이디어', me: '내 작업공간', awards: '랭킹 · 배지', market: 'Marketplace', htools: 'HTML', agents: 'Agent', skills: 'Skill', ideas: 'Idea Board', cases: 'Case Library', maker: 'Maker Lab', agentform: 'Agent 소개 작성' };
+const TITLES: { [v: string]: string } = { search: '검색', case: '사례', skill: 'Skill', idea: '아이디어', me: '내 작업공간', awards: '랭킹 · 배지', market: 'Marketplace', htools: 'HTML', agents: 'Agent', skills: 'Skill', ideas: 'Idea Board', cases: 'Case Library', maker: 'Maker Lab' };
 
 function readHash(): IRoute {
   const h = (window.location.hash || '').replace(/^#/, '');
-  const m = /^(agent|skill|htool|idea|case|agentform)-(\d+)$/.exec(h);
+  const m = /^(agent|skill|htool|idea|case)-(\d+)$/.exec(h);
   if (m) { return { view: m[1] as HubView, id: Number(m[2]) }; }
   return { view: LIST_VIEWS.indexOf(h as HubView) >= 0 ? h as HubView : 'home' };
 }
 function hashOf(r: IRoute): string {
   return '#' + r.view + (r.id && ITEM_VIEWS.indexOf(r.view) >= 0 ? '-' + r.id : '');
 }
-/* 알림 읽음 표시는 이 브라우저에만 저장합니다 (다른 기기와는 따로) */
-interface IReadState { ids: string[]; all: string }
+/** 조회수: 올린 사람이 자기 게시물을 본 것도 셀지 (true = 셈) */
+const COUNT_OWN_VIEWS = true;
+/* 알림 읽음·삭제 표시는 이 브라우저에만 저장합니다 (다른 기기와는 따로) */
+interface IReadState { ids: string[]; all: string; del: string[] }
 function loadRead(key: string): IReadState {
-  try { const v = JSON.parse(window.localStorage.getItem(key) || ''); if (v && v.ids) { return v; } } catch (e) { /* 없음 */ }
-  return { ids: [], all: '' };
+  try { const v = JSON.parse(window.localStorage.getItem(key) || ''); if (v && v.ids) { return { ids: v.ids, all: v.all || '', del: v.del || [] }; } } catch (e) { /* 없음 */ }
+  return { ids: [], all: '', del: [] };
 }
 function saveRead(key: string, s: IReadState): void {
-  try { window.localStorage.setItem(key, JSON.stringify({ ids: s.ids.slice(-300), all: s.all })); } catch (e) { /* 저장 못 해도 동작 */ }
+  try { window.localStorage.setItem(key, JSON.stringify({ ids: s.ids.slice(-300), all: s.all, del: s.del.slice(-500) })); } catch (e) { /* 저장 못 해도 동작 */ }
 }
 
 export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
@@ -91,7 +96,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const [error, setError] = React.useState<string>('');
   const [toastMsg, setToastMsg] = React.useState('');
   const [menu, setMenu] = React.useState<'' | 'market' | 'account' | 'notif'>('');
-  const [readState, setReadState] = React.useState<IReadState>({ ids: [], all: '' });
+  const [readState, setReadState] = React.useState<IReadState>({ ids: [], all: '', del: [] });
   const customLogo = (props.logoUrl || '').trim();
   const [customLogoFailed, setCustomLogoFailed] = React.useState(false);
   React.useEffect(() => { setCustomLogoFailed(false); }, [customLogo]);
@@ -102,6 +107,8 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const now = React.useMemo(() => new Date(), [data]);
   const readKey = me ? `muniAiHub.read.${me.id}` : '';
   React.useEffect(() => { if (readKey) { setReadState(loadRead(readKey)); } }, [readKey]);
+  /** 프로필 사진을 못 불러오면(사진 없음 등) 이름 첫 글자로 */
+  const [photoFailed, setPhotoFailed] = React.useState(false);
 
   const toast = React.useCallback((m: string): void => {
     setToastMsg(m);
@@ -126,6 +133,54 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     }
   }, [service, me]);
   React.useEffect(() => { load().catch(() => undefined); }, [service]);
+
+  /* ---------- 자동 새로 고침 (Home의 '지금 부문별 1위'를 실시간으로) ----------
+     Home을 보고 있고 팝업이 없고 브라우저 탭이 보일 때만 1분마다 조용히 다시 읽습니다.
+     다른 탭에 있다 돌아오면 바로 한 번 읽습니다. 불러오는 중 표시나 오류 화면은 띄우지 않습니다. */
+  const refreshing = React.useRef(false);
+  const lastRefresh = React.useRef(0);
+  const liveOn = route.view === 'home' && !modal && !loading && !error && !!me;
+  React.useEffect(() => {
+    if (!liveOn) { return undefined; }
+    const refresh = (): void => {
+      if (refreshing.current || document.visibilityState === 'hidden') { return; }
+      refreshing.current = true;
+      lastRefresh.current = Date.now();
+      service.loadAll().then(d => setData(d), () => undefined).then(() => { refreshing.current = false; }, () => { refreshing.current = false; });
+    };
+    const timer = window.setInterval(refresh, REFRESH_MS);
+    const onVisible = (): void => { if (document.visibilityState === 'visible' && Date.now() - lastRefresh.current > 15000) { refresh(); } };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [liveOn, service]);
+
+  /** 지금 보고 있는 상세 중 이미 센 것 ('Agent:7'). 상세를 떠나면 비웁니다 */
+  const viewCounted = React.useRef('');
+  /* ---------- 조회 기록 ----------
+     Agent·Skill·HTML 상세를 열면 그 항목의 ViewCount 를 1 올립니다(AgentList · HubContents).
+     들어올 때마다 1회 셉니다. 상세에 머무는 동안 데이터를 다시 읽어도 또 세지 않고, 다른 화면에 갔다가 다시 들어오면 또 셉니다. */
+  React.useEffect(() => {
+    const t: TargetType | undefined = route.view === 'agent' ? 'Agent' : route.view === 'skill' ? 'Skill' : route.view === 'htool' ? 'Html' : undefined;
+    const tag = t && route.id ? `${t}:${route.id}` : '';
+    // 상세를 떠나면(또는 다른 게시물로 가면) 다음에 들어올 때 다시 셀 수 있게 비웁니다
+    if (viewCounted.current && viewCounted.current !== tag) { viewCounted.current = ''; }
+    if (!t || !tag || !me || viewCounted.current === tag) { return; }
+    const item = t === 'Agent' ? first(data.agents, a => a.id === route.id) : t === 'Skill' ? first(data.skills, s => s.id === route.id) : first(data.htmls, h => h.id === route.id);
+    if (!item) { return; }
+    // 지금은 내 게시물을 내가 본 것도 셉니다. 빼려면 위쪽 COUNT_OWN_VIEWS 를 false 로
+    const poster = t === 'Agent' ? (item as IAgent).owner : (item as ISkill | IHtmlTool).author;
+    if (!COUNT_OWN_VIEWS && poster && poster.id === me.id) { return; }
+    viewCounted.current = tag;
+    const id = item.id;
+    const bump = <T extends { id: number; views?: number }>(x: T): T => x.id === id ? { ...x, views: (x.views || 0) + 1 } : x;
+    service.recordView(t, id).then(() => {
+      // 다시 읽기 전에도 숫자가 바로 오르게
+      setData(d => t === 'Agent' ? { ...d, agents: d.agents.map(bump) } : t === 'Skill' ? { ...d, skills: d.skills.map(bump) } : { ...d, htmls: d.htmls.map(bump) });
+    }, e => {
+      // 화면에는 띄우지 않고, 원인을 F12 콘솔에 남깁니다
+      console.warn(`[MUNI AI Hub] 조회수를 올리지 못했어요 (${tag}):`, e instanceof Error ? e.message : e);
+    });
+  }, [route.view, route.id, me, data.agents.length, data.skills.length, data.htmls.length]);
 
   /* ---------- 화면 전환 ---------- */
   React.useEffect(() => {
@@ -176,16 +231,28 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     try { window.localStorage.setItem(favKey, JSON.stringify(next)); } catch (e) { /* 저장 못 해도 이번 화면에서는 동작 */ }
     return on;
   };
-  /** 아이디어 공감 (Idea Board 기본 '좋아요') */
-  const toggleIdeaLike = async (id: number): Promise<boolean> => {
-    const existing = mineOf('Idea', id, '좋아요');
-    const before = data.reactions;
-    const on = !existing;
-    setData(d => ({ ...d, reactions: on
-      ? d.reactions.concat([{ id: `lk:Idea:${id}:${me!.id}`, targetType: 'Idea', targetId: id, kind: '좋아요', body: '', author: meAsPerson(), created: '' }])
-      : d.reactions.filter(r => r !== existing) }));
-    try { await service.setLike(id, on); return on; } catch (e) { setData(d => ({ ...d, reactions: before })); throw e; }
+  /** 아이디어를 바꾸고, 그 아이디어에서 나온 공감·만들래요·시작 반응도 다시 만듭니다 */
+  const withIdeas = (d: IHubData, ideas: IIdea[]): IHubData => ({
+    ...d, ideas, reactions: d.reactions.filter(r => !/^(lk|mk|st):Idea:/.test(r.id)).concat(HubService.ideaReactions(ideas))
+  });
+  const patchIdea = (id: number, change: (i: IIdea) => IIdea): void => setData(d => withIdeas(d, d.ideas.map(i => i.id === id ? change(i) : i)));
+  /** 사람 열(공감한 사람·함께 만드는 사람)에 나를 넣거나 빼고, 저장한 뒤의 실제 명단으로 맞춥니다 */
+  const togglePeople = async (id: number, field: 'likers' | 'makers'): Promise<boolean> => {
+    const cur = first(data.ideas, i => i.id === id);
+    if (!cur || !me) { return false; }
+    const on = !cur[field].some(p => isMe(p));
+    const before = data.ideas;
+    patchIdea(id, i => ({ ...i, [field]: on ? i[field].concat([meAsPerson()]) : i[field].filter(p => !isMe(p)) }));
+    try {
+      if (field === 'likers') { await service.setLike(id, on); return on; }
+      const ids = await service.setMaker(id, me.id, on);
+      if (!ids.length) { patchIdea(id, i => ({ ...i, startedOn: '', status: '모집 중' })); }
+      // 다른 사람이 그사이 눌렀으면 그 사람 이름은 다음 새로 읽기에서 채워집니다
+      if (ids.some(x => !cur[field].some(p => p.id === x) && x !== me.id)) { service.getIdeas().then(ideas => setData(d => withIdeas(d, ideas)), () => undefined); }
+      return on;
+    } catch (e) { setData(d => withIdeas(d, before)); throw e; }
   };
+  const toggleIdeaLike = (id: number): Promise<boolean> => togglePeople(id, 'likers');
   const addIdeaComment = async (id: number, text: string): Promise<IReaction> => {
     const saved = await service.addComment('Idea', id, text);
     const r: IReaction = { ...saved, author: saved.author && saved.author.id ? saved.author : meAsPerson(), created: saved.created || new Date().toISOString() };
@@ -231,19 +298,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     } catch (e) { fail(e); return false; }
   };
 
-  /* ---------- 등록 ---------- */
-  const submitAgent = async (a: INewAgent, editId?: number): Promise<boolean> => {
-    if (!me) { return false; }
-    try {
-      const cur = editId ? first(data.agents, x => x.id === editId) : undefined;
-      const id = cur ? (await service.updateAgent(cur.id, a, cur.images, cur.thumb), cur.id) : await service.createAgent(a, me.id);
-      const agents = await service.getAgents();
-      setData(d => ({ ...d, agents }));
-      go('agent', id);
-      toast(cur ? '저장했어요. 상세 페이지에 바로 보여요.' : 'Agent를 올렸어요. Marketplace에 바로 보여요.');
-      return true;
-    } catch (e) { fail(e); return false; }
-  };
+  /* ---------- 등록 (Agent는 배포 흐름이 AgentList에 채우므로 Hub에서 등록하지 않습니다) ---------- */
   // Skill·HTML 올리기는 실패하면 오류를 던집니다. 폼이 받아서 버튼 위에 자세한 안내를 띄웁니다.
   const submitSkill = async (s: INewSkill, editId?: number): Promise<void> => {
     const cur = editId ? first(data.skills, x => x.id === editId) : undefined;
@@ -288,9 +343,39 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const reviewsOf = (t: TargetType, id: number): IReaction[] => data.reactions
     .filter(r => r.targetType === t && r.targetId === id && r.kind === '리뷰').sort((x, y) => (y.created || '').localeCompare(x.created || ''));
   const markRead = (ids: string[]): void => {
-    const n = { ids: readState.ids.concat(ids.filter(i => readState.ids.indexOf(i) < 0)), all: readState.all };
+    const n = { ids: readState.ids.concat(ids.filter(i => readState.ids.indexOf(i) < 0)), all: readState.all, del: readState.del };
     setReadState(n); if (readKey) { saveRead(readKey, n); }
   };
+  // 지운 알림은 목록과 숫자에서 빠집니다 (원래 리뷰·댓글은 그대로)
+  const removeNotices = (ids: string[], msg: string): void => {
+    const n = { ids: readState.ids, all: readState.all, del: readState.del.concat(ids.filter(i => readState.del.indexOf(i) < 0)) };
+    setReadState(n); if (readKey) { saveRead(readKey, n); }
+    toast(msg);
+  };
+  /* ---------- 프로필 배지 ----------
+     배지는 모두가 보는 목록 데이터로 계산하므로 다른 사람 것도 같은 결과가 나옵니다.
+     고른 배지는 HubProfiles 목록(사람당 한 줄, AvatarBadge)에 저장합니다. */
+  const avatarCache: { [id: number]: string | undefined } = {};
+  const avatarOf = (p?: IPerson): string | undefined => {
+    if (!p || !p.id) { return undefined; }
+    if (p.id in avatarCache) { return avatarCache[p.id]; }
+    const got = badges(data, p, now).filter(b => b.got);
+    const pick = (data.avatars || {})[p.id] || '';
+    const latest = got.slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''))[0];
+    // 'photo' = 사진 · 고른 배지가 아직 있으면 그 배지 · 아니면 최근 배지
+    const k = pick === 'photo' ? undefined : (got.some(b => b.k === pick) ? pick : (latest ? latest.k : undefined));
+    avatarCache[p.id] = k;
+    return k;
+  };
+  const pickAvatar = (key: string): void => {
+    if (!me) { return; }
+    const before = data.avatars || {};
+    setData(d => ({ ...d, avatars: { ...(d.avatars || {}), [me.id]: key } }));
+    service.setAvatarBadge(me.id, me.email, key).then(
+      () => toast(key === 'photo' ? '프로필을 내 사진으로 바꿨어요' : key ? '프로필을 이 배지로 바꿨어요' : '최근 받은 배지를 프로필로 써요'),
+      e => { setData(d => ({ ...d, avatars: before })); fail(e); });
+  };
+
   const api: IHubApi | undefined = me ? {
     data, me, now, searchQuery, go, search,
     // 아이디어는 공감 수, Agent·Skill·HTML은 즐겨찾기(이 브라우저)라 수를 세지 않습니다
@@ -305,20 +390,20 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     rating: (t, id) => ratingOf(reviewsOf(t, id)),
     addReview,
     editReview,
-    makers: id => data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '만들래요' && !!r.author).map(r => r.author!),
-    started: id => {
-      const s = data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '시작').sort((x, y) => (x.created || '').localeCompare(y.created || ''))[0];
-      return s ? { who: s.author, date: s.created } : undefined;
-    },
+    makers: id => { const i = first(data.ideas, x => x.id === id); return i ? i.makers : []; },
+    started: id => { const i = first(data.ideas, x => x.id === id); return i && i.startedOn ? { date: i.startedOn } : undefined; },
     toggleStart: id => {
-      const mine = mineOf('Idea', id, '시작');
-      if (mine) { removeComment(mine).then(() => toast("만들기를 멈췄어요. '함께할 사람 찾기' 단계로 돌아가요")).catch(fail); return; }
-      addIdeaComment(id, START_COMMENT).then(() => toast('만들기를 시작했어요. 제작 중으로 바뀌어요')).catch(fail);
+      const i = first(data.ideas, x => x.id === id);
+      if (!i) { return; }
+      const on = !i.startedOn;
+      service.setStarted(id, on).then(at => {
+        patchIdea(id, x => ({ ...x, startedOn: at, status: on ? '제작 중' : '모집 중' }));
+        toast(on ? '만들기를 시작했어요. 제작 중으로 바뀌어요' : "만들기를 멈췄어요. '함께할 사람 찾기' 단계로 돌아가요");
+      }).catch(fail);
     },
-    stageOf: i => ideaStage(i, data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === i.id && r.kind === '만들래요').length, now,
-      data.reactions.some(r => r.targetType === 'Idea' && r.targetId === i.id && r.kind === '시작')),
-    updateIdea: async (id, title, type, detail) => {
-      try { await service.updateIdea(id, { title, type, detail }); setData(d => ({ ...d, ideas: d.ideas.map(i => i.id === id ? { ...i, title, type, detail } : i) })); toast('아이디어를 고쳤어요'); return true; } catch (e) { fail(e); return false; }
+    stageOf: i => ideaStage(i, now),
+    updateIdea: async (id, idea) => {
+      try { await service.updateIdea(id, idea); patchIdea(id, i => ({ ...i, ...idea, detail: idea.detail || '', pain: idea.pain || '', frequency: idea.frequency || '' })); toast('아이디어를 고쳤어요'); return true; } catch (e) { fail(e); return false; }
     },
     deleteIdea: async id => {
       try { await service.deleteIdea(id); setData(d => ({ ...d, ideas: d.ideas.filter(i => i.id !== id) })); toast('아이디어를 지웠어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
@@ -338,14 +423,13 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       try { await service.deleteCase(id); setData(d => ({ ...d, cases: d.cases.filter(c => c.id !== id) })); toast('사례를 지웠어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
     },
     toggleMake: id => {
-      const mine = mineOf('Idea', id, '만들래요');
-      if (mine) { removeComment(mine).then(() => toast('참여를 취소했어요')).catch(fail); return; }
-      const others = data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '만들래요').length;
-      addIdeaComment(id, MAKE_COMMENT).then(() => toast(others ? '만들래요에 참여했어요. 만드는 사람들과 Teams로 이야기해 보세요' : '만드는 중으로 바꿨어요. 같이 할 사람을 기다려요')).catch(fail);
+      const i = first(data.ideas, x => x.id === id);
+      const others = i ? i.makers.filter(p => !isMe(p)).length : 0;
+      togglePeople(id, 'makers').then(on => toast(!on ? '참여를 취소했어요' : others ? '만들래요에 참여했어요. 만드는 사람들과 Teams로 이야기해 보세요' : '손을 들었어요. 같이 할 사람을 기다려요')).catch(fail);
     },
     comments: id => data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '댓글').sort((x, y) => (x.created || '').localeCompare(y.created || '')),
-    addIdea: async (title, type, detail) => {
-      try { await service.createIdea({ title, type, detail }); const ideas = await service.getIdeas(); setData(d => ({ ...d, ideas })); toast('포스트잇을 붙였어요'); return true; } catch (e) { fail(e); return false; }
+    addIdea: async idea => {
+      try { await service.createIdea(idea); const ideas = await service.getIdeas(); setData(d => withIdeas(d, ideas)); toast('포스트잇을 붙였어요'); return true; } catch (e) { fail(e); return false; }
     },
     addComment: async (id, body) => {
       try { await addIdeaComment(id, body); toast('댓글을 달았어요'); return true; } catch (e) { fail(e); return false; }
@@ -356,7 +440,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       try { await removeComment(r); toast('댓글을 지웠어요'); return true; } catch (e) { fail(e); return false; }
     },
     reviveIdea: async id => {
-      try { const at = await service.reviveIdea(id); setData(d => ({ ...d, ideas: d.ideas.map(i => i.id === id ? { ...i, revivedOn: at } : i) })); toast('보관을 해제했어요'); return true; } catch (e) { fail(e); return false; }
+      try { const at = await service.reviveIdea(id); patchIdea(id, i => ({ ...i, revivedOn: at, archivedOn: '', status: '모집 중' })); toast('보관을 해제했어요'); return true; } catch (e) { fail(e); return false; }
     },
     openSkillForm: id => setModal({ kind: 'skill', id }),
     openHtmlForm: id => setModal({ kind: 'html', id }),
@@ -372,9 +456,10 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     },
     loadFileText: ref => service.getFileText(ref),
     loadVersions: (t, id): Promise<IVersion[]> => t === 'Agent' ? service.getAgentVersions(id) : t === 'Skill' ? service.getSkillVersions(id) : service.getHtmlVersions(id),
+    avatarOf,
     isRead: (id, date) => readState.ids.indexOf(id) >= 0 || (!!readState.all && date <= readState.all),
     markRead,
-    markAllRead: () => { const n = { ids: [], all: new Date().toISOString() }; setReadState(n); if (readKey) { saveRead(readKey, n); } toast('모두 읽음으로 표시했어요'); },
+    markAllRead: () => { const n = { ids: [], all: new Date().toISOString(), del: readState.del }; setReadState(n); if (readKey) { saveRead(readKey, n); } toast('모두 읽음으로 표시했어요'); },
     copy,
     copyLink: (v, id) => copy(window.location.href.replace(/#.*$/, '') + hashOf({ view: v, id }), '링크를 복사했어요'),
     launchDesk: () => {
@@ -386,10 +471,40 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   } : undefined;
 
   /* ---------- 알림 ---------- */
-  const allNotices: INotice[] = api ? notices(data, api.me, now) : [];
+  const allNotices: INotice[] = api ? notices(data, api.me, now).filter(n => readState.del.indexOf(n.id) < 0) : [];
   const unread = api ? allNotices.filter(n => !api.isRead(n.id, n.date)) : [];
   const shownNotices = allNotices;
-  const myBadges = api && menu === 'account' ? badges(data, api.me, now).filter(b => b.got) : [];
+  const allBadges = api ? badges(data, api.me, now) : [];
+  const myBadges = allBadges.filter(b => b.got);
+  // 아직 못 받은 배지 (진행률 높은 순). Case Library 올리기를 없앨 예정이라 '첫 사례'는 빼요
+  const lockedBadges = allBadges.filter(b => !b.got && b.k !== 'first-case')
+    .sort((x, y) => ((y.have || 0) / (y.need || 1)) - ((x.have || 0) / (x.need || 1)));
+  // 프로필 동그라미: 고른 배지 → 없으면 최근 배지. 사진을 골랐거나 배지가 없으면 Microsoft 365 프로필 사진
+  const myAvatarKey = me ? avatarOf(me) : undefined;
+  const avBadge = first(myBadges, b => b.k === myAvatarKey);
+  const myPick = me ? ((data.avatars || {})[me.id] || '') : '';
+  const photoUrl = me && me.email && !photoFailed
+    ? `${props.siteUrl.replace(/\/+$/, '')}/_layouts/15/userphoto.aspx?size=M&accountname=${encodeURIComponent(me.email)}` : '';
+  // 배지가 있으면 동그라미 전체를 배지로, 없으면 프로필 사진(없으면 이름 첫 글자)
+  // 크기·모양은 CSS가 늦게 반영돼도 깨지지 않게 요소에 직접 지정합니다
+  const avFace = (cls: string, size: number): JSX.Element => {
+    const box: React.CSSProperties = { width: size, height: size, flex: 'none', display: 'grid', placeItems: 'center', borderRadius: '50%', overflow: 'hidden' };
+    if (avBadge) {
+      // 메달이 동그라미 밖으로 잘리지 않게 배경 없이 그대로
+      return (
+        <span className={cls} aria-hidden="true" title={avBadge.title} style={{ ...box, background: 'transparent', overflow: 'visible', borderRadius: 0 }}>
+          <BadgeMedal k={avBadge.k} size={size + 4} ribbon={false} />
+        </span>
+      );
+    }
+    return (
+      <span className={cls} aria-hidden="true" style={box}>
+        {photoUrl
+          ? <img src={photoUrl} alt="" onError={() => setPhotoFailed(true)} style={{ width: size, height: size, maxWidth: size, objectFit: 'cover', display: 'block' }} />
+          : (me ? me.name.trim().charAt(0) : '')}
+      </span>
+    );
+  };
   const groupOf = (iso: string): string => { const d = Math.floor((now.getTime() - new Date(iso).getTime()) / 86400000); return d < 1 && new Date(iso).getDate() === now.getDate() ? '오늘' : d < 7 ? '이번 주' : '이전'; };
   const bellPos = (): React.CSSProperties => {
     const b = bellRef.current;
@@ -418,12 +533,6 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       case 'maker': body = <MakerLab api={api} />; break;
       case 'search': body = <SearchView api={api} />; break;
       case 'me': body = <MyWorkspace api={api} />; break;
-      case 'agentform': {
-        const cur = id ? first(data.agents, x => x.id === id) : undefined;
-        body = <AgentFormPage key={id} agent={cur} ownerName={api.me.name} agentNames={data.agents.map(a => a.title)} skillNames={data.skills.map(s => s.title)}
-          go={go} onCancel={() => { if (cur) { go('agent', cur.id); } else { go('me'); } }} onSubmit={a => submitAgent(a, cur ? cur.id : undefined)} />;
-        break;
-      }
       default: body = <HomeView api={api} />;
     }
   }
@@ -439,12 +548,12 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const cur = modal.id ? first(data.skills, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'Skill 새 버전 올리기' : 'Skill 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
-      modalBody = <SkillForm key={modal.id || 0} skill={cur} existingTitles={data.skills.map(s => s.title)} libName={service.listName('skills')} onCancel={closeModal} onSubmit={s => submitSkill(s, cur ? cur.id : undefined)} />;
+      modalBody = <SkillForm key={modal.id || 0} skill={cur} existingTitles={data.skills.map(s => s.title)} libName={service.listName('contents')} onCancel={closeModal} onSubmit={s => submitSkill(s, cur ? cur.id : undefined)} />;
     } else if (modal.kind === 'html') {
       const cur = modal.id ? first(data.htmls, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'HTML 새 버전 올리기' : 'HTML 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
-      modalBody = <HtmlForm key={modal.id || 0} tool={cur} existingTitles={data.htmls.map(h => h.title)} libName={service.listName('htmls')} onCancel={closeModal} onSubmit={h => submitHtml(h, cur ? cur.id : undefined)} />;
+      modalBody = <HtmlForm key={modal.id || 0} tool={cur} existingTitles={data.htmls.map(h => h.title)} libName={service.listName('contents')} onCancel={closeModal} onSubmit={h => submitHtml(h, cur ? cur.id : undefined)} />;
     } else if (modal.kind === 'case') {
       const cur = modal.id ? first(data.cases, x => x.id === modal.id) : undefined;
       modalTitle = cur ? '사례 고치기' : '사례 올리기';
@@ -453,7 +562,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const cur = first(data.ideas, x => x.id === modal.id);
       modalTitle = '아이디어 고치기';
       modalWidth = 560;
-      modalBody = cur ? <IdeaEditForm idea={cur} onCancel={closeModal} onSubmit={async (t, ty, ds) => { const ok = await api.updateIdea(cur.id, t, ty, ds); if (ok) { closeModal(); } return ok; }} /> : null;
+      modalBody = cur ? <IdeaEditForm idea={cur} onCancel={closeModal} onSubmit={async idea => { const ok = await api.updateIdea(cur.id, idea); if (ok) { closeModal(); } return ok; }} /> : null;
     } else {
       const t = modal.target;
       modalTitle = '오류 신고';
@@ -495,7 +604,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
               </span>
               <div className="umenu menu-host">
                 <button type="button" className="avbtn" aria-haspopup="dialog" aria-expanded={menu === 'account'} aria-controls="hub-medrawer" onClick={() => setMenu(menu === 'account' ? '' : 'account')}>
-                  <span className="av" aria-hidden="true">{me ? me.name.trim().charAt(0) : ''}</span><span className="sr">내 프로필 열기</span></button>
+                  {avFace('av', 30)}<span className="sr">내 프로필 열기</span></button>
               </div>
             </div>
           </div>
@@ -543,13 +652,14 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
         <>
           <div className="scrim on nScrim" onClick={() => setMenu('')} />
           <aside className="drawer npanel on menu-host" id="hub-npanel" role="dialog" aria-modal="true" aria-labelledby="hub-nT" style={bellPos()}>
-            <div className="dh"><b id="hub-nT">알림 <span className="pill">{unread.length}</span></b><button type="button" className="nread" onClick={api.markAllRead}>모두 읽음</button><button type="button" aria-label="알림 닫기" onClick={() => setMenu('')}>✕</button></div>
+            <div className="dh"><b id="hub-nT">알림 <span className="pill">{unread.length}</span></b><button type="button" className="nread" onClick={api.markAllRead}>모두 읽음</button>{shownNotices.length ? <button type="button" className="nread" onClick={() => removeNotices(shownNotices.map(n => n.id), '알림을 모두 지웠어요')}>모두 지우기</button> : null}<button type="button" aria-label="알림 닫기" onClick={() => setMenu('')}>✕</button></div>
             <div className="nbody">
               {groups.map(g => (
                 <React.Fragment key={g}><p className="ngrp">{g}</p>
                   <ul className="nlist">{shownNotices.filter(n => groupOf(n.date) === g).map(n => (
                     <li key={n.id} className={api.isRead(n.id, n.date) ? '' : 'unread'}><span className="ndot" aria-hidden="true" /><div><b>{n.title}</b><span>{n.sub} · {g === '오늘' ? new Date(n.date).toTimeString().slice(0, 5) : new Date(n.date).toISOString().slice(5, 10).replace('-', '/')}</span>
-                      {n.btn ? <Go go={v => { markRead([n.id]); go(v, n.target || undefined); }} view={n.view} id={n.target || undefined} className={'btn sm' + (n.view === 'agentform' ? ' pri' : '')}>{n.btn}</Go> : null}</div></li>
+                      {n.btn ? <Go go={v => { markRead([n.id]); go(v, n.target || undefined); }} view={n.view} id={n.target || undefined} className="btn sm">{n.btn}</Go> : null}</div>
+                      <button type="button" className="ndel" aria-label={`알림 지우기: ${n.title}`} title="알림 지우기" onClick={() => removeNotices([n.id], '알림을 지웠어요')}>✕</button></li>
                   ))}</ul></React.Fragment>
               ))}
               {!shownNotices.length ? <p className="ngrp">새 알림이 없어요</p> : null}
@@ -564,16 +674,42 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
         <>
           <div className="scrim mescrim on" onClick={() => setMenu('')} />
           <aside className="drawer medrawer on menu-host" id="hub-medrawer" role="dialog" aria-modal="true" aria-labelledby="hub-meT">
-            <div className="mdh"><span className="av mav" aria-hidden="true">{api.me.name.trim().charAt(0)}</span><b id="hub-meT">{api.me.name}</b>
+            <div className="mdh">{avFace('av mav', 44)}<b id="hub-meT">{api.me.name}</b>
               <button type="button" aria-label="닫기" onClick={() => setMenu('')}>✕</button></div>
             <div className="mdbody">
               <nav className="mnav" aria-label="내 메뉴"><Go go={go} view="me"><span><b>내 콘텐츠 수정하러 가기</b><small>내가 올린 Agent, Skill, HTML, 아이디어</small></span><i aria-hidden="true">→</i></Go></nav>
               <section aria-labelledby="hub-mbH"><h2 id="hub-mbH">내 배지 <span className="pill">{myBadges.length}</span></h2>
                 {myBadges.length ? <ul className="mbadges">{myBadges.map(b => (
-                  <li key={b.k}><span className="bm">{b.mark.split('\n').map((x, k) => <React.Fragment key={k}>{k ? <br /> : null}{x}</React.Fragment>)}</span>
-                    <span><b>{b.title}</b><small>{b.desc}{b.date ? ' · ' + mmdd(b.date) : ''}</small></span></li>
+                  <li key={b.k}><BadgeMedal k={b.k} size={56} title={b.title} />
+                    <span><b>{b.title}</b><small>{b.desc}{b.date ? ' · ' + mmdd(b.date) : ''}</small></span>
+                    {avBadge && avBadge.k === b.k ? <span className="bpick on">프로필 사용 중</span>
+                      : <button type="button" className="bpick" onClick={() => pickAvatar(b.k)}>프로필로 쓰기</button>}</li>
                 ))}</ul> : <p className="note" style={{ margin: 0 }}>아직 받은 배지가 없어요. 아이디어를 붙이거나 Agent를 올리면 받을 수 있어요.</p>}
+                {myBadges.length ? (
+                  <p className="bpicks">
+                    {myPick !== 'photo' ? <button type="button" className="bpick reset" onClick={() => pickAvatar('photo')}>배지 대신 내 사진 쓰기</button> : null}
+                    {myPick ? <button type="button" className="bpick reset" onClick={() => pickAvatar('')}>최근 받은 배지로 자동 바꾸기</button> : null}
+                  </p>
+                ) : null}
+                <p className="note" style={{ margin: '8px 0 0', fontSize: 12 }}>고른 프로필은 다른 사람의 Hub 화면(댓글·아이디어 작성자)에도 보여요.</p>
               </section>
+              {lockedBadges.length ? (
+                <section aria-labelledby="hub-mlH"><h2 id="hub-mlH">도전할 배지 <span className="pill">{lockedBadges.length}</span></h2>
+                  <ul className="mbadges locked">{lockedBadges.map(b => {
+                    const pct = Math.round(Math.min((b.have || 0) / (b.need || 1), 1) * 100);
+                    return (
+                      <li key={b.k}><BadgeMedal k={b.k} size={56} locked={true} title={b.title} />
+                        <span><b>{b.title}</b><small>{b.desc}</small>
+                          <span className="bprog" aria-label={`${b.have || 0} / ${b.need}`}
+                            style={{ display: 'block', height: 6, borderRadius: 999, background: '#ececea', marginTop: 8, overflow: 'hidden' }}>
+                            <i style={{ display: 'block', height: '100%', width: pct + '%', borderRadius: 999, background: 'linear-gradient(90deg,#f5a524,#f04f7f)' }} />
+                          </span>
+                          <small style={{ display: 'block', marginTop: 4 }}>{b.have || 0} / {b.need}{pct >= 50 ? ' · 거의 다 왔어요!' : ''}</small>
+                        </span></li>
+                    );
+                  })}</ul>
+                </section>
+              ) : null}
             </div>
             <div className="mfoot"><a href="#" onClick={e => { e.preventDefault(); setMenu(''); soon('로그아웃은 Microsoft 365 계정에서'); }}>로그아웃</a></div>
           </aside>

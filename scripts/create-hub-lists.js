@@ -1,5 +1,7 @@
 /*
- * MUNI AI Hub 목록 5개 만들기 (브라우저 콘솔용)
+ * MUNI AI Hub Case Library 목록 만들기 (브라우저 콘솔용)
+ *   AgentList 는 배포 흐름과 같이 쓰는 목록이라 따로 만듭니다: create-agent-list.js / add-agent-list-columns.js
+ *   HubContents(Skill · HTML), HubIdeas(아이디어)는 사이트에서 직접 만든 목록을 씁니다. 열은 README를 보세요.
  *
  * 쓰는 법
  *   1. Hub 사이트(예: https://munilabskr.sharepoint.com/sites/MuniAgentHub)를 사이트 소유자 계정으로 엽니다.
@@ -12,31 +14,17 @@
  *   - 같은 이름이 문서 라이브러리면 건너뛰고 알려 줍니다. (예전 라이브러리는 이름을 바꾼 뒤 다시 실행)
  *   - 없는 열만 추가합니다. 이미 있는 열은 건드리지 않고, 형식이 다르면 '형식 다름'으로 알려 줍니다.
  *   - 내부 이름은 영문(README와 같게), 표시 이름은 한글로 만듭니다.
- *   - 버전 관리, 첨부 파일(Agent · Skill · HTML)을 켜고, Case Library 콘텐츠 승인은 끕니다.
+ *   - Case Library 는 버전 관리를 켜고 콘텐츠 승인은 끕니다.
  *   - 여러 번 실행해도 안전합니다.
  *
  * 직접 할 일: 평점 설정 (목록 설정 > 평점 설정)
- *   Agent Catalog · Skill Library · HTML Library = 별 등급, Idea Board = 좋아요
+ *   AgentList · HubContents = 별 등급, HubIdeas = 좋아요
  */
 (async () => {
   const web = (window._spPageContextInfo && window._spPageContextInfo.webAbsoluteUrl)
     || location.origin + (location.pathname.match(/^\/(sites|teams)\/[^/]+/) || [''])[0];
   const T = 'Text', N = 'Note', NUM = 'Number', DT = 'DateTime', U = 'User';
   const LISTS = [
-    { title: 'Agent Catalog', template: 100, settings: { EnableVersioning: true, EnableAttachments: true }, fields: [
-      ['AgentSummary', T, '한 줄 소개'], ['AgentTool', T, '만든 도구'], ['AgentWorkType', T, '업무 유형'], ['UseScope', T, '사용 범위'],
-      ['OutputType', T, '결과물'], ['OutputNote', T, '결과물 설명'], ['AgentDoes', N, '이런 일을 해요'], ['AgentPrompts', N, '이렇게 말해 보세요'],
-      ['MakerNote', N, '제작자 메모'], ['AgentInstructions', N, '지침'], ['AgentKnowledge', N, '참조 지식'], ['AgentActions', N, '사용 도구'],
-      ['LinkedAgents', N, '연결된 Agent'], ['LinkedSkills', N, '연결된 Skill'], ['AgentVersion', T, '버전'], ['AgentChangeNote', T, '변경 내용'],
-      ['InstallLink', T, 'Teams에서 열기 링크'], ['AgentOwner', U, 'Owner'], ['AgentStatus', T, '상태'], ['AgentSponsor', U, 'Sponsor']] },
-    { title: 'Skill Library', template: 100, settings: { EnableVersioning: true, EnableAttachments: true }, fields: [
-      ['SkillSummary', T, '한 줄 소개'], ['SkillPurpose', N, '이럴 때 써요'], ['SkillUsage', N, '활용 방법'], ['SkillTools', T, '활용 도구'],
-      ['SkillKind', T, 'Skill 종류'], ['SkillScope', T, '사용 범위'], ['SkillArea', T, '업무 분야'], ['SkillVersion', T, '버전'], ['SkillChangeNote', T, '변경 내용']] },
-    { title: 'HTML Library', template: 100, settings: { EnableVersioning: true, EnableAttachments: true }, fields: [
-      ['HtmlSummary', T, '한 줄 소개'], ['HtmlDoes', N, '이런 일을 해요'], ['MakerNote', N, '제작자 메모'], ['MadeWith', T, '만든 도구'],
-      ['UseScope', T, '사용 범위'], ['WorkType', T, '업무 유형'], ['OutputType', T, '결과물'], ['HtmlVersion', T, '버전'], ['HtmlChangeNote', T, '변경 내용']] },
-    { title: 'Idea Board', template: 100, settings: {}, fields: [
-      ['IdeaType', T, '유형'], ['IdeaDetail', N, '자세한 내용'], ['IdeaStatus', T, '상태'], ['LinkedAgentId', NUM, '만들어진 Agent ID'], ['RevivedOn', DT, '보관 해제일']] },
     { title: 'Case Library', template: 100, settings: { EnableVersioning: true, EnableModeration: false }, fields: [
       ['Industry', T, '업종'], ['ClientName', T, '고객사'], ['Department', T, '조직'], ['Period', T, '시기'], ['PainPoint', N, 'Pain Point'],
       ['Solutions', N, '솔루션 (종류|이름)'], ['Progress', N, '진행 내용'],
@@ -100,5 +88,5 @@
   }
   console.table(report);
   const warn = report.filter(r => /다름/.test(r.결과));
-  console.log(warn.length ? `⚠ 확인이 필요한 항목 ${warn.length}개가 있어요 (위 표의 '다름').` : '✅ 5개 목록과 열이 모두 준비됐어요. 이제 평점 설정만 직접 켜 주세요.');
+  console.log(warn.length ? `⚠ 확인이 필요한 항목 ${warn.length}개가 있어요 (위 표의 '다름').` : '✅ 2개 목록과 열이 모두 준비됐어요. 이제 평점 설정만 직접 켜 주세요.');
 })().catch(e => console.error('중간에 멈췄어요:', e.message));

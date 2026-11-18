@@ -1,5 +1,5 @@
 /* 화면 컴포넌트들이 공통으로 쓰는 상태와 동작. MuniAgentHub(최상위)가 만들어 내려 줍니다. */
-import { HubView, IHtmlTool, IHubData, IIdea, IMe, IPerson, IReaction, IReportTarget, IVersion, IdeaStage, TargetType } from '../models/types';
+import { HubView, IHtmlTool, IHubData, IIdea, IMe, INewIdea, IPerson, IReaction, IReportTarget, IVersion, IdeaStage, TargetType } from '../models/types';
 
 export interface IHubApi {
   data: IHubData;
@@ -12,7 +12,7 @@ export interface IHubApi {
   search(q: string): void;
   searchQuery: string;
 
-  /* 즐겨찾기(Agent·Skill·HTML의 ♡, 이 브라우저에 저장)와 공감(아이디어, Idea Board 기본 좋아요) */
+  /* 즐겨찾기(Agent·Skill·HTML의 ♡, 이 브라우저에 저장)와 공감(아이디어, HubIdeas 평점 설정의 좋아요) */
   /** 아이디어 공감 수. Agent·Skill·HTML은 0 */
   likeCount(t: TargetType, id: number): number;
   liked(t: TargetType, id: number): boolean;
@@ -30,15 +30,15 @@ export interface IHubApi {
   /* 아이디어 */
   makers(ideaId: number): IPerson[];
   toggleMake(ideaId: number): void;
-  /** '만들기 시작하기'를 누른 사람과 날짜 (없으면 아직 시작 전) */
+  /** 만들기 시작한 날 (HubIdeas 시작일. 누른 사람은 따로 남지 않음, 없으면 아직 시작 전) */
   started(ideaId: number): { who?: IPerson; date: string } | undefined;
   /** 만들기 시작하기 / 중지 (참여자만) */
   toggleStart(ideaId: number): void;
   /** 모집 중 · 제작 중 · 완성 · 보관됨 */
   stageOf(idea: IIdea): IdeaStage;
   comments(ideaId: number): IReaction[];
-  addIdea(title: string, type: string, detail?: string): Promise<boolean>;
-  updateIdea(ideaId: number, title: string, type: string, detail: string): Promise<boolean>;
+  addIdea(idea: INewIdea): Promise<boolean>;
+  updateIdea(ideaId: number, idea: INewIdea): Promise<boolean>;
   deleteIdea(ideaId: number): Promise<boolean>;
   addComment(ideaId: number, body: string): Promise<boolean>;
   /** SharePoint 기본 댓글은 고칠 수 없어서, 고친 내용으로 새로 달고 이전 댓글을 지웁니다 */
@@ -49,7 +49,7 @@ export interface IHubApi {
   deleteCase(caseId: number): Promise<boolean>;
   reviveIdea(ideaId: number): Promise<boolean>;
 
-  /* 입력 창 (Agent 소개는 go('agentform', id) 로 별도 화면) */
+  /* 입력 창 (Agent는 배포 흐름이 AgentList에 채우므로 Hub에 입력 창이 없습니다) */
   openSkillForm(id?: number): void;
   openHtmlForm(id?: number): void;
   /** id 가 있으면 그 사례 고치기 */
@@ -67,6 +67,8 @@ export interface IHubApi {
   loadVersions(t: 'Agent' | 'Skill' | 'Html', id: number): Promise<IVersion[]>;
 
   /* 알림 */
+  /** 그 사람의 프로필 배지 키 (고른 배지 → 없으면 최근 배지). 사진을 고른 사람·배지가 없는 사람은 undefined */
+  avatarOf(p?: IPerson): string | undefined;
   isRead(noticeId: string, date: string): boolean;
   markRead(ids: string[]): void;
   markAllRead(): void;

@@ -4,6 +4,7 @@ import { ICase, ISolution } from '../../models/types';
 import { CASE_INDUSTRIES, PRODUCT_CLASS, contains, isEmail, newestFirst, stepSpans } from '../../models/rules';
 import { IHubApi } from '../api';
 import { Crumb, Empty, Go, ListError } from '../ui';
+import { Person } from '../persona';
 
 const IND_TOP = 6;
 const KIND_LABEL: { [k: string]: string } = { agent: 'Agent', skill: 'Skill', html: 'HTML' };
@@ -161,7 +162,8 @@ export function CasePage(props: { api: IHubApi; item?: ICase }): JSX.Element {
   tabs.push(['프롬프트', ucs.length]);
   const cur = Math.min(tab, tabs.length - 1);
   const map = stepSpans(Math.max(1, c.before.length), c.after.length);
-  const owner = c.author;
+  // 문의 담당자(Contact)가 있으면 그 사람, 없으면 올린 사람
+  const owner = c.contactPerson || c.author;
   const onKey = (e: React.KeyboardEvent): void => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') { return; }
     setTab((cur + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length);
@@ -226,7 +228,7 @@ export function CasePage(props: { api: IHubApi; item?: ICase }): JSX.Element {
             <tr><th>활용 방식</th><td>{c.pattern || '—'}</td></tr>
             <tr><th>활용 제품</th><td>{c.products.length ? c.products.map((p, i) => <React.Fragment key={p}>{i ? <br /> : null}{p}</React.Fragment>) : '—'}</td></tr>
             <tr><th>솔루션</th><td>{c.solutions.length ? c.solutions.map((s, i) => <React.Fragment key={i}>{i ? <br /> : null}{s.name}</React.Fragment>) : '별도 산출물 없음'}</td></tr>
-            <tr><th>문의</th><td>{c.contact || (owner ? owner.name : '—')}</td></tr>
+            <tr><th>문의</th><td>{c.contactPerson ? <Person p={c.contactPerson} /> : c.contact || <Person p={c.author} />}</td></tr>
           </tbody></table>
           <button type="button" className="btn sm askbtn tipx" data-tip="문의 담당자에게 Teams 채팅을 열어요"
             onClick={() => { if (owner && isEmail(owner.email)) { window.open(`https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(owner.email)}`, '_blank', 'noopener'); } else { api.toast('연락할 사람의 메일 주소가 없어요.'); } }}>Teams로 묻기</button>

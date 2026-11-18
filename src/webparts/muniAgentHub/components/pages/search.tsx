@@ -19,7 +19,7 @@ export function SearchView(props: { api: IHubApi }): JSX.Element {
     { k: '아이디어', to: 'ideas', toLabel: 'Idea Board', hits: d.ideas.filter(i => contains(i.title, q)).map(i => ({ key: 'i' + i.id, view: 'idea' as HubView, id: i.id, title: i.title, sub: `${i.author ? i.author.name : ''} · 공감 ${api.likeCount('Idea', i.id)}` })) },
     { k: 'Skill', to: 'skills', toLabel: 'Marketplace', hits: d.skills.filter(s => contains(s.title, q) || contains(s.summary, q)).map(s => ({ key: 's' + s.id, view: 'skill' as HubView, id: s.id, title: s.title, sub: s.summary, mono: 'S' })) },
     { k: 'HTML', to: 'htools', toLabel: 'Marketplace', hits: d.htmls.filter(h => contains(h.title, q) || contains(h.summary, q)).map(h => ({ key: 'h' + h.id, view: 'htool' as HubView, id: h.id, title: h.title, sub: h.summary, mono: 'H' })) },
-    { k: '사례', to: 'cases', toLabel: 'Case Library', hits: d.cases.filter(c => contains(c.title, q) || contains(c.pain, q) || contains(c.industry + ' · ' + c.client, q)).map(c => ({ key: 'c' + c.id, view: 'case' as HubView, id: c.id, title: c.title, sub: `${c.industry} · ${c.client} · ${c.pain}` })) }
+    { k: '사례', to: 'cases', toLabel: 'Case Library', hits: d.cases.filter(c => contains(c.title, q) || contains(c.keyNote + ' ' + c.keyValue, q) || contains(c.industry + ' · ' + c.client, q)).map(c => ({ key: 'c' + c.id, view: 'case' as HubView, id: c.id, title: c.title, sub: `${c.industry} · ${c.client}${c.keyValue ? ` · ${c.keyNote} ${c.keyValue}` : ''}` })) }
   ] : [];
   const total = groups.reduce((a, g) => a + g.hits.length, 0);
   const jump = (k: string): void => { const el = document.getElementById('hub-sg-' + k); if (el) { el.scrollIntoView({ behavior: 'smooth' }); } };

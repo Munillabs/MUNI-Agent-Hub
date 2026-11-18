@@ -1,14 +1,12 @@
-/* 입력 화면 (시안 마크업): Agent 소개 작성(별도 화면), Skill 올리기, HTML 올리기, 사례 올리기, 오류 신고 */
+/* 입력 화면 (시안 마크업): Skill 올리기, HTML 올리기, 사례 올리기, 오류 신고 */
 import * as React from 'react';
-import { AgentTool, IAgent, ICase, IHtmlTool, IIdea, IImage, INewAgent, INewCase, INewHtml, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
+import { ICase, IHtmlTool, IIdea, INewCase, INewHtml, INewIdea, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
 import {
-  AGENT_TOOLS, CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_MAX_BYTES, IDEA_TYPES, MADE_WITH, OUTPUTS, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
-  SKILL_TOOLS, SOLUTION_KINDS, WORK_TYPES,
-  compareVersion, extOf, fileSize, isEmail, isHttpsUrl, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
-  splitLines, ymd
+  CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_KINDS, HTML_MAX_BYTES, IDEA_FREQS, IDEA_TYPES, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
+  SKILL_TOOLS, SOLUTION_KINDS,
+  compareVersion, extOf, fileSize, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
+  splitLines
 } from '../models/rules';
-import { HubView } from '../models/types';
-import { Crumb, Pill } from './ui';
 
 type Errors = { [field: string]: string };
 
@@ -176,175 +174,26 @@ function UploadError(props: { f?: IUploadFailure }): JSX.Element {
   );
 }
 
-function Act(props:{ busy: boolean; label: string; onCancel: () => void; cancelFirst?: boolean }): JSX.Element {
+/** 올리기 버튼 바로 위 빨간 안내: 비어 있는 필수 항목 수 (긴 폼에서 맨 위 요약이 안 보여도 알 수 있게) */
+function MissingNote(props: { errors: Errors }): JSX.Element {
+  const n = Object.keys(props.errors).filter(k => !!props.errors[k]).length;
+  if (!n) { return <></>; }
+  return <p className="mact-err" role="alert">작성하지 않은 필수 항목이 {n}개 있어요. 빨간색으로 표시한 칸을 채워 주세요.</p>;
+}
+function Act(props:{ busy: boolean; label: string; onCancel: () => void; cancelFirst?: boolean; errors?: Errors }): JSX.Element {
   return (
+    <>{props.errors ? <MissingNote errors={props.errors} /> : null}
     <div className="mact">
       <button type="submit" className="btn pri" disabled={props.busy}>{props.busy ? '저장하는 중…' : props.label}</button>
       <button type="button" className="btn" onClick={props.onCancel}>취소</button>
-    </div>
-  );
-}
-
-/* ================= Agent 소개 작성 (별도 화면) ================= */
-export function AgentFormPage(props: {
-  agent?: IAgent;
-  ownerName: string;
-  agentNames: string[];
-  skillNames: string[];
-  go: (v: HubView, id?: number) => void;
-  onCancel: () => void;
-  onSubmit: (a: INewAgent) => Promise<boolean>;
-}): JSX.Element {
-  const cur = props.agent;
-  const editing = !!cur;
-  const ref = React.useRef<HTMLFormElement>(null);
-  const [f, set, errors, setErrors] = useForm({
-    tool: (cur && cur.tool ? cur.tool : 'Copilot Studio') as AgentTool, title: cur ? cur.title : '', installLink: cur ? cur.installLink : '',
-    summary: cur ? cur.summary : '', workType: cur ? cur.workType : '', scopes: cur ? cur.scopes : ['사내 업무용'],
-    output: cur ? cur.output : '문서 초안', outputNote: cur ? cur.outputNote : '',
-    does: cur ? cur.does.join('\n') : '', prompts: cur ? cur.prompts.join('\n') : '', makerNote: cur ? cur.makerNote : '',
-    instructions: cur ? cur.instructions : '', knowledge: cur ? cur.knowledge.join('\n') : '', actions: cur ? cur.actions.join('\n') : '',
-    linkedAgents: cur ? cur.linkedAgents : [] as string[], linkedSkills: cur ? cur.linkedSkills : [] as string[],
-    version: cur ? (cur.version || '1.0') : '1.0', changeNote: cur ? '' : '첫 등록'
-  });
-  const [imgs, setImgs] = React.useState<{ [slot: number]: { name: string; data: ArrayBuffer; url: string } }>({});
-  const [busy, setBusy] = React.useState(false);
-  const cs = f.tool === 'Copilot Studio';
-  const others = props.agentNames.filter(n => !cur || n !== cur.title);
-  // 자리 0 = 썸네일, 1·2 = 결과 이미지
-  const existing = (slot: number): IImage | undefined => !cur ? undefined : slot === 0 ? cur.thumb : cur.images.filter(i => i.slot === slot)[0];
-
-  const pickImg = (slot: number, fl: File): void => {
-    if (!/^image\//.test(fl.type)) { setErrors(e => ({ ...e, img: '이미지 파일만 올릴 수 있어요.' })); return; }
-    if (fl.size > 5 * 1024 * 1024) { setErrors(e => ({ ...e, img: '이미지는 5MB 이하로 올려 주세요.' })); return; }
-    readAs(fl, 'buffer').then(buf => {
-      const url = URL.createObjectURL(new Blob([buf as ArrayBuffer], { type: fl.type }));
-      setImgs(m => { const n = { ...m }; n[slot] = { name: fl.name, data: buf as ArrayBuffer, url }; return n; });
-      setErrors(e => { const n = { ...e }; delete n.img; return n; });
-    }).catch(() => undefined);
-  };
-
-  const submit = async (ev: React.FormEvent): Promise<void> => {
-    ev.preventDefault();
-    const e: Errors = {};
-    const t = f.title.trim();
-    if (!t) { e.title = '이름을 적어 주세요.'; }
-    else if (props.agentNames.indexOf(t) >= 0 && (!cur || cur.title !== t)) { e.title = '같은 이름의 Agent가 이미 있어요.'; }
-    if (!f.installLink.trim()) { e.installLink = 'Teams에서 여는 링크를 붙여 넣어 주세요.'; }
-    else if (!isHttpsUrl(f.installLink.trim())) { e.installLink = 'https://로 시작하는 링크를 붙여 넣어 주세요.'; }
-    if (!f.summary.trim()) { e.summary = '한 줄 소개를 적어 주세요.'; }
-    if (!f.workType) { e.workType = '업무 유형을 골라 주세요.'; }
-    const does = splitLines(f.does);
-    if (!does.length) { e.does = '이 Agent가 하는 일을 한 줄 이상 적어 주세요.'; } else if (does.length > 3) { e.does = '3줄 이내로 적어 주세요.'; }
-    if (!splitLines(f.prompts).length) { e.prompts = '예시 프롬프트를 한 줄 이상 적어 주세요.'; }
-    if (!cs && !f.instructions.trim()) { e.instructions = "Agent Builder의 '지침' 내용을 붙여 넣어 주세요."; }
-    const v = f.version.trim();
-    if (!isVersion(v)) { e.version = '버전은 1.0처럼 숫자와 점으로 적어 주세요.'; }
-    else if (cur && cur.version && compareVersion(v, cur.version) < 0) { e.version = `지금 버전(${cur.version})보다 낮게 적을 수 없어요.`; }
-    if (cur && v !== cur.version && !f.changeNote.trim()) { e.changeNote = '버전을 올리면 무엇이 바뀌었는지 적어 주세요.'; }
-    setErrors(e);
-    if (Object.keys(e).length) { focusFirstError(ref.current); return; }
-    setBusy(true);
-    await props.onSubmit({
-      tool: f.tool, title: t, installLink: f.installLink.trim(), summary: f.summary.trim(), workType: f.workType, scopes: f.scopes,
-      output: f.output, outputNote: f.outputNote.trim(), does, prompts: splitLines(f.prompts), makerNote: f.makerNote.trim(),
-      instructions: f.instructions.trim(), knowledge: splitLines(f.knowledge), actions: splitLines(f.actions),
-      linkedAgents: f.linkedAgents, linkedSkills: f.linkedSkills, version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''),
-      newImages: [1, 2].filter(s => !!imgs[s]).map(s => ({ slot: s, name: imgs[s].name, data: imgs[s].data })),
-      newThumb: imgs[0] ? { name: imgs[0].name, data: imgs[0].data } : undefined
-    });
-    setBusy(false);
-  };
-  const imgBox = (slot: number): JSX.Element => {
-    const pick = imgs[slot];
-    const old = existing(slot);
-    const src = pick ? pick.url : old ? old.url : '';
-    return (
-      <Drop id={`hub-af-img${slot}`} accept="image/*" has={!!src} title={slot ? `결과 이미지 ${slot}` : '썸네일 이미지'}
-        sub={src ? '다른 이미지로 바꾸려면 누르세요' : slot === 0 ? '끌어 놓거나 눌러서 올리기 · 가로 16:9' : slot === 1 ? '끌어 놓거나 눌러서 올리기' : '선택'} onPick={fl => pickImg(slot, fl)}>
-        {src ? <img src={src} alt="" /> : null}
-      </Drop>
-    );
-  };
-
-  return (
-    <div className="wrap">
-      <Crumb go={props.go} items={[{ label: 'Home', view: 'home' }, { label: '내 작업공간', view: 'me' }, { label: 'Agent 소개 작성' }]} />
-      <div className="dh2"><div><h1>Agent 소개 작성</h1><p style={{ margin: 0, color: 'var(--ink2)' }}>{editing ? `${cur!.title} · ` : ''}저장하면 Marketplace 상세 페이지에 바로 보여요.</p></div></div>
-      <div className="fgrid af">
-        <form ref={ref} noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
-          <fieldset className="afs"><legend>기본 정보</legend>
-            <Field label="만든 도구" req={true} hint="고른 도구에 따라 아래 칸이 바뀌어요.">
-              <div className="seg" role="radiogroup" aria-label="만든 도구">
-                {AGENT_TOOLS.map((x, k) => <label key={x}><input type="radio" name="hub-af-tool" id={`hub-af-tool-${k}`} checked={f.tool === x} onChange={() => set('tool', x)} /> {x}</label>)}
-              </div>
-            </Field>
-            <div className="row2">
-              <Field id="hub-af-name" k="title" label="이름" req={true} errors={errors}><input id="hub-af-name" maxLength={20} autoComplete="off" placeholder="예: 주간 보고 작성기" value={f.title} onChange={e => set('title', e.target.value)} {...inv(errors, 'title')} /></Field>
-              <Field id="hub-af-link" k="installLink" label="Teams에서 열기 링크" req={true} errors={errors}><input id="hub-af-link" type="url" placeholder="https://teams.microsoft.com/l/app/..." value={f.installLink} onChange={e => set('installLink', e.target.value)} {...inv(errors, 'installLink')} /></Field>
-            </div>
-            <Field id="hub-af-sub" k="summary" label="한 줄 소개" req={true} hint="40자 이내 · Store 카드에도 보여요" errors={errors}><input id="hub-af-sub" maxLength={40} autoComplete="off" placeholder="예: 한 주 업무 메모를 보고서 초안으로 정리" value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'summary')} /></Field>
-            <Field label="썸네일" hint="목록 카드 윗부분에 크게 보여요. 없으면 기본 그림이 들어가요."><div className="thumbdrop">{imgBox(0)}</div></Field>
-            <div className="row2">
-              <Field id="hub-af-type" k="workType" label="업무 유형" req={true} errors={errors}><select id="hub-af-type" value={f.workType} onChange={e => set('workType', e.target.value)} {...inv(errors, 'workType')}><option value="">선택</option>{WORK_TYPES.map(x => <option key={x}>{x}</option>)}</select></Field>
-              <fieldset className="field"><legend>사용 범위</legend><Checks name="hub-af-scope" items={SCOPES} value={f.scopes} onChange={v => set('scopes', v)} /></fieldset>
-            </div>
-            <div className="row2">
-              <Field id="hub-af-out" label="결과물"><select id="hub-af-out" value={f.output} onChange={e => set('output', e.target.value)}>{OUTPUTS.map(x => <option key={x}>{x}</option>)}</select></Field>
-              <Field id="hub-af-out2" label="결과물 설명"><input id="hub-af-out2" maxLength={60} placeholder="예: 주간 보고 · 다음 주 계획 표" value={f.outputNote} onChange={e => set('outputNote', e.target.value)} /></Field>
-            </div>
-          </fieldset>
-
-          <fieldset className="afs"><legend>개요 탭</legend>
-            <Field id="hub-af-does" k="does" label="이런 일을 해요" req={true} hint="한 줄에 하나씩 · 3줄 이내" errors={errors}><textarea id="hub-af-does" rows={3} placeholder={'한 주 메모를 읽고 한 일 · 이슈 · 다음 주 계획으로 나눠요.\n보고 양식에 맞춰 문장을 다듬어요.'} value={f.does} onChange={e => set('does', e.target.value)} {...inv(errors, 'does')} /></Field>
-            <Field id="hub-af-prompts" k="prompts" label="이렇게 말해 보세요" req={true} hint="한 줄에 프롬프트 하나 · 복사 버튼이 붙어요" errors={errors}><textarea id="hub-af-prompts" rows={4} placeholder={'이번 주 내 메모를 주간 보고 양식으로 정리해줘. 이슈는 따로 표로.\n다음 주 계획만 3줄로 요약해줘.'} value={f.prompts} onChange={e => set('prompts', e.target.value)} {...inv(errors, 'prompts')} /></Field>
-            <Field id="hub-af-note" k="img" label="제작자는 이렇게 썼어요" hint="글 아래에 이미지가 나란히 보여요" errors={errors}>
-              <textarea id="hub-af-note" rows={5} placeholder="언제, 어떻게 쓰는지 편하게 적어 주세요." value={f.makerNote} onChange={e => set('makerNote', e.target.value)} />
-              <div className="imgs2">{imgBox(1)}{imgBox(2)}</div>
-            </Field>
-          </fieldset>
-
-          <fieldset className="afs"><legend>상세 정보 탭</legend>
-            {cs ? <Field label="지침 · 토픽"><p className="autobox">Copilot Studio에서 자동으로 가져오는 기능은 준비 중이에요. 공개해도 되는 지침이면 아래에 붙여 넣어 주세요.</p>
-              <textarea id="hub-af-instr" rows={4} aria-label="지침 (선택)" value={f.instructions} onChange={e => set('instructions', e.target.value)} /></Field>
-              : <Field id="hub-af-instr" k="instructions" label="지침" req={true} errors={errors}><textarea id="hub-af-instr" rows={5} placeholder="Agent Builder의 '지침' 칸 내용을 그대로 붙여 넣어 주세요." value={f.instructions} onChange={e => set('instructions', e.target.value)} {...inv(errors, 'instructions')} /></Field>}
-            <Field id="hub-af-data" label="참조 지식" hint={'"이름 · 설명"을 한 줄에 하나씩'}><textarea id="hub-af-data" rows={3} placeholder={'Teams 회의 녹취 · 내가 참석한 회의만\nSharePoint 회의록 폴더 · 지난 회의록 참고'} value={f.knowledge} onChange={e => set('knowledge', e.target.value)} /></Field>
-            <Field id="hub-af-tools" label="사용 도구" hint={'"이름 · 설명"을 한 줄에 하나씩'}><textarea id="hub-af-tools" rows={2} placeholder="Outlook · 요약 메일 초안 만들기" value={f.actions} onChange={e => set('actions', e.target.value)} /></Field>
-            <div className="row2">
-              <Field id="hub-af-agents" label="연결된 Agent" hint="Agent Store 목록에서 골라요">
-                <select id="hub-af-agents" multiple={true} size={Math.min(4, Math.max(3, others.length))} value={f.linkedAgents} onChange={e => set('linkedAgents', Array.prototype.slice.call(e.target.selectedOptions).map((o: HTMLOptionElement) => o.value))}>{others.map(x => <option key={x}>{x}</option>)}</select>
-              </Field>
-              <Field id="hub-af-skills" label="Skill" hint="Skill Store 목록에서 골라요">
-                <select id="hub-af-skills" multiple={true} size={Math.min(4, Math.max(3, props.skillNames.length))} value={f.linkedSkills} onChange={e => set('linkedSkills', Array.prototype.slice.call(e.target.selectedOptions).map((o: HTMLOptionElement) => o.value))}>{props.skillNames.map(x => <option key={x}>{x}</option>)}</select>
-              </Field>
-            </div>
-            <div className="row2">
-              <Field id="hub-af-ver" k="version" label="버전" hint={cur && cur.version ? `지금 ${cur.version}` : undefined} errors={errors}>
-                <input id="hub-af-ver" placeholder="예: 1.0" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} />
-                {cur ? <button type="button" className="lnkbtn" onClick={() => set('version', nextVersion(cur.version))}>다음 버전({nextVersion(cur.version)})으로</button> : null}
-              </Field>
-              <Field id="hub-af-chg" k="changeNote" label="변경 내용" hint={editing ? '버전을 올리면 꼭 적어 주세요' : '업데이트 기록에 보여요'} errors={errors}><input id="hub-af-chg" maxLength={120} placeholder={editing ? '예: 영어 회의 지원' : '첫 등록'} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
-            </div>
-          </fieldset>
-          <div className="afact"><button type="button" className="btn" onClick={props.onCancel}>취소</button><button className="btn pri" type="submit" disabled={busy}>{busy ? '저장하는 중…' : '저장'}</button></div>
-        </form>
-        <aside className="dp-side afside">
-          <div className="box"><h3>자동으로 채워져요</h3>
-            <table className="kv"><tbody>
-              <tr><th>Owner</th><td>{cur && cur.owner ? cur.owner.name : props.ownerName}</td></tr>
-              <tr><th>처음 등록</th><td>{cur ? ymd(cur.created) : '저장한 날'}</td></tr>
-              <tr><th>평점</th><td>리뷰에서 계산</td></tr>
-            </tbody></table></div>
-          <div className="box"><h3>따로 쌓여요</h3><ul className="plain"><li><b>리뷰</b> · 쓰는 사람이 남겨요</li><li><b>업데이트 기록</b> · 버전이 바뀔 때 추가</li><li><b>써봤어요</b> · Teams에서 열면 1인 1회</li></ul></div>
-        </aside>
-      </div>
-    </div>
+    </div></>
   );
 }
 
 /* ================= Skill 올리기 · 새 버전 (모달 본문) ================= */
-const SKILL_COLS = ['SkillSummary', 'SkillPurpose', 'SkillUsage', 'SkillTools', 'SkillKind', 'SkillScope', 'SkillArea', 'SkillVersion', 'SkillChangeNote'];
-const HTML_COLS = ['HtmlSummary', 'HtmlDoes', 'MakerNote', 'MadeWith', 'UseScope', 'WorkType', 'OutputType', 'HtmlVersion', 'HtmlChangeNote'];
+/** HubContents 열 (올리기 실패 안내에 보여 줌) */
+const SKILL_COLS = ['Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 'Does', 'Usage', 'Releases'];
+const HTML_COLS = ['Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 'Does', 'MakerNote', 'Output', 'Releases'];
 
 /** onSubmit 은 실패하면 오류를 던집니다. 폼이 받아 버튼 위에 안내를 띄웁니다. */
 export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; libName: string; onCancel: () => void; onSubmit: (s: INewSkill) => Promise<void> }): JSX.Element {
@@ -353,7 +202,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
   const ref = React.useRef<HTMLFormElement>(null);
   const [f, set, errors, setErrors] = useForm({
     title: cur ? cur.title : '', summary: cur ? cur.summary : '', purpose: cur ? cur.purpose : '', usage: cur ? cur.usage : '',
-    tools: cur ? cur.tools : [] as string[], kind: cur ? cur.kind : '', scope: cur ? cur.scope : '', area: cur ? cur.area : '',
+    tools: cur ? cur.tools : [] as string[], kind: cur ? cur.kind : '', scope: cur ? (cur.scopes[0] || '') : '', area: cur ? (cur.areas[0] || '') : '',
     version: cur ? nextVersion(cur.version) : '1.0', changeNote: cur ? '' : '처음 공유'
   });
   const [file, setFile] = React.useState<{ name: string; text?: string; data?: ArrayBuffer; size: number } | undefined>(undefined);
@@ -423,7 +272,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           <legend>활용 도구<Req /></legend><Checks name="hub-sk-tool" items={SKILL_TOOLS} value={f.tools} onChange={v => set('tools', v)} /><span className="err">{errors.tools}</span>
         </fieldset>
         <div className="row2">
-          <Field id="hub-sk-kind" label="Skill 종류"><select id="hub-sk-kind" value={f.kind} onChange={e => set('kind', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_KINDS.map(x => <option key={x}>{x}</option>)}</select></Field>
+          <Field id="hub-sk-kind" label="종류"><select id="hub-sk-kind" value={f.kind} onChange={e => set('kind', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_KINDS.map(x => <option key={x}>{x}</option>)}</select></Field>
           <Field id="hub-sk-scope" label="사용 범위"><select id="hub-sk-scope" value={f.scope} onChange={e => set('scope', e.target.value)}><option value="">선택 (선택 사항)</option>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
         </div>
         <Field id="hub-sk-area" label="업무 분야"><select id="hub-sk-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
@@ -434,10 +283,10 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           <Field id="hub-sk-chg" k="changeNote" label="변경 내용" hint={editing ? '버전을 올리면 꼭 적어 주세요' : undefined} errors={errors}><input id="hub-sk-chg" maxLength={120} placeholder={editing ? '예: 오래된 문서 표시 규칙 추가' : '처음 공유'} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
         </div>
         <UploadError f={failure} />
-        <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} />
+        <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>
       <aside className="sticky-side"><p className="note" style={{ marginTop: 0 }}>고객사 실명, 개인정보, 비밀번호·키는 파일에 넣지 마세요.</p>
-        {editing ? <p className="note">새 파일을 올리면 이전 파일은 SharePoint 버전 기록에 남아요. 수정과 버전 관리는 올린 사람이 해요.</p> : null}</aside>
+        {editing ? <p className="note">새 파일을 올리면 이전 파일은 바뀌고, 버전과 변경 내용은 업데이트 기록에 남아요. 수정과 버전 관리는 올린 사람이 해요.</p> : null}</aside>
     </div>
   );
 }
@@ -449,7 +298,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
   const ref = React.useRef<HTMLFormElement>(null);
   const [f, set, errors, setErrors] = useForm({
     title: cur ? cur.title : '', summary: cur ? cur.summary : '', does: cur ? cur.does.join('\n') : '', makerNote: cur ? cur.makerNote : '',
-    madeWith: cur ? cur.madeWith : 'Claude', scope: cur ? cur.scope : '사내 업무용', workType: cur ? cur.workType : '', output: cur ? cur.output : '',
+    madeWith: cur ? (cur.tools[0] || 'Claude') : 'Claude', scope: cur ? (cur.scopes[0] || '사내 업무용') : '사내 업무용', workType: cur ? cur.workType : '', area: cur ? (cur.areas[0] || '') : '', output: cur ? cur.output : '',
     version: cur ? nextVersion(cur.version) : '0.1', changeNote: cur ? '' : '처음 공유'
   });
   const [file, setFile] = React.useState<{ name: string; text: string; size: number } | undefined>(undefined);
@@ -484,7 +333,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
     try {
       await props.onSubmit({
         title: t, summary: f.summary.trim(), does: splitLines(f.does), makerNote: f.makerNote.trim(), madeWith: f.madeWith, scope: f.scope,
-        workType: f.workType.trim(), output: f.output.trim(), version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''),
+        workType: f.workType, area: f.area, output: f.output.trim(), version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''),
         file: file ? { name: file.name, text: file.text } : undefined
       });
     } catch (err) {
@@ -506,17 +355,20 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
         <Field id="hub-ht-desc" k="desc" label="한 줄 소개" req={true} errors={errors}><input id="hub-ht-desc" maxLength={40} placeholder="예: 품목·수량만 넣으면 표준 단가로 견적표 작성" value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'desc')} /></Field>
         <Field id="hub-ht-does" k="does" label="이런 일을 해요" req={true} hint="한 줄에 하나씩" errors={errors}><textarea id="hub-ht-does" rows={3} value={f.does} onChange={e => set('does', e.target.value)} {...inv(errors, 'does')} /></Field>
         <div className="row2">
-          <Field id="hub-ht-type" label="업무 유형"><input id="hub-ht-type" maxLength={20} placeholder="예: 판단 도우미" value={f.workType} onChange={e => set('workType', e.target.value)} /></Field>
+          <Field id="hub-ht-type" label="종류"><select id="hub-ht-type" value={f.workType} onChange={e => set('workType', e.target.value)}><option value="">선택 (선택 사항)</option>{HTML_KINDS.map(x => <option key={x}>{x}</option>)}</select></Field>
           <Field id="hub-ht-out" label="결과물"><input id="hub-ht-out" maxLength={20} placeholder="예: 추천 결과" value={f.output} onChange={e => set('output', e.target.value)} /></Field>
         </div>
-        <Field id="hub-ht-scope" label="사용 범위"><select id="hub-ht-scope" value={f.scope} onChange={e => set('scope', e.target.value)}>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
+        <div className="row2">
+          <Field id="hub-ht-area" label="업무 분야"><select id="hub-ht-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
+          <Field id="hub-ht-scope" label="사용 범위"><select id="hub-ht-scope" value={f.scope} onChange={e => set('scope', e.target.value)}>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
+        </div>
         <Field id="hub-ht-note" label="제작자는 이렇게 썼어요"><textarea id="hub-ht-note" rows={4} value={f.makerNote} onChange={e => set('makerNote', e.target.value)} /></Field>
         <div className="row2">
           <Field id="hub-ht-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-ht-ver" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-ht-chg" k="changeNote" label="변경 내용" errors={errors}><input id="hub-ht-chg" maxLength={120} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
         </div>
         <UploadError f={failure} />
-        <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} />
+        <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>
       <aside className="sticky-side"><p className="note" style={{ marginTop: 0 }}>올린 도구는 격리된 창에서 열려 Hub와 SharePoint 정보에 접근할 수 없어요. 외부 서버로 데이터를 보내는 도구는 올리지 마세요.</p></aside>
     </div>
@@ -540,7 +392,7 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
   const c = props.item;
   const [f, set, errors, setErrors] = useForm({
     title: c ? c.title : '', industry: c ? c.industry : '', client: c ? c.client : '', dept: c ? c.dept : '', period: c ? c.period : '',
-    project: c ? c.summary : '', area: c ? c.area : '', pattern: c ? c.pattern : '', contact: c ? c.contact : '', keyValue: c ? c.keyValue : '', keyNote: c ? c.keyNote : '',
+    project: c ? c.summary : '', area: c ? c.area : '', pattern: c ? c.pattern : '', contact: c && c.contactPerson ? c.contactPerson.email : '', keyValue: c ? c.keyValue : '', keyNote: c ? c.keyNote : '',
     beforeText: c ? c.beforeText : '', afterText: c ? c.afterText : '', beforeSteps: c ? c.before.join('\n') : '', afterSteps: c ? c.after.join('\n') : '', how: c ? (c.how || c.verify.join('\n')) : ''
   });
   const [products, setProducts] = React.useState<string[]>(c ? c.products : []);
@@ -587,9 +439,8 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
     <textarea id={id} rows={rows} placeholder={ph} value={f[k]} onChange={e => set(k, e.target.value)} {...inv(errors, k)} />;
   const lvSel = (id: string, v: string, on: (x: string) => void, label?: string): JSX.Element =>
     <select id={id} aria-label={label} value={v} onChange={e => { on(e.target.value); clearErr('ba'); }}><option value="">선택</option>{CASE_LEVELS.map(x => <option key={x}>{x}</option>)}</select>;
-  const ba = (a: string, b: string): React.ReactNode => a || b ? <>{a || '—'} → <b>{b || '—'}</b></> : '—';
   return (
-    <div className="fgrid">
+    <div className="fgrid one">
       <form ref={ref} noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
         <div className={'errsum' + (errList.length ? ' on' : '')} role="alert" tabIndex={-1}><h2>입력하지 않은 항목이 있어요</h2>
           <ul>{errList.map(x => <li key={x[0]}><a href={'#' + x[1]} onClick={ev => { ev.preventDefault(); const el = document.getElementById(x[1]); if (el) { el.focus(); } }}>{x[2]}</a></li>)}</ul></div>
@@ -609,7 +460,7 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
           </div>
           <div className="row2">
             <Field id="hub-cf-pat" k="pattern" label="활용 방식" req={true} errors={errors}><select id="hub-cf-pat" value={f.pattern} onChange={e => set('pattern', e.target.value)} {...inv(errors, 'pattern')}><option value="">선택</option>{CASE_PATTERNS.concat(f.pattern && CASE_PATTERNS.indexOf(f.pattern) < 0 ? [f.pattern] : []).map(x => <option key={x}>{x}</option>)}</select></Field>
-            <Field id="hub-cf-owner" label="문의 담당자">{txt('contact', 'hub-cf-owner', '비워 두면 올린 사람')}</Field>
+            <Field id="hub-cf-owner" label="문의 담당자" hint="회사 이메일. 비워 두면 올린 사람">{txt('contact', 'hub-cf-owner', '예: name@munilabs.co.kr')}</Field>
           </div>
           <fieldset className={'field' + (errors.prod ? ' bad' : '')} data-f="prod"><legend>활용 제품<Req /></legend>
             <div className="chkrow">{CASE_PRODUCTS.map((p, k) => <label key={p}><input type="checkbox" id={`hub-cf-prod-${k}`} checked={products.indexOf(p) >= 0}
@@ -679,32 +530,29 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
             <span className="err">{errors.prm}</span></div>
           <button type="button" className="btn sm" onClick={() => setPrms(prms.concat([{ name: '', step: '', text: '' }]))}>＋ 프롬프트 추가</button>
         </fieldset>
+        <p className="note" style={{ marginTop: 12 }}>고객사 실명, 계약 금액, 개인정보는 적지 마세요.</p>
+        <MissingNote errors={errors} />
         <div className="mact"><button className="btn pri" type="submit" disabled={busy}>{busy ? '저장하는 중…' : c ? '저장' : '올리기'}</button><button type="button" className="btn" onClick={props.onCancel}>취소</button></div>
       </form>
-      <aside className="sticky-side"><div className="box"><h3>상세 화면에서 이렇게 보여요</h3><div className="cfPrev">
-        <div><div className="cfp-meta">{f.industry ? <span className="cc-dept ct-ind">{f.industry}</span> : null}<span>{f.client || '고객사'}</span><i>|</i><span>{f.dept || '조직'}</span><i>|</i><span>{f.period || '시기'}</span></div><b className="cfp-t">{f.title || '사례명'}</b></div>
-        <div className="cfp-sum"><div><small>대표 효과</small><b className="cfp-kb">{f.keyValue || '—'}</b><small>{f.keyNote}</small></div><div><small>시간</small><span>{ba(time[0], time[1])}</span></div><div><small>품질 수준</small><span>{ba(quality[0], quality[1])}</span></div><div><small>정신적 노력 수준</small><span>{ba(effort[0], effort[1])}</span></div></div>
-        <h4 className="cfp-h">프로젝트</h4><table className="kv"><tbody><tr><th>프로젝트명</th><td>{f.project || '—'}</td></tr><tr><th>업무 영역</th><td>{f.area || '—'}</td></tr></tbody></table>
-        <h4 className="cfp-h">AI 활용</h4><table className="kv"><tbody><tr><th>활용 방식</th><td>{f.pattern || '—'}</td></tr><tr><th>활용 제품</th><td>{products.length ? products.map((p, i) => <React.Fragment key={p}>{i ? <br /> : null}{p}</React.Fragment>) : '—'}</td></tr>
-          <tr><th>솔루션</th><td>{filledSols.length ? filledSols.map((s, i) => <React.Fragment key={i}>{i ? <br /> : null}{s.name}</React.Fragment>) : '별도 산출물 없음'}</td></tr><tr><th>문의</th><td>{f.contact || '—'}</td></tr></tbody></table>
-      </div></div>
-        <p className="note" style={{ marginTop: 12 }}>고객사 실명, 계약 금액, 개인정보는 적지 마세요.</p></aside>
     </div>
   );
 }
 
 /* ================= 아이디어 고치기 (모달 본문, 시안 ideaedit) ================= */
-export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmit: (title: string, type: string, detail: string) => Promise<boolean> }): JSX.Element {
+export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmit: (idea: INewIdea) => Promise<boolean> }): JSX.Element {
   const [title, setTitle] = React.useState(props.idea.title);
   const [detail, setDetail] = React.useState(props.idea.detail);
   const [type, setType] = React.useState(props.idea.type || 'Agent');
+  const [pain, setPain] = React.useState(props.idea.pain);
+  const [freq, setFreq] = React.useState(props.idea.frequency);
+  const [mins, setMins] = React.useState(typeof props.idea.minutes === 'number' ? String(props.idea.minutes) : '');
   const [err, setErr] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const submit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!title.trim()) { setErr('아이디어를 한 줄 적어 주세요.'); (document.getElementById('hub-ie-title') as HTMLElement).focus(); return; }
     setBusy(true);
-    await props.onSubmit(title.trim(), type, detail.trim());
+    await props.onSubmit({ title: title.trim(), type, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined });
     setBusy(false);
   };
   return (
@@ -713,6 +561,10 @@ export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmi
       <div className="field"><label htmlFor="hub-ie-desc">자세한 설명</label><textarea id="hub-ie-desc" rows={4} placeholder="어떤 일에서 불편한지, 있으면 무엇이 좋아지는지 적어 주세요." value={detail} onChange={e => setDetail(e.target.value)} /></div>
       <fieldset className="field"><legend>무엇으로 만들면 좋을까요</legend>
         <div className="seg" role="radiogroup" aria-label="유형">{IDEA_TYPES.map(x => <label key={x}><input type="radio" name="hub-ie-kind" value={x} checked={type === x} onChange={() => setType(x)} /> {x}</label>)}</div></fieldset>
+      <div className="field"><label htmlFor="hub-ie-pain">지금 겪는 불편</label><textarea id="hub-ie-pain" rows={3} placeholder="지금은 어떻게 하고 있고, 무엇이 번거로운지 적어 주세요." value={pain} onChange={e => setPain(e.target.value)} /></div>
+      <div className="field"><label htmlFor="hub-ie-freq">얼마나 자주 하나요</label>
+        <select id="hub-ie-freq" value={freq} onChange={e => setFreq(e.target.value)}><option value="">고르지 않음</option>{IDEA_FREQS.map(x => <option key={x}>{x}</option>)}</select></div>
+      <div className="field"><label htmlFor="hub-ie-min">한 번에 걸리는 시간(분)</label><input id="hub-ie-min" type="number" min={0} step={1} inputMode="numeric" value={mins} onChange={e => setMins(e.target.value.replace(/[^\d]/g, ''))} /></div>
       <div className="mact"><button className="btn pri" type="submit" disabled={busy}>{busy ? '저장하는 중…' : '수정 저장'}</button><button type="button" className="btn" onClick={props.onCancel}>취소</button></div>
     </form>
   );
