@@ -199,8 +199,9 @@ export class HubService {
   public async setAvatarBadge(meId: number, email: string, key: string): Promise<void> {
     const list = this.lists.profiles || 'HubProfiles';
     const rows = await this.items(list, ['Id'], [], `AuthorId eq ${meId}`, 1);
+    // Title(목록에서 '이메일' 열)에는 이메일을 넣습니다 (사람이 볼 때 참고용. Hub는 '만든 사람'으로 구분)
     if (rows.length) {
-      await this.merge(list, rows[0].Id, { AvatarBadge: key });
+      await this.merge(list, rows[0].Id, { Title: email, AvatarBadge: key });
     } else {
       await this.create(list, { Title: email, AvatarBadge: key });
     }
