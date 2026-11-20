@@ -11,7 +11,7 @@ export type SolutionKind = 'agent' | 'skill' | 'html';
 
 /** 화면: 목록 화면 + 상세 화면(id 필요) */
 export type HubView =
-  | 'home' | 'market' | 'agents' | 'skills' | 'htools' | 'ideas' | 'cases' | 'maker' | 'search' | 'me'
+  | 'home' | 'market' | 'agents' | 'skills' | 'htools' | 'ideas' | 'cases' | 'maker' | 'search' | 'me' | 'badges'
   | 'agent' | 'skill' | 'htool' | 'idea' | 'case';
 
 export interface IPerson {
@@ -55,8 +55,6 @@ export interface IAgent {
   env: string;
   /** 운영 상태 (OpsStatus) */
   opsStatus: string;
-  /** 30일 사용 수 (Uses30) */
-  uses30?: number;
   /** Hub 조회수 (ViewCount 열. 열이 없으면 undefined) */
   views?: number;
   /** 최근 사용일 (LastUsedOn) */
@@ -344,6 +342,10 @@ export interface IReaction {
   rating?: number;
   /** 항목 댓글이면 그 댓글 번호 (지울 때 씀) */
   commentId?: number;
+  /** 항목 댓글의 좋아요 수 (SharePoint 댓글 좋아요) */
+  likes?: number;
+  /** 내가 이 댓글에 좋아요를 눌렀는지 */
+  likedByMe?: boolean;
   author?: IPerson;
   /** 별점·좋아요는 SharePoint가 날짜를 남기지 않아 빈 값입니다. 최근 30일 계산에서는 빠집니다. */
   created: string;
@@ -364,6 +366,8 @@ export interface IHubData {
   htmls: IHtmlTool[];
   /** 사람별 프로필 배지 선택 (사람 Id → 배지 키 · 'photo'(사진) · ''(자동: 최근 배지)). HubProfiles 목록 */
   avatars?: { [personId: number]: string };
+  /** 사람별 Hub 방문한 날 수 (사람 Id → 이름·횟수). HubProfiles 목록의 VisitCount 열. 열이 없으면 비어 있음 */
+  visits?: { [personId: number]: { name: string; count: number } };
   /** 목록을 읽지 못했을 때의 안내. 그 목록을 쓰는 화면에만 보이고 다른 화면은 그대로 씁니다. */
   agentsError?: string;
   ideasError?: string;

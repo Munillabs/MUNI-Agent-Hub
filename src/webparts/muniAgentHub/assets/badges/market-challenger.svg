@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="592" height="738" viewBox="-16 -10 592 738" role="img" aria-labelledby="title">
+  <title id="title">Marketplace · 챌린저</title>
+  <defs>
+    <linearGradient id="challenger-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#effbf6"/>
+      <stop offset="56%" stop-color="#d9f3e8"/>
+      <stop offset="82%" stop-color="#b2e0cc"/>
+      <stop offset="100%" stop-color="#7fc3a6"/>
+    </linearGradient>
+    <linearGradient id="challenger-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a5b8b"/>
+      <stop offset="29%" stop-color="#093c68"/>
+      <stop offset="61%" stop-color="#093c68"/>
+      <stop offset="100%" stop-color="#5793bc"/>
+    </linearGradient>
+    <linearGradient id="challenger-sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#83d9a0"/>
+      <stop offset="53%" stop-color="#8be1a7"/>
+      <stop offset="83%" stop-color="#9ce9b6"/>
+      <stop offset="100%" stop-color="#98e4b1"/>
+    </linearGradient>
+    <linearGradient id="challenger-cloud" x1="10%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#def9e7"/>
+      <stop offset="100%" stop-color="#d8f5e2"/>
+    </linearGradient>
+    <linearGradient id="challenger-keel-well" x1="0" y1="555" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8be1a7"/>
+      <stop offset="100%" stop-color="#98e4b1"/>
+    </linearGradient>
+    <linearGradient id="challenger-ribbon-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="41%" stop-color="#fffefd"/>
+      <stop offset="81%" stop-color="#f6f5f3"/>
+      <stop offset="93%" stop-color="#f4f3f1"/>
+      <stop offset="100%" stop-color="#dedbd7"/>
+    </linearGradient>
+    <linearGradient id="challenger-leaf" x1="19%" y1="0%" x2="76%" y2="100%">
+      <stop offset="0%" stop-color="#f6fdf9"/>
+      <stop offset="55%" stop-color="#dcf3e8"/>
+      <stop offset="84%" stop-color="#bfe5d3"/>
+      <stop offset="100%" stop-color="#86c4a8"/>
+    </linearGradient>
+    <linearGradient id="challenger-halo" x1="0" y1="358" x2="0" y2="618" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#739cba"/>
+      <stop offset="57%" stop-color="#739cba"/>
+      <stop offset="100%" stop-color="#5793bc"/>
+    </linearGradient>
+    <linearGradient id="challenger-body" x1="11%" y1="21%" x2="94%" y2="80%">
+      <stop offset="0%" stop-color="#dfe7ec"/>
+      <stop offset="24%" stop-color="#f9fafb"/>
+      <stop offset="43%" stop-color="#ffffff"/>
+      <stop offset="65%" stop-color="#fdfdfc"/>
+      <stop offset="83%" stop-color="#f5f2ef"/>
+      <stop offset="100%" stop-color="#cfd6dc"/>
+    </linearGradient>
+    <linearGradient id="challenger-cap" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffc26d"/>
+      <stop offset="28%" stop-color="#ff9b38"/>
+      <stop offset="73%" stop-color="#ff8619"/>
+      <stop offset="100%" stop-color="#ee6b11"/>
+    </linearGradient>
+    <linearGradient id="challenger-dark-fin" x1="0%" y1="0%" x2="87%" y2="100%">
+      <stop offset="0%" stop-color="#4386b5"/>
+      <stop offset="33%" stop-color="#276a9c"/>
+      <stop offset="100%" stop-color="#19527e"/>
+    </linearGradient>
+    <linearGradient id="challenger-light-fin" x1="0%" y1="0%" x2="79%" y2="100%">
+      <stop offset="0%" stop-color="#e4f4ff"/>
+      <stop offset="31%" stop-color="#c8e5f5"/>
+      <stop offset="100%" stop-color="#83b1d2"/>
+    </linearGradient>
+    <linearGradient id="challenger-port" x1="0%" y1="0%" x2="98%" y2="100%">
+      <stop offset="0%" stop-color="#d8f4ff"/>
+      <stop offset="29%" stop-color="#a0d0ea"/>
+      <stop offset="77%" stop-color="#86badb"/>
+      <stop offset="100%" stop-color="#66a5ce"/>
+    </linearGradient>
+    <linearGradient id="challenger-flame" x1="18%" y1="5%" x2="75%" y2="100%">
+      <stop offset="0%" stop-color="#ffba51"/>
+      <stop offset="30%" stop-color="#ffa437"/>
+      <stop offset="100%" stop-color="#fc9025"/>
+    </linearGradient>
+    <linearGradient id="challenger-flame-core" x1="0%" y1="0%" x2="65%" y2="100%">
+      <stop offset="0%" stop-color="#ffddaa"/>
+      <stop offset="100%" stop-color="#ffc06e"/>
+    </linearGradient>
+    <linearGradient id="challenger-star-orange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffb44e"/>
+      <stop offset="46%" stop-color="#ff9618"/>
+      <stop offset="100%" stop-color="#f47d07"/>
+    </linearGradient>
+    <linearGradient id="challenger-star-blue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4688b8"/>
+      <stop offset="50%" stop-color="#276999"/>
+      <stop offset="100%" stop-color="#154c79"/>
+    </linearGradient>
+    <linearGradient id="challenger-white-glint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="68%" stop-color="#fbfeff"/>
+      <stop offset="100%" stop-color="#dceefa"/>
+    </linearGradient>
+    <linearGradient id="challenger-gold-glint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="59%" stop-color="#ffcc78"/>
+      <stop offset="100%" stop-color="#ff9e27"/>
+    </linearGradient>
+    <clipPath id="challenger-inset-clip"><path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z"/></clipPath>
+    <clipPath id="challenger-ribbon-ends">
+      <rect x="0" y="470" width="145" height="154"/>
+      <rect x="411" y="470" width="149" height="154"/>
+    </clipPath>
+    <filter id="challenger-cast-shadow" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="15"/>
+    </filter>
+    <filter id="challenger-contact-shadow" x="-16%" y="-16%" width="132%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <linearGradient id="challenger-marketplace-white" x2="24%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="48%" stop-color="#f8fbfd"/>
+      <stop offset="100%" stop-color="#d3e5f0"/>
+    </linearGradient>
+    <linearGradient id="challenger-marketplace-blue" x2="24%" y2="100%">
+      <stop offset="0%" stop-color="#d7effb"/>
+      <stop offset="48%" stop-color="#9fcee9"/>
+      <stop offset="100%" stop-color="#5b9bc9"/>
+    </linearGradient>
+    <linearGradient id="challenger-marketplace-navy" x2="24%" y2="100%">
+      <stop offset="0%" stop-color="#75aed2"/>
+      <stop offset="48%" stop-color="#3c80b0"/>
+      <stop offset="100%" stop-color="#215785"/>
+    </linearGradient>
+    <linearGradient id="challenger-marketplace-orange" x2="24%" y2="100%">
+      <stop offset="0%" stop-color="#ffca75"/>
+      <stop offset="48%" stop-color="#ffa232"/>
+      <stop offset="100%" stop-color="#f58211"/>
+    </linearGradient>
+    <linearGradient id="challenger-marketplace-cream" x2="24%" y2="100%">
+      <stop offset="0%" stop-color="#fff6de"/>
+      <stop offset="48%" stop-color="#ffdfad"/>
+      <stop offset="100%" stop-color="#ffbe66"/>
+    </linearGradient>
+    <linearGradient id="challenger-marketplace-atmosphere" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bfdff4" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#cbe7f7" stop-opacity=".39"/>
+      <stop offset="100%" stop-color="#d6edf8" stop-opacity=".8"/>
+    </linearGradient>
+  <radialGradient id="challenger-pop-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".18"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="challenger-pop-sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity=".38"/><stop offset="55%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<radialGradient id="challenger-pop-vignette" cx="50%" cy="42%" r="62%"><stop offset="60%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#0a1830" stop-opacity=".28"/></radialGradient></defs>
+  <g id="challenger" aria-label="챌린저" stroke-linejoin="round" stroke-linecap="round">
+  <g id="challenger-shadow" fill="#315b80" opacity=".24" transform="translate(2 18)" filter="url(#challenger-cast-shadow)">
+    <path d="M 261,32 Q 279,26 296,32 L 520,121 Q 544,133 544,160 L 544,331 C 544,466 463,593 297,663 Q 278,671 259,663 C 95,597 13,468 13,334 L 13,161 Q 13,132 39,121 Z"/>
+    <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z"/>
+  </g>
+  <g id="challenger-shield">
+    <path d="M 261,32 Q 279,26 296,32 L 520,121 Q 544,133 544,160 L 544,331 C 544,466 463,593 297,663 Q 278,671 259,663 C 95,597 13,468 13,334 L 13,161 Q 13,132 39,121 Z" fill="url(#challenger-rim)" stroke="url(#challenger-edge)" stroke-width="6"/>
+    <path d="M 261,32 Q 279,26 296,32 L 520,121 Q 544,133 544,160 L 544,331 C 544,466 463,593 297,663 Q 278,671 259,663 C 95,597 13,468 13,334 L 13,161 Q 13,132 39,121 Z" fill="none" stroke="#e7f6ff" stroke-width="1.25" opacity=".37" transform="translate(0 2)"/>
+    <g clip-path="url(#challenger-inset-clip)">
+      <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" fill="url(#challenger-sky)"/>
+      <g id="challenger-marketplace-backdrop" opacity=".35" transform="translate(-22 0)">
+        <path d="M -20,335 H 620 V 545 H -20 Z" fill="url(#challenger-marketplace-atmosphere)"/>
+        <g opacity=".66">
+    <path d="M 40,446 H 557 L 582,506 H 16 Z" fill="url(#challenger-marketplace-white)" opacity=".62"/>
+    <g stroke="#2b648f" stroke-width="2.8">
+      
+      <g transform="translate(65 379) scale(0.94)">
+        <rect width="76" height="67" rx="7" fill="url(#challenger-marketplace-white)"/>
+        <rect x="9" y="9" width="58" height="31" rx="4" fill="url(#challenger-marketplace-blue)" stroke="none"/>
+        <path d="M 11,51 H 45 M 11,58 H 34" fill="none" stroke="#477ea5" opacity=".65"/>
+        <path d="M 53,50 H 62 L 67,55 L 62,60 H 53 Z" fill="url(#challenger-marketplace-blue)" stroke-width="1.65"/>
+      </g>
+      <g transform="translate(174 391) scale(0.86)">
+        <rect width="76" height="67" rx="7" fill="url(#challenger-marketplace-white)"/>
+        <rect x="9" y="9" width="58" height="31" rx="4" fill="url(#challenger-marketplace-cream)" stroke="none"/>
+        <path d="M 11,51 H 45 M 11,58 H 34" fill="none" stroke="#477ea5" opacity=".65"/>
+        <path d="M 53,50 H 62 L 67,55 L 62,60 H 53 Z" fill="url(#challenger-marketplace-blue)" stroke-width="1.65"/>
+      </g>
+      <g transform="translate(261 372) scale(1.04)">
+        <rect width="76" height="67" rx="7" fill="url(#challenger-marketplace-white)"/>
+        <rect x="9" y="9" width="58" height="31" rx="4" fill="url(#challenger-marketplace-blue)" stroke="none"/>
+        <path d="M 11,51 H 45 M 11,58 H 34" fill="none" stroke="#477ea5" opacity=".65"/>
+        <path d="M 53,50 H 62 L 67,55 L 62,60 H 53 Z" fill="url(#challenger-marketplace-blue)" stroke-width="1.65"/>
+      </g>
+      <g transform="translate(374 390) scale(0.88)">
+        <rect width="76" height="67" rx="7" fill="url(#challenger-marketplace-white)"/>
+        <rect x="9" y="9" width="58" height="31" rx="4" fill="url(#challenger-marketplace-cream)" stroke="none"/>
+        <path d="M 11,51 H 45 M 11,58 H 34" fill="none" stroke="#477ea5" opacity=".65"/>
+        <path d="M 53,50 H 62 L 67,55 L 62,60 H 53 Z" fill="url(#challenger-marketplace-blue)" stroke-width="1.65"/>
+      </g>
+      <g transform="translate(470 378) scale(0.97)">
+        <rect width="76" height="67" rx="7" fill="url(#challenger-marketplace-white)"/>
+        <rect x="9" y="9" width="58" height="31" rx="4" fill="url(#challenger-marketplace-blue)" stroke="none"/>
+        <path d="M 11,51 H 45 M 11,58 H 34" fill="none" stroke="#477ea5" opacity=".65"/>
+        <path d="M 53,50 H 62 L 67,55 L 62,60 H 53 Z" fill="url(#challenger-marketplace-blue)" stroke-width="1.65"/>
+      </g>
+      <path d="M 24,447 H 576 L 564,465 H 36 Z" fill="url(#challenger-marketplace-blue)"/>
+      <path d="M 34,449 H 566" fill="none" stroke="#e9f6ff" stroke-width="3"/>
+      <path d="M 65,468 L 52,507 M 194,468 L 187,507 M 300,468 V 507 M 406,468 L 413,507 M 535,468 L 548,507"
+            fill="none" opacity=".28"/>
+      <path d="M 36,507 H 564" fill="none" opacity=".45"/>
+    </g>
+        </g>
+      </g>
+      <path d="M 0,552 H 560 V 684 H 0 Z" fill="url(#challenger-keel-well)"/>
+      <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" fill="none" stroke="#164467" stroke-width="14" opacity=".34" filter="url(#challenger-contact-shadow)"/>
+    </g>
+    <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" fill="none" stroke="#134a76" stroke-width="4" opacity="1"/>
+    
+  </g>
+  <g clip-path="url(#challenger-inset-clip)" pointer-events="none"><rect x="44" y="56" width="469" height="584" fill="url(#challenger-pop-vignette)"/><circle cx="278" cy="291" r="197" fill="url(#challenger-pop-glow)"/><rect x="44" y="56" width="469" height="350" fill="url(#challenger-pop-sheen)"/></g><g id="challenger-sky-stars">
+    <g transform="translate(148 197) scale(0.36)">
+    <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#164b68" transform="translate(2 6)" opacity=".18"/>
+    <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#challenger-white-glint)" stroke="#ecf7fc" stroke-width="1.6"/>
+  </g>
+    <g transform="translate(429 297) scale(0.3)">
+    <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#164b68" transform="translate(2 6)" opacity=".18"/>
+    <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#challenger-white-glint)" stroke="#ecf7fc" stroke-width="1.6"/>
+  </g>
+  </g>
+  <g id="challenger-marketplace" aria-label="Marketplace" transform="translate(282 298) scale(1.270) rotate(-9) translate(-122 -126)">
+    <g fill="#103e64" opacity=".42" transform="translate(3 6)" filter="url(#challenger-contact-shadow)">
+      <path d="M 42,92 H 201 V 201 Q 201,209 193,209 H 50 Q 42,209 42,201 Z"/>
+      <path d="M 48,54 Q 52,46 61,46 H 182 Q 191,46 195,54 L 218,94 V 106 C 218,129 185,131 170,112 C 156,133 135,133 121,112 C 107,133 86,132 72,112 C 57,132 25,128 25,106 V 94 Z"/>
+    </g>
+    <g stroke="#123f67" stroke-width="4.2">
+      <path d="M 42,92 H 201 V 201 Q 201,209 193,209 H 50 Q 42,209 42,201 Z" fill="url(#challenger-marketplace-white)"/>
+      <rect x="59" y="143" width="65" height="42" rx="5" fill="url(#challenger-marketplace-blue)"/>
+      <path d="M 91.5,144 V 184" fill="none" stroke-width="3.3"/>
+      <path d="M 144,209 V 154 Q 144,144 153,144 H 174 Q 183,144 183,154 V 209 Z" fill="url(#challenger-marketplace-blue)"/>
+      <circle cx="157" cy="178" r="3" fill="#245b82" stroke="none"/>
+      <path d="M 48,54 Q 52,46 61,46 H 182 Q 191,46 195,54 L 218,94 V 106 C 218,129 185,131 170,112 C 156,133 135,133 121,112 C 107,133 86,132 72,112 C 57,132 25,128 25,106 V 94 Z" fill="url(#challenger-marketplace-white)"/>
+      <path d="M 48,54 Q 52,46 61,46 H 80 L 72,94 V 112 C 57,132 25,128 25,106 V 94 Z
+               M 115,46 H 144 L 170,94 V 112 C 156,133 135,133 121,112 V 94 Z"
+            fill="url(#challenger-marketplace-orange)" stroke-width="3.9"/>
+      <path d="M 27,94 H 216 M 170,94 V 112" fill="none" stroke-width="2.6" opacity=".62"/>
+      <path d="M 41,201 H 202 Q 208,201 208,206 Q 208,212 202,212 H 41 Q 35,212 35,206 Q 35,201 41,201 Z"
+            fill="url(#challenger-marketplace-blue)" stroke-width="3.6"/>
+    
+    </g>
+  </g>
+  <g id="challenger-laurel-edging" fill="#739cba" stroke="url(#challenger-halo)" stroke-width="14">
+    <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z"/>
+    <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z"/>
+    <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z"/>
+    <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z"/>
+    <g transform="translate(556 0) scale(-1 1)">
+      <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z"/>
+      <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z"/>
+      <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z"/>
+      <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z"/>
+    </g>
+    <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="#739cba" stroke="url(#challenger-halo)" stroke-width="9"/>
+    <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="#739cba" stroke="url(#challenger-halo)" stroke-width="17" clip-path="url(#challenger-ribbon-ends)"/>
+  </g>
+  <g id="challenger-laurels">
+    <g>
+    <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#1c567d" stroke-width="7.4"/>
+    <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#85b4d0" stroke-width="2.1"/>
+  </g>
+    <g transform="translate(556 0) scale(-1 1)">
+    <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#1c567d" stroke-width="7.4"/>
+    <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4"/>
+    <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#85b4d0" stroke-width="2.1"/>
+  </g>
+  </g>
+  <g id="challenger-ribbon">
+    <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="#214661" opacity=".29" transform="translate(0 4)" filter="url(#challenger-contact-shadow)"/>
+    <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="url(#challenger-ribbon-fill)" stroke="#1c567d" stroke-width="5"/>
+    <g transform="translate(246 546) scale(0.27)">
+    <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15"/>
+    <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#challenger-star-orange)" stroke="#ed8a23" stroke-width="4"/>
+  </g>
+    <g transform="translate(310 546) scale(0.27)">
+    <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15"/>
+    <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#challenger-star-orange)" stroke="#ed8a23" stroke-width="4"/>
+  </g>
+  </g>
+</g>
+</svg>

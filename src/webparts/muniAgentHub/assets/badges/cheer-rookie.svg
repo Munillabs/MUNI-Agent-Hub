@@ -1,0 +1,135 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="572" height="738" viewBox="-16 -10 572 738" role="img" aria-labelledby="title">
+  <title id="title">응원 · 응원의 힘 · 루키</title>
+  <defs>
+    <linearGradient id="rookie-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="56%" stop-color="#fbfcfd" />
+      <stop offset="82%" stop-color="#eef1f4" />
+      <stop offset="100%" stop-color="#c9d2da" />
+    </linearGradient>
+    <linearGradient id="rookie-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4c7da6" />
+      <stop offset="29%" stop-color="#195489" />
+      <stop offset="61%" stop-color="#195489" />
+      <stop offset="100%" stop-color="#5686a8" />
+    </linearGradient>
+    <linearGradient id="rookie-sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4adc7" />
+      <stop offset="53%" stop-color="#f7b2cb" />
+      <stop offset="83%" stop-color="#f6adc8" />
+      <stop offset="100%" stop-color="#f7d6e2" />
+    </linearGradient>
+    <linearGradient id="rookie-cloud" x1="10%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#fcebf1" />
+      <stop offset="100%" stop-color="#f9f0f3" />
+    </linearGradient>
+    <linearGradient id="rookie-keel-well" x1="0" y1="555" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f7b2cb" />
+      <stop offset="100%" stop-color="#f7d6e2" />
+    </linearGradient>
+    <linearGradient id="rookie-ribbon-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="41%" stop-color="#fffefd" />
+      <stop offset="81%" stop-color="#f6f5f3" />
+      <stop offset="93%" stop-color="#f4f3f1" />
+      <stop offset="100%" stop-color="#dedbd7" />
+    </linearGradient>
+    <linearGradient id="rookie-leaf" x1="19%" y1="0%" x2="76%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="55%" stop-color="#f4f6f8" />
+      <stop offset="84%" stop-color="#e3e8ec" />
+      <stop offset="100%" stop-color="#b9c4cd" />
+    </linearGradient>
+    <linearGradient id="rookie-star-blue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4688b8" />
+      <stop offset="50%" stop-color="#276999" />
+      <stop offset="100%" stop-color="#154c79" />
+    </linearGradient>
+    <linearGradient id="rookie-white-glint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="68%" stop-color="#fbfeff" />
+      <stop offset="100%" stop-color="#dceefa" />
+    </linearGradient>
+    <clipPath id="rookie-inset-clip">
+      <path d="M 44.6,282.9 A 225.9 225.9 0 1 1 496.4,282.9 A 225.9 225.9 0 1 1 44.6,282.9 Z" />
+    </clipPath>
+    <filter id="rookie-cast-shadow" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="15" />
+    </filter>
+    <filter id="rookie-contact-shadow" x="-16%" y="-16%" width="132%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" />
+    </filter>
+    <linearGradient id="cheering-orange" x1="0%" y1="0%" x2="65%" y2="100%">
+      <stop offset="0%" stop-color="#ffd68e" />
+      <stop offset="35%" stop-color="#ffb64e" />
+      <stop offset="70%" stop-color="#ff9a2b" />
+      <stop offset="100%" stop-color="#f08220" />
+    </linearGradient>
+  <radialGradient id="rookie-pop-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".18"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="rookie-pop-sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity=".38"/><stop offset="55%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<radialGradient id="rookie-pop-vignette" cx="50%" cy="42%" r="62%"><stop offset="60%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#0a1830" stop-opacity=".28"/></radialGradient></defs>
+  <g id="rookie" aria-label="응원 · 응원의 힘 · 루키" stroke-linejoin="round" stroke-linecap="round">
+    <g id="rookie-shadow" fill="#315b80" opacity=".24" transform="translate(2 18)" filter="url(#rookie-cast-shadow)">
+      <path d="M 15.6,282.9 A 254.9 254.9 0 1 1 525.4,282.9 A 254.9 254.9 0 1 1 15.6,282.9 Z" />
+      <path d="M 146,520 C 211,503 322,501 392,519 Q 385,539 384,562 C 395,574 408,586 418,595 Q 426,603 402,607 C 366,610 315,599 268,600 C 210,599 157,612 133,607 Q 109,605 122,595 C 136,583 148,570 151,562 Q 151,541 146,520 Z" />
+    </g>
+    <g id="rookie-shield">
+      <path d="M 15.6,282.9 A 254.9 254.9 0 1 1 525.4,282.9 A 254.9 254.9 0 1 1 15.6,282.9 Z" fill="url(#rookie-rim)" stroke="url(#rookie-edge)" stroke-width="4" />
+      <path d="M 15.6,282.9 A 254.9 254.9 0 1 1 525.4,282.9 A 254.9 254.9 0 1 1 15.6,282.9 Z" fill="none" stroke="#e7f6ff" stroke-width="1.25" opacity=".37" transform="translate(0 2)" />
+      <g clip-path="url(#rookie-inset-clip)">
+        <path d="M 44.6,282.9 A 225.9 225.9 0 1 1 496.4,282.9 A 225.9 225.9 0 1 1 44.6,282.9 Z" fill="url(#rookie-sky)" />
+        <path d="M 30,394 C 84,349 144,376 166,429 C 191,424 213,432 227,454 C 242,446 258,451 269,460 C 286,433 324,416 355,429 C 376,373 449,351 506,395 L 510,528 L 27,528 Z" fill="url(#rookie-cloud)" />
+        <path d="M 0,552 H 540 V 684 H 0 Z" fill="url(#rookie-keel-well)" />
+        <path d="M 44.6,282.9 A 225.9 225.9 0 1 1 496.4,282.9 A 225.9 225.9 0 1 1 44.6,282.9 Z" fill="none" stroke="#164467" stroke-width="12" opacity=".34" filter="url(#rookie-contact-shadow)" />
+      </g>
+      <path d="M 44.6,282.9 A 225.9 225.9 0 1 1 496.4,282.9 A 225.9 225.9 0 1 1 44.6,282.9 Z" fill="none" stroke="#407ca4" stroke-width="2" opacity=".3" />
+    </g>
+    <g clip-path="url(#rookie-inset-clip)" pointer-events="none"><rect x="45" y="57" width="452" height="452" fill="url(#rookie-pop-vignette)"/><circle cx="270" cy="292" r="190" fill="url(#rookie-pop-glow)"/><rect x="45" y="57" width="452" height="271" fill="url(#rookie-pop-sheen)"/></g><g id="rookie-sky-stars">
+      <g transform="translate(143 199) scale(0.36)">
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#164b68" transform="translate(2 6)" opacity=".18" />
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#rookie-white-glint)" stroke="#ecf7fc" stroke-width="1.6" />
+      </g>
+    </g>
+    <g id="cheering-scene" transform="translate(270 290) rotate(-5) scale(1.05) translate(-120 -130)">
+      <g id="cheering-icon-shadow" transform="translate(3 6)" opacity=".33" filter="url(#rookie-contact-shadow)">
+        <g transform="translate(120 135) scale(.9)">
+          <path d="M 0,79 C -20,60 -91,14 -91,-36 C -91,-80 -37,-98 0,-58 C 37,-98 91,-80 91,-36 C 91,14 20,60 0,79 Z" fill="#204b6c" stroke="#204b6c" stroke-width="4.3" />
+          <path d="M -71,-35 C -71,-58 -48,-71 -29,-60" fill="none" stroke="#204b6c" stroke-width="5.2" opacity=".88" />
+        </g>
+      </g>
+      <g id="cheering-artwork">
+        <g class="cheering-heart" transform="translate(120 135) scale(.9)">
+          <path d="M 0,79 C -20,60 -91,14 -91,-36 C -91,-80 -37,-98 0,-58 C 37,-98 91,-80 91,-36 C 91,14 20,60 0,79 Z" fill="url(#cheering-orange)" stroke="#255273" stroke-width="4.3" />
+          <path d="M -71,-35 C -71,-58 -48,-71 -29,-60" fill="none" stroke="#ffe6b5" stroke-width="5.2" opacity=".88" />
+        </g>
+      </g>
+    </g>
+    <g id="rookie-laurels">
+      <g>
+        <path d="M 153,563 C 120,548 96,525 89,482" fill="none" stroke="#174f7d" stroke-width="6" />
+        <path d="M 106,525 C 87,514 73,494 83,464 Q 85,459 89,464 C 110,480 118,500 106,525 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 117,543 C 94,549 72,544 60,518 Q 61,512 69,513 C 90,512 102,522 117,543 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 151,562 C 129,551 111,529 123,499 Q 125,492 130,497 C 149,514 155,540 151,562 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 151,562 C 133,580 107,581 90,565 Q 87,562 94,558 C 113,547 132,551 151,562 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 153,563 C 120,548 96,525 89,482" fill="none" stroke="#85b4d0" stroke-width="2.1" />
+      </g>
+      <g transform="translate(538 0) scale(-1 1)">
+        <path d="M 153,563 C 120,548 96,525 89,482" fill="none" stroke="#174f7d" stroke-width="6" />
+        <path d="M 106,525 C 87,514 73,494 83,464 Q 85,459 89,464 C 110,480 118,500 106,525 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 117,543 C 94,549 72,544 60,518 Q 61,512 69,513 C 90,512 102,522 117,543 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 151,562 C 129,551 111,529 123,499 Q 125,492 130,497 C 149,514 155,540 151,562 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 151,562 C 133,580 107,581 90,565 Q 87,562 94,558 C 113,547 132,551 151,562 Z" fill="url(#rookie-leaf)" stroke="#174f7d" stroke-width="4" />
+        <path d="M 153,563 C 120,548 96,525 89,482" fill="none" stroke="#85b4d0" stroke-width="2.1" />
+      </g>
+    </g>
+    <g id="rookie-ribbon">
+      <path d="M 146,520 C 211,503 322,501 392,519 Q 385,539 384,562 C 395,574 408,586 418,595 Q 426,603 402,607 C 366,610 315,599 268,600 C 210,599 157,612 133,607 Q 109,605 122,595 C 136,583 148,570 151,562 Q 151,541 146,520 Z" fill="#214661" opacity=".29" transform="translate(0 4)" filter="url(#rookie-contact-shadow)" />
+      <path d="M 146,520 C 211,503 322,501 392,519 Q 385,539 384,562 C 395,574 408,586 418,595 Q 426,603 402,607 C 366,610 315,599 268,600 C 210,599 157,612 133,607 Q 109,605 122,595 C 136,583 148,570 151,562 Q 151,541 146,520 Z" fill="url(#rookie-ribbon-fill)" stroke="#174f7d" stroke-width="4.3" />
+      <g transform="translate(269 555) scale(0.27)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#rookie-star-blue)" stroke="#16476f" stroke-width="3.2" />
+      </g>
+    </g>
+  </g>
+</svg>

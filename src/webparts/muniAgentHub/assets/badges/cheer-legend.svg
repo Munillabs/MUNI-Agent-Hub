@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="672" height="738" viewBox="-16 -10 672 738" role="img" aria-labelledby="title">
+  <title id="title">응원 · 응원의 신 · 레전드</title>
+  <defs>
+    <linearGradient id="legend-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff1d9" />
+      <stop offset="56%" stop-color="#ffe2b8" />
+      <stop offset="82%" stop-color="#f9c780" />
+      <stop offset="100%" stop-color="#e7a34d" />
+    </linearGradient>
+    <linearGradient id="legend-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6287a9" />
+      <stop offset="29%" stop-color="#286192" />
+      <stop offset="61%" stop-color="#286192" />
+      <stop offset="100%" stop-color="#0a3c69" />
+    </linearGradient>
+    <linearGradient id="legend-sky" x1="0" y1="55" x2="0" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#dd608e" />
+      <stop offset="48%" stop-color="#df6692" />
+      <stop offset="78%" stop-color="#e2759d" />
+      <stop offset="100%" stop-color="#e78aac" />
+    </linearGradient>
+    <linearGradient id="legend-cloud" x1="10%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#fcd8e5" />
+      <stop offset="100%" stop-color="#f7d2e0" />
+    </linearGradient>
+    <linearGradient id="legend-keel-well" x1="0" y1="555" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#df6692" />
+      <stop offset="100%" stop-color="#f02771" />
+    </linearGradient>
+    <linearGradient id="legend-ribbon-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="41%" stop-color="#fffefd" />
+      <stop offset="81%" stop-color="#f6f5f3" />
+      <stop offset="93%" stop-color="#f4f3f1" />
+      <stop offset="100%" stop-color="#dedbd7" />
+    </linearGradient>
+    <linearGradient id="legend-leaf" x1="19%" y1="0%" x2="76%" y2="100%">
+      <stop offset="0%" stop-color="#fffff8" />
+      <stop offset="56%" stop-color="#ffebd2" />
+      <stop offset="84%" stop-color="#ffddad" />
+      <stop offset="100%" stop-color="#f8b04f" />
+    </linearGradient>
+    <linearGradient id="legend-halo" x1="0" y1="358" x2="0" y2="618" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1b4d7a" />
+      <stop offset="57%" stop-color="#1b4d7a" />
+      <stop offset="100%" stop-color="#0a3c69" />
+    </linearGradient>
+    <linearGradient id="legend-star-orange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffb44e" />
+      <stop offset="46%" stop-color="#ff9618" />
+      <stop offset="100%" stop-color="#f47d07" />
+    </linearGradient>
+    <linearGradient id="legend-white-glint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="68%" stop-color="#fbfeff" />
+      <stop offset="100%" stop-color="#dceefa" />
+    </linearGradient>
+    <linearGradient id="legend-gold-glint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffe9a8" />
+      <stop offset="59%" stop-color="#ffcc78" />
+      <stop offset="100%" stop-color="#ff9e27" />
+    </linearGradient>
+    <clipPath id="legend-inset-clip">
+      <path d="M 72.8,280.2 A 245.2 245.2 0 1 1 563.2,280.2 A 245.2 245.2 0 1 1 72.8,280.2 Z" />
+    </clipPath>
+    <clipPath id="legend-ribbon-ends">
+      <rect x="0" y="470" width="184" height="154" />
+      <rect x="450" y="470" width="190" height="154" />
+    </clipPath>
+    <filter id="legend-cast-shadow" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="15" />
+    </filter>
+    <filter id="legend-contact-shadow" x="-16%" y="-16%" width="132%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" />
+    </filter>
+    <linearGradient id="cheering-gold" x1="0%" y1="0%" x2="65%" y2="100%">
+      <stop offset="0%" stop-color="#fff1b7" />
+      <stop offset="35%" stop-color="#f8d076" />
+      <stop offset="65%" stop-color="#e7ac43" />
+      <stop offset="100%" stop-color="#bf8127" />
+    </linearGradient>
+    <linearGradient id="cheering-gold-light" x1="0%" y1="0%" x2="65%" y2="100%">
+      <stop offset="0%" stop-color="#fff6d1" />
+      <stop offset="55%" stop-color="#ffe2a0" />
+      <stop offset="100%" stop-color="#d6a04a" />
+    </linearGradient>
+  <radialGradient id="legend-pop-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".18"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="legend-pop-sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity=".38"/><stop offset="55%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<radialGradient id="legend-pop-vignette" cx="50%" cy="42%" r="62%"><stop offset="60%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#0a1830" stop-opacity=".28"/></radialGradient></defs>
+  <g id="legend" aria-label="응원 · 응원의 신 · 레전드" stroke-linejoin="round" stroke-linecap="round">
+    <g id="legend-shadow" fill="#315b80" opacity=".24" transform="translate(2 18)" filter="url(#legend-cast-shadow)">
+      <path d="M 43.8,280.2 A 274.2 274.2 0 1 1 592.2,280.2 A 274.2 274.2 0 1 1 43.8,280.2 Z" />
+      <path d="M 162,492 C 252,464 380,463 473,491 Q 466,515 462,547 C 467,562 481,577 491,591 Q 499,601 476,598 C 427,594 372,579 317,579 C 257,578 211,592 154,598 Q 137,599 144,591 C 155,575 166,563 172,546 Q 170,517 162,492 Z" />
+    </g>
+    <g id="legend-shield">
+      <path d="M 43.8,280.2 A 274.2 274.2 0 1 1 592.2,280.2 A 274.2 274.2 0 1 1 43.8,280.2 Z" fill="url(#legend-rim)" stroke="url(#legend-edge)" stroke-width="6.5" />
+      <path d="M 43.8,280.2 A 274.2 274.2 0 1 1 592.2,280.2 A 274.2 274.2 0 1 1 43.8,280.2 Z" fill="none" stroke="#e7f6ff" stroke-width="1.25" opacity=".37" transform="translate(0 2)" />
+      <g clip-path="url(#legend-inset-clip)">
+        <path d="M 72.8,280.2 A 245.2 245.2 0 1 1 563.2,280.2 A 245.2 245.2 0 1 1 72.8,280.2 Z" fill="url(#legend-sky)" />
+        <path d="M 57,371 C 111,332 174,350 199,405 C 238,400 261,424 274,446 C 291,439 307,443 318,454 C 335,424 373,404 411,415 C 440,351 505,334 562,376 L 581,517 L 53,517 Z" fill="url(#legend-cloud)" />
+        <path d="M 0,552 H 640 V 684 H 0 Z" fill="url(#legend-keel-well)" />
+        <path d="M 72.8,280.2 A 245.2 245.2 0 1 1 563.2,280.2 A 245.2 245.2 0 1 1 72.8,280.2 Z" fill="none" stroke="#164467" stroke-width="14.3" opacity=".34" filter="url(#legend-contact-shadow)" />
+      </g>
+      <path d="M 72.8,280.2 A 245.2 245.2 0 1 1 563.2,280.2 A 245.2 245.2 0 1 1 72.8,280.2 Z" fill="none" stroke="#123e67" stroke-width="4.3" opacity="1" />
+      <path d="M 72.8,280.2 A 245.2 245.2 0 1 1 563.2,280.2 A 245.2 245.2 0 1 1 72.8,280.2 Z" fill="none" stroke="#f7ac4e" stroke-width="2" opacity=".78" transform="translate(0 -2)" />
+    </g>
+    <g clip-path="url(#legend-inset-clip)" pointer-events="none"><rect x="73" y="35" width="490" height="490" fill="url(#legend-pop-vignette)"/><circle cx="318" cy="270" r="206" fill="url(#legend-pop-glow)"/><rect x="73" y="35" width="490" height="294" fill="url(#legend-pop-sheen)"/></g><g id="legend-sky-stars">
+      <g transform="translate(181 185) scale(0.41)">
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#7d4b28" transform="translate(2 6)" opacity=".18" />
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#legend-gold-glint)" stroke="#f5aa49" stroke-width="4.5" />
+      </g>
+      <g transform="translate(475 291) scale(0.32)">
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#164b68" transform="translate(2 6)" opacity=".18" />
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#legend-white-glint)" stroke="#ecf7fc" stroke-width="1.6" />
+      </g>
+    </g>
+    <g id="cheering-scene" transform="translate(317 276) rotate(-5) scale(1.05) translate(-120 -130)">
+      <g id="cheering-icon-shadow" transform="translate(3 6)" opacity=".33" filter="url(#legend-contact-shadow)">
+        <g transform="translate(98 118) scale(.9)">
+          <path d="M 0,79 C -20,60 -91,14 -91,-36 C -91,-80 -37,-98 0,-58 C 37,-98 91,-80 91,-36 C 91,14 20,60 0,79 Z" fill="#204b6c" stroke="#204b6c" stroke-width="4.3" />
+          <path d="M -71,-35 C -71,-58 -48,-71 -29,-60" fill="none" stroke="#204b6c" stroke-width="5.2" opacity=".88" />
+        </g>
+        <g transform="translate(142 138) scale(.9)">
+          <path d="M 0,79 C -20,60 -91,14 -91,-36 C -91,-80 -37,-98 0,-58 C 37,-98 91,-80 91,-36 C 91,14 20,60 0,79 Z" fill="#204b6c" stroke="#204b6c" stroke-width="4.3" />
+          <path d="M -71,-35 C -71,-58 -48,-71 -29,-60" fill="none" stroke="#204b6c" stroke-width="5.2" opacity=".88" />
+        </g>
+      </g>
+      <g id="cheering-artwork">
+        <g class="cheering-heart" transform="translate(98 118) scale(.9)">
+          <path d="M 0,79 C -20,60 -91,14 -91,-36 C -91,-80 -37,-98 0,-58 C 37,-98 91,-80 91,-36 C 91,14 20,60 0,79 Z" fill="url(#cheering-gold-light)" stroke="#795124" stroke-width="4.3" />
+          <path d="M -71,-35 C -71,-58 -48,-71 -29,-60" fill="none" stroke="#fff4c7" stroke-width="5.2" opacity=".88" />
+        </g>
+        <g class="cheering-heart" transform="translate(142 138) scale(.9)">
+          <path d="M 0,79 C -20,60 -91,14 -91,-36 C -91,-80 -37,-98 0,-58 C 37,-98 91,-80 91,-36 C 91,14 20,60 0,79 Z" fill="url(#cheering-gold)" stroke="#795124" stroke-width="4.3" />
+          <path d="M -71,-35 C -71,-58 -48,-71 -29,-60" fill="none" stroke="#fff4c7" stroke-width="5.2" opacity=".88" />
+        </g>
+      </g>
+    </g>
+    <g id="legend-laurel-edging" fill="#1b4d7a" stroke="url(#legend-halo)" stroke-width="26">
+      <path d="M 74,421 C 48,405 45,375 58,348 Q 62,340 69,348 C 86,369 90,397 74,421 Z" />
+      <path d="M 85,459 C 53,458 29,439 25,404 Q 24,397 30,400 C 55,412 79,433 85,459 Z" />
+      <path d="M 101,476 C 78,454 79,422 101,401 Q 108,393 110,404 C 120,434 117,459 101,476 Z" />
+      <path d="M 110,503 C 75,513 49,497 37,472 Q 32,465 42,466 C 70,468 96,480 110,503 Z" />
+      <path d="M 120,506 C 107,494 105,476 113,463 Q 118,455 122,466 C 126,479 128,495 120,506 Z" />
+      <path d="M 132,524 C 110,541 87,537 68,522 Q 64,518 72,515 C 96,506 119,512 132,524 Z" />
+      <path d="M 155,530 C 129,518 120,493 129,461 Q 131,449 137,456 C 158,481 163,505 155,530 Z" />
+      <path d="M 170,548 C 148,571 121,573 94,553 Q 87,549 97,546 C 123,531 148,535 170,548 Z" />
+      <g transform="translate(634 0) scale(-1 1)">
+        <path d="M 74,421 C 48,405 45,375 58,348 Q 62,340 69,348 C 86,369 90,397 74,421 Z" />
+        <path d="M 85,459 C 53,458 29,439 25,404 Q 24,397 30,400 C 55,412 79,433 85,459 Z" />
+        <path d="M 101,476 C 78,454 79,422 101,401 Q 108,393 110,404 C 120,434 117,459 101,476 Z" />
+        <path d="M 110,503 C 75,513 49,497 37,472 Q 32,465 42,466 C 70,468 96,480 110,503 Z" />
+        <path d="M 120,506 C 107,494 105,476 113,463 Q 118,455 122,466 C 126,479 128,495 120,506 Z" />
+        <path d="M 132,524 C 110,541 87,537 68,522 Q 64,518 72,515 C 96,506 119,512 132,524 Z" />
+        <path d="M 155,530 C 129,518 120,493 129,461 Q 131,449 137,456 C 158,481 163,505 155,530 Z" />
+        <path d="M 170,548 C 148,571 121,573 94,553 Q 87,549 97,546 C 123,531 148,535 170,548 Z" />
+      </g>
+      <path d="M 162,492 C 252,464 380,463 473,491 Q 466,515 462,547 C 467,562 481,577 491,591 Q 499,601 476,598 C 427,594 372,579 317,579 C 257,578 211,592 154,598 Q 137,599 144,591 C 155,575 166,563 172,546 Q 170,517 162,492 Z" fill="#1b4d7a" stroke="url(#legend-halo)" stroke-width="9" />
+      <path d="M 162,492 C 252,464 380,463 473,491 Q 466,515 462,547 C 467,562 481,577 491,591 Q 499,601 476,598 C 427,594 372,579 317,579 C 257,578 211,592 154,598 Q 137,599 144,591 C 155,575 166,563 172,546 Q 170,517 162,492 Z" fill="#1b4d7a" stroke="url(#legend-halo)" stroke-width="26" clip-path="url(#legend-ribbon-ends)" />
+    </g>
+    <g id="legend-laurels">
+      <g>
+        <path d="M 171,547 C 126,518 89,481 64,384" fill="none" stroke="#174975" stroke-width="5.3" />
+        <path d="M 74,421 C 48,405 45,375 58,348 Q 62,340 69,348 C 86,369 90,397 74,421 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 85,459 C 53,458 29,439 25,404 Q 24,397 30,400 C 55,412 79,433 85,459 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 101,476 C 78,454 79,422 101,401 Q 108,393 110,404 C 120,434 117,459 101,476 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 110,503 C 75,513 49,497 37,472 Q 32,465 42,466 C 70,468 96,480 110,503 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 120,506 C 107,494 105,476 113,463 Q 118,455 122,466 C 126,479 128,495 120,506 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 132,524 C 110,541 87,537 68,522 Q 64,518 72,515 C 96,506 119,512 132,524 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 155,530 C 129,518 120,493 129,461 Q 131,449 137,456 C 158,481 163,505 155,530 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 170,548 C 148,571 121,573 94,553 Q 87,549 97,546 C 123,531 148,535 170,548 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 171,547 C 126,518 89,481 64,384" fill="none" stroke="#ffd29a" stroke-width="2.9" />
+      </g>
+      <g transform="translate(634 0) scale(-1 1)">
+        <path d="M 171,547 C 126,518 89,481 64,384" fill="none" stroke="#174975" stroke-width="5.3" />
+        <path d="M 74,421 C 48,405 45,375 58,348 Q 62,340 69,348 C 86,369 90,397 74,421 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 85,459 C 53,458 29,439 25,404 Q 24,397 30,400 C 55,412 79,433 85,459 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 101,476 C 78,454 79,422 101,401 Q 108,393 110,404 C 120,434 117,459 101,476 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 110,503 C 75,513 49,497 37,472 Q 32,465 42,466 C 70,468 96,480 110,503 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 120,506 C 107,494 105,476 113,463 Q 118,455 122,466 C 126,479 128,495 120,506 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 132,524 C 110,541 87,537 68,522 Q 64,518 72,515 C 96,506 119,512 132,524 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 155,530 C 129,518 120,493 129,461 Q 131,449 137,456 C 158,481 163,505 155,530 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 170,548 C 148,571 121,573 94,553 Q 87,549 97,546 C 123,531 148,535 170,548 Z" fill="url(#legend-leaf)" stroke="#174975" stroke-width="3.3" />
+        <path d="M 171,547 C 126,518 89,481 64,384" fill="none" stroke="#ffd29a" stroke-width="2.9" />
+      </g>
+    </g>
+    <g id="legend-ribbon">
+      <path d="M 162,492 C 252,464 380,463 473,491 Q 466,515 462,547 C 467,562 481,577 491,591 Q 499,601 476,598 C 427,594 372,579 317,579 C 257,578 211,592 154,598 Q 137,599 144,591 C 155,575 166,563 172,546 Q 170,517 162,492 Z" fill="#214661" opacity=".29" transform="translate(0 4)" filter="url(#legend-contact-shadow)" />
+      <path d="M 162,492 C 252,464 380,463 473,491 Q 466,515 462,547 C 467,562 481,577 491,591 Q 499,601 476,598 C 427,594 372,579 317,579 C 257,578 211,592 154,598 Q 137,599 144,591 C 155,575 166,563 172,546 Q 170,517 162,492 Z" fill="url(#legend-ribbon-fill)" stroke="#174975" stroke-width="5.6" />
+      <g transform="translate(223 535) scale(0.28)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#legend-star-orange)" stroke="#ed8a23" stroke-width="4" />
+      </g>
+      <g transform="translate(286 528) scale(0.28)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#legend-star-orange)" stroke="#ed8a23" stroke-width="4" />
+      </g>
+      <g transform="translate(348 528) scale(0.28)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#legend-star-orange)" stroke="#ed8a23" stroke-width="4" />
+      </g>
+      <g transform="translate(410 535) scale(0.28)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#legend-star-orange)" stroke="#ed8a23" stroke-width="4" />
+      </g>
+    </g>
+  </g>
+</svg>

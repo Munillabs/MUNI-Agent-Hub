@@ -46,7 +46,6 @@
     }),
     Version: '1.0',
     Releases: JSON.stringify([{ v: '1.0', d: new Date().toISOString().slice(0, 10), n: '처음 배포' }]),
-    Uses30: 12,
     FirstDeployedOn: new Date().toISOString(),
     DeployedAt: new Date().toISOString()
   };

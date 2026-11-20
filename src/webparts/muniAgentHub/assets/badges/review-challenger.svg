@@ -1,0 +1,166 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="592" height="738" viewBox="-16 -10 592 738" role="img" aria-labelledby="title">
+  <title id="title">리뷰 · 챌린저</title>
+  <defs>
+    <linearGradient id="challenger-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#effbf6" />
+      <stop offset="56%" stop-color="#d9f3e8" />
+      <stop offset="82%" stop-color="#b2e0cc" />
+      <stop offset="100%" stop-color="#7fc3a6" />
+    </linearGradient>
+    <linearGradient id="challenger-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a5b8b" />
+      <stop offset="29%" stop-color="#093c68" />
+      <stop offset="61%" stop-color="#093c68" />
+      <stop offset="100%" stop-color="#5793bc" />
+    </linearGradient>
+    <linearGradient id="challenger-sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4b279" />
+      <stop offset="53%" stop-color="#f7b982" />
+      <stop offset="83%" stop-color="#fcc391" />
+      <stop offset="100%" stop-color="#f8c08e" />
+    </linearGradient>
+    <linearGradient id="challenger-cloud" x1="10%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#ffe6d0" />
+      <stop offset="100%" stop-color="#fce2cc" />
+    </linearGradient>
+    <linearGradient id="challenger-keel-well" x1="0" y1="555" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f7b982" />
+      <stop offset="100%" stop-color="#f8c08e" />
+    </linearGradient>
+    <linearGradient id="challenger-ribbon-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="41%" stop-color="#fffefd" />
+      <stop offset="81%" stop-color="#f6f5f3" />
+      <stop offset="93%" stop-color="#f4f3f1" />
+      <stop offset="100%" stop-color="#dedbd7" />
+    </linearGradient>
+    <linearGradient id="challenger-leaf" x1="19%" y1="0%" x2="76%" y2="100%">
+      <stop offset="0%" stop-color="#f6fdf9" />
+      <stop offset="55%" stop-color="#dcf3e8" />
+      <stop offset="84%" stop-color="#bfe5d3" />
+      <stop offset="100%" stop-color="#86c4a8" />
+    </linearGradient>
+    <linearGradient id="challenger-halo" x1="0" y1="358" x2="0" y2="618" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#739cba" />
+      <stop offset="57%" stop-color="#739cba" />
+      <stop offset="100%" stop-color="#5793bc" />
+    </linearGradient>
+    <linearGradient id="challenger-star-orange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffb44e" />
+      <stop offset="46%" stop-color="#ff9618" />
+      <stop offset="100%" stop-color="#f47d07" />
+    </linearGradient>
+    <linearGradient id="challenger-white-glint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="68%" stop-color="#fbfeff" />
+      <stop offset="100%" stop-color="#dceefa" />
+    </linearGradient>
+    <clipPath id="challenger-inset-clip">
+      <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" />
+    </clipPath>
+    <clipPath id="challenger-ribbon-ends">
+      <rect x="0" y="470" width="145" height="154" />
+      <rect x="411" y="470" width="149" height="154" />
+    </clipPath>
+    <filter id="challenger-cast-shadow" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="15" />
+    </filter>
+    <filter id="challenger-contact-shadow" x="-16%" y="-16%" width="132%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" />
+    </filter>
+    <linearGradient id="review-white" x1="8%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#fdfdfb" />
+      <stop offset="100%" stop-color="#d5e4ee" />
+    </linearGradient>
+    <linearGradient id="review-blue" x1="0%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#d3edfd" />
+      <stop offset="50%" stop-color="#a4d3f0" />
+      <stop offset="100%" stop-color="#65a4cf" />
+    </linearGradient>
+  <radialGradient id="challenger-pop-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".18"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="challenger-pop-sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity=".38"/><stop offset="55%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<radialGradient id="challenger-pop-vignette" cx="50%" cy="42%" r="62%"><stop offset="60%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#0a1830" stop-opacity=".28"/></radialGradient></defs>
+  <g id="challenger" aria-label="리뷰 · 챌린저" stroke-linejoin="round" stroke-linecap="round">
+    <g id="challenger-shadow" fill="#315b80" opacity=".24" transform="translate(2 18)" filter="url(#challenger-cast-shadow)">
+      <path d="M 261,32 Q 279,26 296,32 L 520,121 Q 544,133 544,160 L 544,331 C 544,466 463,593 297,663 Q 278,671 259,663 C 95,597 13,468 13,334 L 13,161 Q 13,132 39,121 Z" />
+      <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" />
+    </g>
+    <g id="challenger-shield">
+      <path d="M 261,32 Q 279,26 296,32 L 520,121 Q 544,133 544,160 L 544,331 C 544,466 463,593 297,663 Q 278,671 259,663 C 95,597 13,468 13,334 L 13,161 Q 13,132 39,121 Z" fill="url(#challenger-rim)" stroke="url(#challenger-edge)" stroke-width="6" />
+      <path d="M 261,32 Q 279,26 296,32 L 520,121 Q 544,133 544,160 L 544,331 C 544,466 463,593 297,663 Q 278,671 259,663 C 95,597 13,468 13,334 L 13,161 Q 13,132 39,121 Z" fill="none" stroke="#e7f6ff" stroke-width="1.25" opacity=".37" transform="translate(0 2)" />
+      <g clip-path="url(#challenger-inset-clip)">
+        <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" fill="url(#challenger-sky)" />
+        <path d="M 39,374 C 93,348 148,369 168,418 C 197,414 223,428 235,452 C 250,447 264,449 276,457 C 298,426 332,413 365,422 C 385,365 446,348 506,380 L 519,523 L 36,523 Z" fill="url(#challenger-cloud)" />
+        <path d="M 0,552 H 560 V 684 H 0 Z" fill="url(#challenger-keel-well)" />
+        <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" fill="none" stroke="#164467" stroke-width="14" opacity=".34" filter="url(#challenger-contact-shadow)" />
+      </g>
+      <path d="M 264,62 Q 279,56 293,62 L 498,144 Q 513,150 513,165 L 513,328 C 513,453 438,570 289,635 Q 278,640 268,635 C 119,570 44,453 44,328 L 44,166 Q 44,150 60,144 Z" fill="none" stroke="#134a76" stroke-width="4" opacity="1" />
+    </g>
+    <g clip-path="url(#challenger-inset-clip)" pointer-events="none"><rect x="44" y="56" width="469" height="584" fill="url(#challenger-pop-vignette)"/><circle cx="278" cy="291" r="197" fill="url(#challenger-pop-glow)"/><rect x="44" y="56" width="469" height="350" fill="url(#challenger-pop-sheen)"/></g><g id="challenger-sky-stars">
+      <g transform="translate(148 197) scale(0.36)">
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#164b68" transform="translate(2 6)" opacity=".18" />
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#challenger-white-glint)" stroke="#ecf7fc" stroke-width="1.6" />
+      </g>
+      <g transform="translate(429 297) scale(0.3)">
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="#164b68" transform="translate(2 6)" opacity=".18" />
+        <path d="M 0,-100 C 12,-66 14,-33 34,-23 C 52,-15 77,-7 100,0 C 72,9 47,13 30,24 C 16,36 12,66 0,100 C -12,66 -17,38 -30,26 C -46,15 -76,10 -100,0 C -76,-7 -50,-15 -32,-25 C -17,-35 -11,-67 0,-100 Z" fill="url(#challenger-white-glint)" stroke="#ecf7fc" stroke-width="1.6" />
+      </g>
+    </g>
+    <g id="review-artwork" transform="translate(278 286) rotate(-8) scale(1.04) translate(-124 -132)">
+      <g id="review-icon-shadow" transform="translate(3 6)" fill="#153c5c" opacity=".36" filter="url(#challenger-contact-shadow)">
+        <path d="M 88,36 H 216 Q 240,36 240,60 V 127 Q 240,151 216,151 H 210 L 216,179 L 182,151 H 88 Q 64,151 64,127 V 60 Q 64,36 88,36 Z" />
+        <path d="M 36,84 H 196 Q 220,84 220,108 V 181 Q 220,205 196,205 H 87 L 49,236 L 54,205 H 36 Q 12,205 12,181 V 108 Q 12,84 36,84 Z" />
+      </g>
+      <path class="review-bubble" d="M 88,36 H 216 Q 240,36 240,60 V 127 Q 240,151 216,151 H 210 L 216,179 L 182,151 H 88 Q 64,151 64,127 V 60 Q 64,36 88,36 Z" fill="url(#review-blue)" stroke="#1f537c" stroke-width="4.3" />
+      <path d="M 88,43 H 213 Q 232,43 233,61" fill="none" stroke="#e2f5ff" stroke-width="2.5" opacity=".8" />
+      <path class="review-bubble" d="M 36,84 H 196 Q 220,84 220,108 V 181 Q 220,205 196,205 H 87 L 49,236 L 54,205 H 36 Q 12,205 12,181 V 108 Q 12,84 36,84 Z" fill="url(#review-white)" stroke="#1c4d74" stroke-width="4.6" />
+      <path d="M 51,128 H 178 M 51,159 H 150" fill="none" stroke="#78a8c8" stroke-width="7" opacity=".72" />
+    </g>
+    <g id="challenger-laurel-edging" fill="#739cba" stroke="url(#challenger-halo)" stroke-width="14">
+      <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z" />
+      <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z" />
+      <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z" />
+      <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z" />
+      <g transform="translate(556 0) scale(-1 1)">
+        <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z" />
+        <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z" />
+        <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z" />
+        <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z" />
+      </g>
+      <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="#739cba" stroke="url(#challenger-halo)" stroke-width="9" />
+      <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="#739cba" stroke="url(#challenger-halo)" stroke-width="17" clip-path="url(#challenger-ribbon-ends)" />
+    </g>
+    <g id="challenger-laurels">
+      <g>
+        <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#1c567d" stroke-width="7.4" />
+        <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#85b4d0" stroke-width="2.1" />
+      </g>
+      <g transform="translate(556 0) scale(-1 1)">
+        <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#1c567d" stroke-width="7.4" />
+        <path d="M 96,515 C 70,504 56,477 71,435 Q 74,427 81,435 C 103,457 110,481 96,515 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 110,531 C 82,537 48,527 36,489 Q 32,479 43,482 C 72,486 98,503 110,531 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 149,553 C 124,545 103,527 113,482 Q 115,469 122,476 C 142,492 151,524 149,553 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 148,556 C 122,580 91,579 68,554 Q 64,550 71,546 C 96,531 126,538 148,556 Z" fill="url(#challenger-leaf)" stroke="#1c567d" stroke-width="5.4" />
+        <path d="M 150,555 C 113,540 84,515 79,457" fill="none" stroke="#85b4d0" stroke-width="2.1" />
+      </g>
+    </g>
+    <g id="challenger-ribbon">
+      <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="#214661" opacity=".29" transform="translate(0 4)" filter="url(#challenger-contact-shadow)" />
+      <path d="M 142,507 C 214,488 339,487 412,506 Q 406,528 404,555 C 412,569 430,584 439,596 Q 447,606 421,604 C 375,600 327,591 278,592 C 228,591 179,602 135,604 Q 110,605 117,596 C 127,584 142,571 150,555 Q 150,534 142,507 Z" fill="url(#challenger-ribbon-fill)" stroke="#1c567d" stroke-width="5" />
+      <g transform="translate(246 546) scale(0.27)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#challenger-star-orange)" stroke="#ed8a23" stroke-width="4" />
+      </g>
+      <g transform="translate(310 546) scale(0.27)">
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="#25405a" transform="translate(4 9)" opacity=".15" />
+        <path d="M -3,-96 Q 0,-104 4,-96 L 27,-40 L 90,-32 Q 99,-31 93,-23 L 46,19 L 57,82 Q 59,91 50,87 L 0,57 L -55,86 Q -63,91 -61,82 L -49,19 L -94,-23 Q -101,-30 -92,-33 L -28,-41 Z" fill="url(#challenger-star-orange)" stroke="#ed8a23" stroke-width="4" />
+      </g>
+    </g>
+  </g>
+</svg>

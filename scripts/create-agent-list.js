@@ -63,7 +63,6 @@
     ['DeployedAt', '배포 일시', 'DateTime', {}],
     ['Version', '버전', 'Text', { max: 255 }],
     ['LastUsedOn', '최근 사용일', 'Date', {}],
-    ['Uses30', '30일 사용 수', 'Number', { min: 0, def: '0' }],
     // 신청 · 슬롯
     ['RequestStatus', '신청 상태', 'Choice', { idx: true, choices: ['테스트', '승인 대기', '승인', '배포 완료'] }],
     ['ProfileAt', 'Profile 확정 일시', 'DateTime', {}],

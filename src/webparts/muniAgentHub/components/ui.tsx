@@ -1,8 +1,18 @@
 /* 공통 화면 요소 (시안 마크업과 같은 클래스): 아이콘, 위치 표시, 배지, 별점, 리뷰, 탭, 모달, 댓글, 알림 */
 import * as React from 'react';
-import { HubView, IReaction } from '../models/types';
+import { HubView, IPerson, IReaction } from '../models/types';
 import { mmdd, stars } from '../models/rules';
 import { Person } from './persona';
+import { BadgeMedal } from './badge';
+
+/** 사람 동그라미: 그 사람의 프로필 배지가 있으면 메달, 없으면 이름 첫 글자 (아이디어 댓글 · 리뷰 공통) */
+export function Avatar(props: { p?: IPerson; me: number; badge?: string; size?: number }): JSX.Element {
+  const n = props.p ? props.p.name : '?';
+  if (props.badge) {
+    return <span className="cav" aria-hidden="true" style={{ background: 'transparent', overflow: 'visible' }}><BadgeMedal k={props.badge} size={props.size || 30} ribbon={false} /></span>;
+  }
+  return <span className={'cav' + (props.p && props.p.id === props.me ? ' me' : '')} aria-hidden="true">{(n || '?').trim().charAt(0)}</span>;
+}
 
 /* ---------- 아이콘 (선 아이콘, currentColor) ---------- */
 function Svg(props: { d: React.ReactNode; size?: number; w?: number }): JSX.Element {
@@ -36,11 +46,35 @@ export function Soon(props: { children?: React.ReactNode }): JSX.Element {
   return <em className="soon-tag">{props.children || '준비 중'}</em>;
 }
 
-/** 해시 링크 (화면 이동) */
+/** 종류 글자 → 색 점 키 (시안 c14: Agent 노랑 a · Skill 초록 s · HTML 파랑 h) */
+export function kindKey(k: string): string | undefined {
+  const t = (k || '').trim().toUpperCase();
+  return t === 'AGENT' ? 'a' : t === 'SKILL' ? 's' : t === 'HTML' ? 'h' : undefined;
+}
+/** 색 점이 붙는 종류 글자 (fb-k, pn-ty, sx-ty, btag, kchip …) */
+export function KindTag(props: { k: string; className: string; children?: React.ReactNode }): JSX.Element {
+  const key = kindKey(props.k);
+  return <span className={props.className + (key ? ' c14-k' : '')} data-c14k={key}>{props.children || props.k}</span>;
+}
+
+/** 해시 링크 (화면 이동)
+    버튼 모양이면 시안(11/18 버튼 B안)처럼 화살표를 붙입니다: 채운 버튼(btn pri) = 오른쪽 원 화살표, '… 가기'·'자세히' = → */
 export function Go(props: { go: (v: HubView, id?: number) => void; view: HubView; id?: number; className?: string; children: React.ReactNode; label?: string; style?: React.CSSProperties; current?: boolean }): JSX.Element {
+  let cls = props.className || '';
+  let kids = props.children;
+  if (/\bbtn\b/.test(cls) && !/\b(b6-home|b6-more|b6-sbtn|b6-go|b6-none)\b/.test(cls)) {
+    const text = typeof kids === 'string' ? kids.trim() : '';
+    if (/\bpri\b/.test(cls)) {
+      cls += ' b6-go';
+      kids = <>{typeof kids === 'string' ? kids.replace(/\s*→\s*$/, '') : kids}<span className="b6-pk" aria-hidden="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg></span></>;
+    } else if (/^(자세히|전체 보기|지침 전체 보기)$/.test(text) || / 가기$/.test(text)) {
+      cls += ' b6-more';
+      kids = <>{kids}<span className="b6-ar" aria-hidden="true">→</span></>;
+    }
+  }
   return (
-    <a href={'#' + props.view + (props.id ? '-' + props.id : '')} className={props.className} aria-label={props.label} style={props.style} aria-current={props.current ? 'page' : undefined}
-      onClick={e => { e.preventDefault(); props.go(props.view, props.id); }}>{props.children}</a>
+    <a href={'#' + props.view + (props.id ? '-' + props.id : '')} className={cls || undefined} aria-label={props.label} style={props.style} aria-current={props.current ? 'page' : undefined}
+      onClick={e => { e.preventDefault(); props.go(props.view, props.id); }}>{kids}</a>
   );
 }
 
@@ -90,8 +124,20 @@ export function RatingSummary(props: { reviews: IReaction[]; avg: number; n: num
     </div>
   );
 }
+/** 댓글·리뷰 글 좋아요 버튼 (♡ 수). 누르면 좋아요, 다시 누르면 취소 */
+export function CommentLike(props: { r: IReaction; onToggle: () => void }): JSX.Element | null {
+  if (!props.r.commentId) { return null; }
+  const on = !!props.r.likedByMe;
+  const n = props.r.likes || 0;
+  return (
+    <button type="button" className={'clike' + (on ? ' on' : '')} aria-pressed={on} aria-label={`좋아요 ${n}개${on ? ', 누름' : ''}`} title={on ? '좋아요 취소' : '좋아요'} onClick={props.onToggle}>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>
+      {n ? <span>{n}</span> : null}
+    </button>
+  );
+}
 /** 리뷰 한 줄. onEdit 이 있으면(내 리뷰) 오른쪽 끝 연필로 별점·내용을 고칠 수 있습니다. */
-export function ReviewRow(props: { r: IReaction; onEdit?: (rating: number, body: string) => Promise<boolean> }): JSX.Element {
+export function ReviewRow(props: { r: IReaction; me?: number; badge?: string; onLike?: () => void; onEdit?: (rating: number, body: string) => Promise<boolean> }): JSX.Element {
   const r = props.r;
   const lines = r.body.split('\n');
   const [editing, setEditing] = React.useState(false);
@@ -125,8 +171,9 @@ export function ReviewRow(props: { r: IReaction; onEdit?: (rating: number, body:
     );
   }
   return (
-    <li><span className="t"><b>{r.rating ? stars(r.rating) : ''} {lines[0]}</b>
+    <li><Avatar p={r.author} me={props.me || 0} badge={props.badge} size={34} /><span className="t"><b>{r.rating ? stars(r.rating) : ''} {lines[0]}</b>
       <span>{lines.length > 1 ? lines.slice(1).join(' ') + ' · ' : ''}<Person p={r.author} />{r.created ? ' · ' + mmdd(r.created) : ''}</span></span>
+      {props.onLike ? <CommentLike r={r} onToggle={props.onLike} /> : null}
       {props.onEdit ? (
         <button type="button" className="rv-edit" onClick={open} aria-label="내 리뷰 고치기" title="고치기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>

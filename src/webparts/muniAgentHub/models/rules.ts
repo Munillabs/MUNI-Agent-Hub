@@ -155,12 +155,13 @@ export function daysSince(iso: string, now: Date): number {
   if (isNaN(d.getTime())) { return 0; }
   return Math.max(0, Math.floor((now.getTime() - d.getTime()) / 86400000));
 }
-/** ISO 날짜 → 'MM/DD' */
+/** ISO 날짜 → 'YYYY/MM/DD' (화면 표시용. 이름은 예전 MM/DD 때 그대로) */
 export function mmdd(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) { return ''; }
   const m = d.getMonth() + 1, day = d.getDate();
-  return (m < 10 ? '0' : '') + m + '/' + (day < 10 ? '0' : '') + day;
+  // MUNIVERSE 시안(c43): 화면의 날짜는 모두 yyyy/mm/dd
+  return d.getFullYear() + '/' + (m < 10 ? '0' : '') + m + '/' + (day < 10 ? '0' : '') + day;
 }
 /** ISO 날짜 → 'YYYY-MM-DD' */
 export function ymd(iso: string): string {

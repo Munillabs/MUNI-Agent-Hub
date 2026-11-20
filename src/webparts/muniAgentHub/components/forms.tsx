@@ -276,7 +276,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           <Field id="hub-sk-scope" label="사용 범위"><select id="hub-sk-scope" value={f.scope} onChange={e => set('scope', e.target.value)}><option value="">선택 (선택 사항)</option>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
         </div>
         <Field id="hub-sk-area" label="업무 분야"><select id="hub-sk-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
-        <Field id="hub-sk-when" k="purpose" label="이럴 때 써요" req={true} errors={errors}><textarea id="hub-sk-when" placeholder="예: 규정 답변에 근거를 꼭 보여줘야 할 때" value={f.purpose} onChange={e => set('purpose', e.target.value)} {...inv(errors, 'purpose')} /></Field>
+        <Field id="hub-sk-when" k="purpose" label="이럴 때 써요" hint="여러 개는 Enter로 줄을 바꿔 한 줄에 하나씩 적어 주세요" req={true} errors={errors}><textarea id="hub-sk-when" rows={4} placeholder={'예: 규정 답변에 근거를 꼭 보여줘야 할 때\n고객사 미팅 자료를 준비할 때'} value={f.purpose} onChange={e => set('purpose', e.target.value)} {...inv(errors, 'purpose')} /></Field>
         <Field id="hub-sk-usage" k="usage" label="활용 방법" req={true} hint="상세 화면의 '제작자는 이렇게 썼어요'에 보여요" errors={errors}><textarea id="hub-sk-usage" placeholder="예: 지침 맨 아래에 붙여 두면 어떤 Agent든 같은 규칙으로 답해요. 처음에는 Cowork 대화에 파일만 첨부해서 확인해 보세요." value={f.usage} onChange={e => set('usage', e.target.value)} {...inv(errors, 'usage')} /></Field>
         <div className="row2">
           <Field id="hub-sk-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-sk-ver" placeholder="1.0" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
@@ -322,6 +322,11 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
     if (!t) { e.name = '이름을 적어 주세요.'; } else if (props.existingTitles.indexOf(t) >= 0 && (!cur || cur.title !== t)) { e.name = '같은 이름의 HTML이 이미 있어요.'; }
     if (!f.summary.trim()) { e.desc = '한 줄 소개를 적어 주세요.'; }
     if (!splitLines(f.does).length) { e.does = '이 도구가 하는 일을 한 줄 이상 적어 주세요.'; }
+    if (!f.workType) { e.workType = '종류를 골라 주세요.'; }
+    if (!f.output.trim()) { e.output = '결과물을 적어 주세요.'; }
+    if (!f.area) { e.area = '업무 분야를 골라 주세요.'; }
+    if (!f.scope) { e.scope = '사용 범위를 골라 주세요.'; }
+    if (!f.makerNote.trim()) { e.makerNote = '어떻게 썼는지 적어 주세요.'; }
     const v = f.version.trim();
     if (!isVersion(v)) { e.version = '버전은 0.1처럼 숫자와 점으로 적어 주세요.'; }
     else if (cur && file && compareVersion(v, cur.version) <= 0) { e.version = `파일을 바꾸면 버전을 올려 주세요. 지금 버전은 ${cur.version}이에요.`; }
@@ -355,14 +360,14 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
         <Field id="hub-ht-desc" k="desc" label="한 줄 소개" req={true} errors={errors}><input id="hub-ht-desc" maxLength={40} placeholder="예: 품목·수량만 넣으면 표준 단가로 견적표 작성" value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'desc')} /></Field>
         <Field id="hub-ht-does" k="does" label="이런 일을 해요" req={true} hint="한 줄에 하나씩" errors={errors}><textarea id="hub-ht-does" rows={3} value={f.does} onChange={e => set('does', e.target.value)} {...inv(errors, 'does')} /></Field>
         <div className="row2">
-          <Field id="hub-ht-type" label="종류"><select id="hub-ht-type" value={f.workType} onChange={e => set('workType', e.target.value)}><option value="">선택 (선택 사항)</option>{HTML_KINDS.map(x => <option key={x}>{x}</option>)}</select></Field>
-          <Field id="hub-ht-out" label="결과물"><input id="hub-ht-out" maxLength={20} placeholder="예: 추천 결과" value={f.output} onChange={e => set('output', e.target.value)} /></Field>
+          <Field id="hub-ht-type" k="workType" label="종류" req={true} errors={errors}><select id="hub-ht-type" value={f.workType} onChange={e => set('workType', e.target.value)} {...inv(errors, 'workType')}><option value="">선택해 주세요</option>{HTML_KINDS.map(x => <option key={x}>{x}</option>)}</select></Field>
+          <Field id="hub-ht-out" k="output" label="결과물" req={true} hint="예: 견적표, 추천 결과, 보고서 초안, 일정표, 차트" errors={errors}><input id="hub-ht-out" maxLength={20} placeholder="이 도구를 쓰면 무엇이 나오나요?" value={f.output} onChange={e => set('output', e.target.value)} {...inv(errors, 'output')} /></Field>
         </div>
         <div className="row2">
-          <Field id="hub-ht-area" label="업무 분야"><select id="hub-ht-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
-          <Field id="hub-ht-scope" label="사용 범위"><select id="hub-ht-scope" value={f.scope} onChange={e => set('scope', e.target.value)}>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
+          <Field id="hub-ht-area" k="area" label="업무 분야" req={true} errors={errors}><select id="hub-ht-area" value={f.area} onChange={e => set('area', e.target.value)} {...inv(errors, 'area')}><option value="">선택해 주세요</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
+          <Field id="hub-ht-scope" k="scope" label="사용 범위" req={true} errors={errors}><select id="hub-ht-scope" value={f.scope} onChange={e => set('scope', e.target.value)} {...inv(errors, 'scope')}>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
         </div>
-        <Field id="hub-ht-note" label="제작자는 이렇게 썼어요"><textarea id="hub-ht-note" rows={4} value={f.makerNote} onChange={e => set('makerNote', e.target.value)} /></Field>
+        <Field id="hub-ht-note" k="makerNote" label="제작자는 이렇게 썼어요" req={true} errors={errors}><textarea id="hub-ht-note" rows={4} placeholder="예: 매주 월요일 고객 견적 요청이 오면 품목만 붙여 넣고 바로 견적표를 만들어 보내요." value={f.makerNote} onChange={e => set('makerNote', e.target.value)} {...inv(errors, 'makerNote')} /></Field>
         <div className="row2">
           <Field id="hub-ht-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-ht-ver" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-ht-chg" k="changeNote" label="변경 내용" errors={errors}><input id="hub-ht-chg" maxLength={120} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
@@ -515,7 +520,7 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
               </div>
             </div>
           ))}</div>
-          <button type="button" className="btn sm addSol" onClick={() => setSols(sols.concat([solRow()]))}>＋ 솔루션 추가</button>
+          <button type="button" id="mv-addSol" className="btn sm addSol" onClick={() => setSols(sols.concat([solRow()]))}>＋ 솔루션 추가</button>
         </fieldset>
         <fieldset className="afs"><legend>프롬프트 탭</legend>
           <div className={'field' + (errors.prm ? ' bad' : '')} data-f="prm" style={{ marginBottom: 8 }}>
@@ -556,7 +561,7 @@ export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmi
     setBusy(false);
   };
   return (
-    <form className="ieForm" noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
+    <form id="mv-ieForm" className="ieForm" noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
       <div className={'field' + (err ? ' bad' : '')}><label htmlFor="hub-ie-title">아이디어<Req /></label><input id="hub-ie-title" maxLength={60} value={title} onChange={e => { setTitle(e.target.value); setErr(''); }} aria-invalid={!!err} /><span className="err">{err}</span></div>
       <div className="field"><label htmlFor="hub-ie-desc">자세한 설명</label><textarea id="hub-ie-desc" rows={4} placeholder="어떤 일에서 불편한지, 있으면 무엇이 좋아지는지 적어 주세요." value={detail} onChange={e => setDetail(e.target.value)} /></div>
       <fieldset className="field"><legend>무엇으로 만들면 좋을까요</legend>

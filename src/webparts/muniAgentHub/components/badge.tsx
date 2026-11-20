@@ -2,6 +2,7 @@
    받은 배지는 반짝이는 색, 아직 못 받은 배지는 회색 + 자물쇠로 보여 줍니다.
    크기·색은 모두 SVG 안에 있어서 CSS 반영 여부와 상관없이 같은 모양입니다. */
 import * as React from 'react';
+import { artUrl } from './badgeArt';
 
 interface ITheme { icon: string; a: string; b: string; rim: string; ribbon: string }
 /** 배지 키 → 색 · 아이콘. 새 배지를 만들면 여기에 한 줄 더하면 됩니다 */
@@ -32,9 +33,19 @@ function star(x: number, y: number, s: number): string {
   return `M${x} ${y - s} L${x + q} ${y - q} L${x + s} ${y} L${x + q} ${y + q} L${x} ${y + s} L${x - q} ${y + q} L${x - s} ${y} L${x - q} ${y - q} Z`;
 }
 
-/** size: 픽셀. ribbon: 아래 리본 표시(작은 프로필 동그라미에서는 끔). locked: 아직 못 받은 배지 */
+/** size: 픽셀. ribbon: 아래 리본 표시(작은 프로필 동그라미에서는 끔). locked: 아직 못 받은 배지
+    k 가 배지 도감 그림 키(maker-legend, num/maker-20, gold-s12 …)면 시안 배지 그림을 그대로 보여 줍니다 */
 export function BadgeMedal(props: { k: string; size: number; locked?: boolean; ribbon?: boolean; title?: string }): JSX.Element {
   const id = React.useRef('hubm' + (++seq)).current;
+  const url = artUrl(props.k);
+  if (url) {
+    return (
+      <svg width={props.size} height={props.size} viewBox="-2 -2 68 68" role="img" aria-label={props.title || ''} className={'b2-G b7-art' + (props.locked ? ' b7-off' : '')} style={{ display: 'block', flex: 'none', overflow: 'visible' }}>
+        {props.title ? <title>{props.title}</title> : null}
+        <g className="b7-g"><image href={url} x="-2" y="-2" width="68" height="68" /></g>
+      </svg>
+    );
+  }
   const t = props.locked ? LOCKED : (THEMES[props.k] || DEFAULT);
   const icon = props.locked ? '' : (THEMES[props.k] || DEFAULT).icon;
   const ribbon = props.ribbon !== false;

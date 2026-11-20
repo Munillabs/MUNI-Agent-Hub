@@ -1,54 +1,177 @@
-/* Home (시안 그대로): 히어로 검색(문구 5개 중 무작위), 메뉴 바로가기, 지금 부문별 1위, 처음 시작하는 법 4단계 */
+/* Home (MUNIVERSE 시안): 점 지구본 배너 + 검색, 지금 우리 MUNIVERSE를 빛내는 사람들, 처음이라면 이렇게 시작해요(01~04 지그재그) */
 import * as React from 'react';
 import { IAward, IRankRow, awards } from '../../models/activity';
-import { newestFirst } from '../../models/rules';
+import { daysSince, newestFirst } from '../../models/rules';
+import { HubView, IPerson } from '../../models/types';
 import { IHubApi } from '../api';
 import { Go } from '../ui';
-import { BigSearch } from './common';
+import { BadgeMedal } from '../badge';
+import { ArrowMore, CountUp, Globe, IGlobePin, reducedMotion, useScrollTick, useTypingPlaceholder } from '../mv';
+import { InlineSearch } from '../searchov';
 
-/** 주 기준이 같을 때: 다음 기준에서 앞선 이유를 보여 줍니다. 끝까지 같으면 1위 하나만 보여 주고 '공동'은 쓰지 않습니다 */
-function tieNote(a: IAward, top: IRankRow, second: IRankRow): string {
-  const labels = a.tieLabels || [];
-  const x = top.tie || [];
-  const y = second.tie || [];
-  for (let i = 0; i < labels.length; i++) {
-    if ((x[i] || 0) !== (y[i] || 0)) { return `${a.unit} 같음 · ${labels[i].label} ${labels[i].fmt(x[i] || 0)} > ${labels[i].fmt(y[i] || 0)}`; }
-  }
-  return '1위';
+/** 배너 문구: 열 때마다 5개 중 하나를 무작위로. 색은 첫째 줄·둘째 줄로 나뉩니다(design/hub-overrides.css).
+    특정 말만 강조하려면 [ ] 로 감싸세요 */
+const HERO_LINES: [string, string][] = [
+  ['우리의 AI 경험이 모여', '함께 빛나는 곳, MUNIVERSE'],
+  ['매번 반복하는 업무,', '동료의 Agent가 도와줄지도 몰라요.'],
+  ['혼자 떠올린 아이디어도,', '나누면 함께 만들 수 있어요.'],
+  ['새 프로젝트를 시작하기 전,', '비슷한 고객 사례부터 살펴볼까요?'],
+  ['내가 만든 Agent,', '누군가가 찾던 도구일지도 몰라요.']
+];
+/** '[강조]' → <span class="c45-k"> */
+function Hl(props: { t: string }): JSX.Element {
+  const parts = props.t.split(/(\[[^\]]+\])/);
+  return <>{parts.map((p, i) => /^\[.*\]$/.test(p) ? <span key={i} className="c45-k">{p.slice(1, -1)}</span> : p)}</>;
+}
+const SEARCH_EX = ['회의록 정리', '용어집', '제조 사례', '견적 계산기', '주간 보고 작성기'];
+const ymd = (iso: string): string => (iso || '').slice(0, 10).replace(/-/g, '/');
+
+/** 부문별 1위 카드 순서와 문구 (시안 c15) */
+const HOF: { k: string; u: string; sx: string }[] = [
+  { k: 'idea', u: '게시한 아이디어', sx: '개' },
+  { k: 'share', u: '공유한 도구', sx: '개' },
+  { k: 'pop', u: '별점', sx: '' },
+  { k: 'review', u: '등록한 리뷰', sx: '개' },
+  { k: 'visit', u: '방문한 날', sx: '일' }
+];
+
+function HallOfFame(props: { api: IHubApi }): JSX.Element {
+  const { api } = props;
+  const aw = awards(api.data, api.me, api.now);
+  const sec = React.useRef<HTMLElement>(null);
+  const [on, setOn] = React.useState(reducedMotion());
+  React.useEffect(() => {
+    const el = sec.current;
+    if (!el || reducedMotion() || !('IntersectionObserver' in window)) { setOn(true); return undefined; }
+    const io = new IntersectionObserver(es => {
+      const v = es[0].isIntersecting;
+      if (v) { setOn(true); } else if (es[0].boundingClientRect.top > 0) { setOn(false); }
+    }, { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  // 스크롤에 따라 칸마다 육각형이 다른 속도로 떠오름(홀짝 반대 방향)
+  const [par, setPar] = React.useState(0);
+  useScrollTick(sec, () => {
+    const el = sec.current;
+    if (!el || reducedMotion()) { return; }
+    const r = el.getBoundingClientRect(), vh = window.innerHeight;
+    if (r.bottom < 0 || r.top > vh) { return; }
+    setPar(Math.max(-1, Math.min(1, ((r.top + r.height / 2) - vh / 2) / (vh / 2))));
+  }, []);
+  const K = [1, -0.6, 1.2, -0.6, 1];
+  return (
+    <section className={'sec c15-hof' + (on ? ' c15-in' : '')} aria-labelledby="hub-awH" ref={sec}>
+      <div className="c15-h"><h2 id="hub-awH">지금 우리 MUNIVERSE를 빛내는 사람들</h2><p className="bsub"><span className="live" aria-hidden="true" />실시간 · 지금까지의 활동 기준</p></div>
+      <ul>
+        {HOF.map((h, i) => {
+          const a = aw.filter(x => x.k === h.k)[0] as IAward | undefined;
+          if (!a) { return null; }
+          const top: IRankRow | undefined = a.rows[0];
+          const isAgent = h.k === 'pop';
+          const dg = isAgent ? 1 : 0;
+          const person: IPerson | undefined = top && !isAgent ? { id: Number(top.key), name: top.name, email: '' } : undefined;
+          const badge = person ? api.avatarOf(person) : undefined;
+          const mine = a.mine;
+          const pct = top && mine ? Math.max(6, Math.min(100, Math.round(mine.value / (top.value || 1) * 100))) : 0;
+          const left = top && mine ? Math.max(0, Math.round((top.value - mine.value) * 10) / 10) : 0;
+          const card = (
+            <>
+              <div className="c15-icon"><span className="hex" aria-hidden="true"><span>{a.icon}</span><small>{a.title}</small></span></div>
+              <p className="c15-who">{!top ? <b>아직 없어요</b> : isAgent ? <span className="c15-agent">{top.name}</span>
+                : <><span className="c15-pb" aria-hidden="true">{badge && badge !== 'photo' ? <BadgeMedal k={badge} size={28} /> : null}</span><b>{top.name}</b></>}</p>
+              <p className="c15-num"><span>{h.u}</span><b><CountUp to={top ? top.value : 0} digits={dg} start={on} delay={i * 160} /></b><span className="c15-sx">{h.sx}</span></p>
+              {!isAgent && top && mine ? (
+                <div className="c15-me"><p className="c15-gl"><span className="c15-mr">나 <b>{mine.value ? `${mine.rank}위` : '-'}</b></span><span className="c15-left">{mine.rank === 1 && mine.value ? '지금 1위' : <>1위까지 <b>{left}</b></>}</span></p>
+                  <span className="c15-bar" role="img" aria-label={`1위의 ${pct}%, 1위까지 ${left} 남음`}><i style={{ '--w': pct + '%' } as React.CSSProperties} /></span></div>
+              ) : null}
+              <span className="sr">{a.title} 1위 {top ? top.name : '없음'}, {h.u} {top ? top.value : 0}</span>
+            </>
+          );
+          const style = { '--i': i, '--c15p': (par * 10 * (K[i] || 1)).toFixed(1) + 'px' } as React.CSSProperties;
+          return <li key={h.k} style={style} className={isAgent ? 'c15-ag' : undefined}>
+            {isAgent && top && top.view && top.id ? <Go go={api.go} view={top.view} id={top.id} className="stretch" label={`${top.name} 보기`}>{null}</Go> : null}{card}</li>;
+        })}
+      </ul>
+    </section>
+  );
 }
 
-/** 홈 배너 문구: 열 때마다 하나를 무작위로 보여 줍니다. 문구는 이 목록만 고치면 됩니다. */
-const HERO_LINES: [string, string][] = [
-  ['찾고, 쓰고, 함께 만드는', '우리 회사 AI'],
-  ['오늘 덜어 내고 싶은 일,', '무엇인가요?'],
-  ['내 시간을 아껴 줄 AI,', '동료가 먼저 만들어 뒀어요'],
-  ['일 잘하는 당신 곁에', '동료들이 만든 AI가 있어요'],
-  ['우리가 만들고, 우리가 쓰는', '우리만의 AI 공간']
-];
-const HAND = <svg className="ihd" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V6a1.5 1.5 0 0 1 3 0v5M11 10.5V4.5a1.5 1.5 0 0 1 3 0v6M14 10.5V5.5a1.5 1.5 0 0 1 3 0V12M17 11.5V9a1.5 1.5 0 0 1 3 0v5c0 4.2-2.8 7-6.6 7-2.6 0-4.3-1.1-5.7-3.1L4.2 14a1.5 1.5 0 0 1 2.4-1.8L8 14" /></svg>;
-
-export function HomeView(props: { api: IHubApi }): JSX.Element {
+export function HomeView(props: { api: IHubApi; dark?: boolean; rootRef?: React.RefObject<HTMLElement> }): JSX.Element {
   const { api } = props;
   const d = api.data;
   const line = React.useMemo(() => HERO_LINES[Math.floor(Math.random() * HERO_LINES.length)], []);
   const market = d.agents.length + d.skills.length + d.htmls.length;
   const gathering = d.ideas.filter(i => api.stageOf(i) === 'live').length;
   const cases = d.cases.filter(c => !c.pending);
-  const aw = awards(d, api.me, api.now);
-  // 손 들 사람을 기다리는 아이디어: 공감 모으는 중이고 아직 만드는 사람이 없는 것, 공감 많은 순 3개
-  const waiting = d.ideas.filter(i => api.stageOf(i) === 'live' && !api.makers(i.id).length)
-    .sort((a, b) => api.likeCount('Idea', b.id) - api.likeCount('Idea', a.id)).slice(0, 3);
   const recentCases = cases.slice().sort((a, b) => newestFirst(a.created, b.created)).slice(0, 3);
+  const fresh = ([] as { k: 'a' | 's' | 'h'; view: HubView; id: number; title: string; created: string }[])
+    .concat(d.agents.map(a => ({ k: 'a' as const, view: 'agent' as HubView, id: a.id, title: a.title, created: a.created })))
+    .concat(d.skills.map(s => ({ k: 's' as const, view: 'skill' as HubView, id: s.id, title: s.title, created: s.created })))
+    .concat(d.htmls.map(h => ({ k: 'h' as const, view: 'htool' as HubView, id: h.id, title: h.title, created: h.created })))
+    .sort((a, b) => newestFirst(a.created, b.created)).slice(0, 3);
+  const recentIdeas = d.ideas.filter(i => api.stageOf(i) !== 'archived').sort((a, b) => newestFirst(a.created, b.created)).slice(0, 4);
+  const pins: IGlobePin[] = React.useMemo(() => {
+    const A = d.agents.map(a => ({ k: 'a' as const, name: a.title, maker: a.owner ? a.owner.name : '', view: 'agent' as HubView, id: a.id }));
+    const S = d.skills.map(s => ({ k: 's' as const, name: s.title, maker: s.author ? s.author.name : '', view: 'skill' as HubView, id: s.id }));
+    const H = d.htmls.map(h => ({ k: 'h' as const, name: h.title, maker: h.author ? h.author.name : '', view: 'htool' as HubView, id: h.id }));
+    // 종류가 고루 섞이게 번갈아 12개
+    const out: IGlobePin[] = [];
+    for (let i = 0; out.length < 12 && (i < A.length || i < S.length || i < H.length); i++) { [A[i], S[i], H[i]].forEach(x => { if (x && out.length < 12) { out.push(x); } }); }
+    return out;
+  }, [d.agents.length, d.skills.length, d.htmls.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 배너 */
+  const hero = React.useRef<HTMLElement>(null);
+  const cue = React.useRef<HTMLAnchorElement>(null);
+  const qIn = React.useRef<HTMLInputElement>(null);
+  useTypingPlaceholder(qIn, 'Hub 전체 검색', SEARCH_EX);
+  // 검색창 펼침 모션: 보일 때마다 다시
+  const sf = React.useRef<HTMLLabelElement>(null);
+  const [sIn, setSIn] = React.useState(reducedMotion() ? 'b6-in b6-done' : '');
+  React.useEffect(() => {
+    const f = sf.current;
+    if (!f || reducedMotion() || !('IntersectionObserver' in window)) { return undefined; }
+    let t = 0;
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { window.requestAnimationFrame(() => window.requestAnimationFrame(() => setSIn('b6-in'))); window.clearTimeout(t); t = window.setTimeout(() => setSIn('b6-in b6-done'), 1700); }
+      else if (!f.contains(document.activeElement)) { window.clearTimeout(t); setSIn(''); }
+    }), { threshold: 0, rootMargin: '0px 0px -12% 0px' });
+    io.observe(f);
+    return () => { io.disconnect(); window.clearTimeout(t); };
+  }, []);
+  // 아래로 스크롤 안내: 스크롤하면 사라짐
+  const [cueGone, setCueGone] = React.useState(false);
+  useScrollTick(hero, y => { const g = y > 40; setCueGone(p => p === g ? p : g); }, []);
+
+  /* 지그재그: 가운데 선이 스크롤만큼 차오르고, 지나간 단계 점이 켜짐 */
+  const zig = React.useRef<HTMLElement>(null);
+  const [zp, setZp] = React.useState(0);
+  const [zon, setZon] = React.useState<boolean[]>([false, false, false, false]);
+  useScrollTick(zig, () => {
+    const z = zig.current;
+    if (!z || !z.offsetParent) { return; }
+    const r = z.getBoundingClientRect(), mid = window.innerHeight * 0.55;
+    setZp(Math.round(Math.max(0, Math.min(r.height, mid - r.top - 90))));
+    const rows = z.querySelectorAll('.zrow');
+    const next: boolean[] = [];
+    rows.forEach(w => { const b = w.getBoundingClientRect(); next.push(b.top + b.height / 2 < mid); });
+    setZon(p => p.join() === next.join() ? p : next);
+  }, []);
+  const zr = (i: number, rev: boolean): string => 'zrow' + (rev ? ' rev' : '') + (zon[i] ? ' on' : '');
+  const KIND = { a: ['t-a', 'Agent'], s: ['t-s', 'Skill'], h: ['t-h', 'HTML'] };
 
   return (
     <>
-      <section className="hero">
+      <section className="hero" ref={hero}>
+        <Globe pins={pins} dark={!!props.dark} boxRef={hero} cueRef={cue} rootRef={props.rootRef || hero} onPin={p => api.go(p.view, p.id)} />
         <span className="blob" style={{ width: 110, height: 110, left: '8%', top: '22%', transform: 'rotate(-10deg)' }} />
         <span className="blob" style={{ width: 80, height: 80, right: '10%', top: '20%', borderRadius: '50%' }} />
         <span className="blob" style={{ width: 120, height: 120, right: '14%', bottom: -30, transform: 'rotate(12deg)' }} />
         <div className="wrap" style={{ position: 'relative' }}>
-          <h1>{line[0]}<br />{line[1]}</h1>
-          <BigSearch id="hub-home-q" className="homeSearch" label="Hub 전체 검색" placeholder="무엇이든 검색 (예: 회의록, 용어집 Skill, 제조 사례)" onSearch={q => api.search(q)} />
+          <h1><Hl t={line[0]} /><br /><span className="hl"><Hl t={line[1]} /></span></h1>
+          <InlineSearch api={api} scope="all" formId="mv-homeSearch" className="search" label="Hub 전체 검색" placeholder="Hub 전체 검색"
+            labelClass={'b6-sx ' + sIn} labelRef={sf} inputRef={qIn} />
           <nav className="hero-links" aria-label="Hub 메뉴">
             <Go go={api.go} view="market"><b>Marketplace</b><span>{market}개</span></Go>
             <Go go={api.go} view="ideas"><b>Idea Board</b><span>공감 모으는 중 {gathering}개</span></Go>
@@ -56,67 +179,76 @@ export function HomeView(props: { api: IHubApi }): JSX.Element {
             <Go go={api.go} view="maker"><b>Maker Lab</b><span>만들러 가기</span></Go>
           </nav>
         </div>
+        <a className={'b5-cue' + (cueGone ? ' b10-gone' : '')} href="#home" aria-label="아래로 스크롤" ref={cue}
+          onClick={e => { e.preventDefault(); const n = hero.current && hero.current.nextElementSibling; if (n) { n.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth' }); } }}>
+          <span className="c14-t" aria-hidden="true">SCROLL</span><i aria-hidden="true" /></a>
       </section>
       <div className="wrap">
-        <section className="sec bwall" aria-labelledby="hub-aw-h">
-          <div className="sec-h" style={{ marginBottom: 4 }}><h2 id="hub-aw-h">지금 부문별 1위</h2></div>
-          <p className="bsub"><span className="live" aria-hidden="true" />실시간 · 1분마다 새로 고침</p>
-          <ul>
-            {aw.map(a => {
-              const top = a.rows[0];
-              const second = a.rows[1];
-              const fmt = (n: number): string => a.fmt ? a.fmt(n) : String(n);
-              // 막대 = 1위 ÷ (1위 + 2위). 혼자면 꽉 차고, 2위와 비슷할수록 절반에 가깝습니다
-              const width = top ? Math.round(top.value / (top.value + (second ? second.value : 0) || 1) * 100) : 0;
-              const inner = <>
-                <span className="hex" aria-hidden="true"><span>{a.icon}</span><small>{a.title}</small></span>
-                <span className="sr">{a.title} 1위</span>
-                <b>{top ? top.name : '아직 없어요'}</b>
-                <em>{top ? `${top.by ? top.by + ' · ' : ''}${a.unit} ${fmt(top.value)}` : '첫 1위가 되어 보세요'}</em>
-                <span className="gauge" aria-hidden="true"><i style={{ width: width + '%' }} /></span>
-                <small className="gapt">{top ? (!second ? '단독 1위' : top.value !== second.value ? `2위와 ${fmt(Math.round((top.value - second.value) * 10) / 10)} 차이` : tieNote(a, top, second)) : ''}</small>
-              </>;
-              return <li key={a.k}>{top && top.view && top.id ? <Go go={api.go} view={top.view} id={top.id}>{inner}</Go> : <a>{inner}</a>}</li>;
-            })}
-          </ul>
-        </section>
-        <section className="zig" aria-labelledby="hub-st-h"><h2 id="hub-st-h">처음이라면 이렇게 시작해요</h2>
-          <div className="zrow">
-            <div className="zbox"><span className="zn">1</span><h3>써 보기</h3><p>동료가 만든 Agent, Skill, HTML을 찾아 바로 써요.</p><Go go={api.go} view="market" className="btn pri">Marketplace 가기</Go></div>
-            <div className="zside"><p className="zlead">업무 분야로 찾고, 마음에 들면 바로 열어요</p>
+        <HallOfFame api={api} />
+        <section className="zig" aria-labelledby="hub-stH" ref={zig} style={{ '--zp': zp + 'px' } as React.CSSProperties}>
+          <h2 id="hub-stH" className="rv">처음이라면 이렇게 시작해요</h2>
+          <div className={zr(0, false)}>
+            <div className="zbox rv"><span className="zn">01</span><h3>써 보기</h3><p>필요한 도구와 자료를 찾고, 바로 사용해 보세요.</p>
+              <Go go={api.go} view="market" className="btn pri b6-more b6-home">Marketplace 가기<ArrowMore /></Go></div>
+            <div className="zside rv" style={{ '--d': '140ms' } as React.CSSProperties}>
               <ul className="zfacts">
-                <li><span className="kchip t-a">Agent</span><b>{d.agents.length}</b><span>Teams와 Copilot에서 열어요</span></li>
-                <li><span className="kchip t-s">Skill</span><b>{d.skills.length}</b><span>파일을 받아 Agent에 붙여요</span></li>
-                <li><span className="kchip t-h">HTML</span><b>{d.htmls.length}</b><span>브라우저에서 바로 열어요</span></li>
-              </ul></div>
-          </div>
-          <div className="zrow rev">
-            <div className="zbox"><span className="zn">2</span><h3>아이디어 붙이기</h3><p>있으면 좋겠는 걸 한 줄로 남기거나, 남이 붙인 아이디어에 손을 들어요.</p><Go go={api.go} view="ideas" className="btn pri">Idea Board 가기</Go></div>
-            <div className="zside"><p className="zlead">손 들 사람을 기다리는 아이디어</p>
-              {waiting.length ? <div className="znotes">{waiting.map((i, k) => (
-                <article key={i.id} className={'znote n' + (k + 1)}>
-                  <Go go={api.go} view="idea" id={i.id} className="stretch"><b>{i.title}</b></Go>
-                  <span>{i.author ? i.author.name : ''} · 공감 {api.likeCount('Idea', i.id)}</span>
-                  <button type="button" className="zhand" onClick={() => api.toggleMake(i.id)}>{HAND}만들래요</button>
-                </article>
-              ))}</div> : <p className="note">지금은 기다리는 아이디어가 없어요. 첫 아이디어를 붙여 보세요.</p>}
+                <li className="rv"><span className="kchip t-a">Agent</span><span>반복되는 업무를<br />빠르게 해결해 보세요</span></li>
+                <li className="rv" style={{ '--d': '140ms' } as React.CSSProperties}><span className="kchip t-s">Skill</span><span>원하는 결과를 쉽고 정확하게 받아 보세요</span></li>
+                <li className="rv" style={{ '--d': '280ms' } as React.CSSProperties}><span className="kchip t-h">HTML</span><span>복잡한 정보를 한눈에 확인하세요</span></li>
+              </ul>
+              {fresh.length ? <div className="znew"><p className="znew-h rv">새로 올라왔어요</p>
+                {fresh.map((x, k) => (
+                  <Go key={x.k + x.id} go={api.go} view={x.view} id={x.id} className="znew-r rv" style={{ '--d': (k + 1) * 140 + 'ms' } as React.CSSProperties}>
+                    <span className={'zk ' + KIND[x.k][0]}>{KIND[x.k][1]}</span><b>{x.title}</b><em>{ymd(x.created)}</em></Go>
+                ))}</div> : null}
             </div>
           </div>
-          <div className="zrow">
-            <div className="zbox"><span className="zn">3</span><h3>고객 사례 찾기</h3><p>지금 프로젝트와 같은 업종에서 어떤 개선이 있었는지 찾아봐요.</p><Go go={api.go} view="cases" className="btn pri">Case Library 가기</Go></div>
-            <div className="zside"><p className="zlead">최근 고객 사례</p>
-              {recentCases.length ? <div className="zcases">{recentCases.map(c => (
-                <Go key={c.id} go={api.go} view="case" id={c.id} className="zcase">
-                  <span className="zci">{c.industry ? <span className="kchip">{c.industry}</span> : null}{c.client}</span><b>{c.title}</b>{c.keyValue ? <em>{c.keyNote ? c.keyNote + ' ' : ''}{c.keyValue}</em> : null}
-                </Go>
-              ))}</div> : <p className="note">아직 올라온 사례가 없어요.</p>}
+          <div className={zr(1, true)}>
+            <div className="zbox rv"><span className="zn">02</span><h3>아이디어 나누기</h3><p>작은 아이디어를 공유하고, 동료와 함께 실제로 만들어 보세요.</p>
+              <Go go={api.go} view="ideas" className="btn pri b6-more b6-home">Idea Board 가기<ArrowMore /></Go></div>
+            <div className="zside rv" style={{ '--d': '140ms' } as React.CSSProperties}><p className="zlead rv">최근 올라온 아이디어</p>
+              {recentIdeas.length ? <div className="c14-notes">{recentIdeas.map(i => {
+                const t = (i.type || '').toLowerCase();
+                const tc = t === 'agent' ? 'agent' : t === 'skill' ? 'skill' : t === 'html' ? 'html' : 'etc';
+                const kd = t === 'agent' ? 'a' : t === 'skill' ? 's' : t === 'html' ? 'h' : undefined;
+                const days = daysSince(i.created, api.now);
+                const mk = api.makers(i.id).length;
+                return (
+                  <Go key={i.id} go={api.go} view="idea" id={i.id} className={'c14-pn t-' + tc}>
+                    <span className="c14-top"><span className={'c14-kd' + (kd ? ' c14-k' : '')} data-c14k={kd}>{i.type || '기타'}</span><span>{days > 0 ? days + '일 전' : '오늘'}</span></span>
+                    <b>{i.title}</b><span className="c14-meta"><span>♡ {api.likeCount('Idea', i.id)}</span>{mk ? <span>{mk}명이 함께해요</span> : null}</span></Go>
+                );
+              })}</div> : <p className="note">아직 올라온 아이디어가 없어요. 첫 아이디어를 올려 보세요.</p>}
             </div>
           </div>
-          <div className="zrow rev">
-            <div className="zbox"><span className="zn">4</span><h3>직접 만들고 배포하기</h3><p>가이드를 따라 Dev 환경에서 만들고, 테스트를 마치면 배포를 신청해요.</p>
-              <span className="zbtns"><Go go={api.go} view="maker" className="btn">Maker Lab 가기</Go><button type="button" className="btn pri" onClick={() => api.launchDesk()}>배포하러 가기 ↗</button></span></div>
-            <div className="zside"><p className="zlead">만들기부터 배포까지</p>
-              <ol className="zflow"><li><b>Dev에서 만들기</b><span>Copilot Studio 또는 Agent Builder</span></li><li><b>테스트</b><span>질문 5개로 결과 확인</span></li><li><b>배포 신청</b><span>승인되면 Prod에 올라가요</span></li></ol></div>
+          <div className={zr(2, false)}>
+            <div className="zbox rv"><span className="zn">03</span><h3>고객 사례 살펴보기</h3><p>과거 프로젝트 사례를 살펴보고,<br />업무에 참고할 만한 내용을 찾아보세요.</p>
+              <Go go={api.go} view="cases" className="btn pri b6-more b6-home">Case Library 가기<ArrowMore /></Go></div>
+            <div className="zside rv" style={{ '--d': '140ms' } as React.CSSProperties}><p className="zlead rv">최근 고객 사례</p>
+              {recentCases.length ? (
+                <div className="zcases c18-cases" role="table" aria-label="최근 고객 사례">
+                  <div className="cb-row cb-head" role="row"><span role="columnheader">업종</span><span role="columnheader">사례</span><span role="columnheader">대표 효과</span></div>
+                  {recentCases.map(c => (
+                    <Go key={c.id} go={api.go} view="case" id={c.id} className="cb-row">
+                      <span className="cb-c1" role="cell"><span className="cc-dept ct-ind">{c.industry || '기타'}</span></span>
+                      <span className="cb-c2" role="cell"><b className="cb-ttl">{c.title}</b></span>
+                      <span className="cb-c4" role="cell"><div className="cb-eff"><b>{c.keyValue || '-'}</b>{c.keyNote ? <small>{c.keyNote}</small> : null}</div></span>
+                    </Go>
+                  ))}
+                </div>
+              ) : <p className="note">아직 올라온 사례가 없어요.</p>}
+            </div>
+          </div>
+          <div className={zr(3, true)}>
+            <div className="zbox rv"><span className="zn">04</span><h3>직접 만들고 배포하기</h3><p>Agent를 올바르고 안전하게 만들어 동료들과 공유하세요.</p>
+              <span className="zbtns"><Go go={api.go} view="maker" className="btn b6-more">Maker Lab 가기<ArrowMore /></Go>
+                <button type="button" className="btn pri b6-home" onClick={() => api.launchDesk()}>배포하러 가기 ↗</button></span></div>
+            <div className="zside rv" style={{ '--d': '140ms' } as React.CSSProperties}>
+              <ol className="zflow">
+                <li className="rv"><b>만들기</b><span>Copilot Studio 또는 Agent Builder에서 제작</span></li>
+                <li className="rv" style={{ '--d': '140ms' } as React.CSSProperties}><b>평가</b><span>총 5가지 영역에서 테스트</span></li>
+                <li className="rv" style={{ '--d': '280ms' } as React.CSSProperties}><b>배포</b><span>배포 전용 Agent에게 신청</span></li>
+              </ol></div>
           </div>
         </section>
       </div>

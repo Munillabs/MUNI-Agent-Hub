@@ -4,6 +4,7 @@ import { HubView, IHubData, TargetType } from '../../models/types';
 import { daysSince, newestFirst } from '../../models/rules';
 import { IHubApi } from '../api';
 import { IconAgent, IconHtml, IconSkill } from '../ui';
+import { Mag } from '../mv';
 
 /* ---------- 필터 사이드바 (시안 .filters.drill) ---------- */
 export interface IFilterGroup { k: string; label: string; items: string[]; single?: boolean; open?: boolean }
@@ -58,22 +59,29 @@ export function Applied(props: { groups: IFilterGroup[]; value: FilterState; onC
 
 /* ---------- 검색창 ---------- */
 /** Home·Marketplace 의 큰 검색창 (시안 form.search) */
-export function BigSearch(props: { id: string; placeholder: string; label: string; className?: string; onSearch: (q: string) => void }): JSX.Element {
+/** Marketplace 첫 화면의 '통합 검색' (시안 c25): 입력창 안 오른쪽에 둥근 검색 단추 */
+export function BigSearch(props: { id: string; placeholder: string; label: string; title?: string; className?: string; formId?: string; onSearch: (q: string) => void }): JSX.Element {
   const [q, setQ] = React.useState('');
+  const lid = props.id + '-l';
   return (
-    <form className={'search' + (props.className ? ' ' + props.className : '')} role="search" onSubmit={e => { e.preventDefault(); props.onSearch(q.trim()); }}>
-      <label><span className="sr">{props.label}</span><input id={props.id} type="search" value={q} placeholder={props.placeholder} onChange={e => setQ(e.target.value)} /></label>
-      <button className="btn pri" type="submit">검색</button>
-    </form>
+    <>
+      {props.title ? <p className="c25-sl" id={lid}>{props.title}</p> : null}
+      <form className={'search' + (props.className ? ' ' + props.className : '')} role="search" id={props.formId} aria-labelledby={props.title ? lid : undefined} onSubmit={e => { e.preventDefault(); props.onSearch(q.trim()); }}>
+        <label className="b4-f"><span className="sr">{props.label}</span><input id={props.id} type="search" name="q" value={q} placeholder={props.placeholder} onChange={e => setQ(e.target.value)} />
+          <button className="b4-btn b6-sbtn" aria-label="검색"><Mag /></button></label>
+      </form>
+    </>
   );
 }
-/** 목록 화면 위의 둥근 검색 칸 (시안 인라인 스타일 그대로) */
+/** 목록 화면 위의 둥근 검색 칸 (시안 b4-f): 입력하면 바로 걸러지고, 단추는 입력창으로 돌아갑니다 */
 export function ListSearch(props: { id: string; label: string; placeholder: string; value: string; onChange: (q: string) => void }): JSX.Element {
+  const ref = React.useRef<HTMLInputElement>(null);
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
-      <label style={{ flex: 1, minWidth: 220, height: 50, border: '2px solid var(--ink)', borderRadius: 999, display: 'flex', alignItems: 'center', padding: '0 18px' }}>
+      <label className="b4-f" style={{ flex: 1, minWidth: 220, height: 50, borderRadius: 999, display: 'flex', alignItems: 'center', padding: '0 6px 0 18px' }}>
         <span className="sr">{props.label}</span>
-        <input type="search" id={props.id} placeholder={props.placeholder} value={props.value} onChange={e => props.onChange(e.target.value)} style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: 'none' }} />
+        <input ref={ref} type="search" id={props.id} placeholder={props.placeholder} value={props.value} onChange={e => props.onChange(e.target.value)} style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: 'none' }} />
+        <button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { if (ref.current) { ref.current.focus(); } }}><Mag /></button>
       </label>
     </div>
   );

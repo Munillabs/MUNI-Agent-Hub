@@ -1,0 +1,114 @@
+/* Hub 전용 스타일: 시안(muniverse-mockup.css)에 없는 화면 요소와 Hub에서 바꾼 부분.
+   scripts/build-muniverse-css.js 가 시안 CSS 뒤에 붙입니다. 선택자는 시안처럼 쓰면 됩니다(.mv-root 는 자동으로 붙음).
+   화면 id는 #ideas 처럼 쓰면 #mv-ideas 로 바뀝니다. 페이지는 [data-hub-page="ideas"] 로도 고를 수 있습니다. */
+
+/* 웹 파트 루트: 섹션 폭 기준 반응형 + 글자 줄바꿈 */
+:root{container:hub/inline-size;word-break:keep-all;overflow-wrap:anywhere;position:relative;isolation:isolate}
+/* 라이트 페이지 배경 (다크는 시안의 html[data-theme=dark] 배경이 더 강해서 그대로) */
+html{background:var(--bg,#fff)}
+
+
+/* 홈 메인 문구: Pretendard 800, 56px. 라이트 첫째 줄 #2B2B2B · 둘째 줄 #003F6D / 다크 첫째 줄 #BFE3FF · 둘째 줄 #80CAFF
+   (#home#home 은 시안 규칙보다 우선하게 하려는 것) */
+#home#home .hero h1{font-family:'Pretendard Variable',Pretendard,var(--font)!important;font-weight:800!important;font-size:56px!important}
+:root:not([data-theme=dark]) #home#home .hero h1{color:#2B2B2B!important;-webkit-text-fill-color:#2B2B2B!important;background:none!important}
+:root:not([data-theme=dark]) #home#home .hero h1 .hl,:root:not([data-theme=dark]) #home#home .hero h1 .hl *{color:#003F6D!important;-webkit-text-fill-color:#003F6D!important;background:none!important}
+:root[data-theme=dark] #home#home .hero h1{color:#BFE3FF!important;-webkit-text-fill-color:#BFE3FF!important;background:none!important}
+:root[data-theme=dark] #home#home .hero h1 .hl,:root[data-theme=dark] #home#home .hero h1 .hl *{color:#80CAFF!important;-webkit-text-fill-color:#80CAFF!important;background:none!important}
+@media (max-width:900px){#home#home .hero h1{font-size:40px!important}}
+@media (max-width:600px){#home#home .hero h1{font-size:30px!important}}
+
+/* Marketplace '새로 올라왔어요': yyyy/mm/dd 날짜가 두 줄로 꺾이지 않게 */
+.fb-list .fb-rk{white-space:nowrap}
+
+/* 불러오는 중 · 오류 */
+.state{border:1.5px dashed var(--line);border-radius:14px;padding:44px 24px;margin:40px 0;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:var(--ink2)}
+.state b{color:var(--ink);font-size:17px}
+.state.err-state{border-color:#b42318}
+.spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--fill2);border-top-color:var(--brand,var(--ink));animation:hubSpin .9s linear infinite}
+@keyframes hubSpin{to{transform:rotate(360deg)}}
+.soon-tag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:700;color:var(--ink3);border:1px dashed #b5b5ad;border-radius:999px;padding:0 8px;height:20px}
+
+/* 머리글 버튼 초기화 */
+.util button.ulink{border:0;background:none;padding:6px 8px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font:inherit;color:inherit}
+.util button.ulink:hover{background:var(--fill)}
+
+/* 알림 */
+.nlist li>div{flex:1}
+.nlist .ndel{flex:none;align-self:flex-start;width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:var(--ink2);font-size:13px;cursor:pointer;opacity:.6}
+.nlist .ndel:hover,.nlist .ndel:focus-visible{opacity:1;background:var(--line2)}
+
+/* 이름에 마우스를 올리면 Microsoft 365 프로필 카드 */
+.pcard{cursor:default}
+.pcwrap,.pcwrap div{display:inline!important}
+.pcard:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+
+/* 상세 화면: 즐겨찾기·편집 등 작은 버튼 줄 */
+.ownbar{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.fav{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:1px 10px;font-size:12.5px;cursor:pointer}
+.fav[aria-pressed=true]{border-color:var(--brand,var(--ink));font-weight:700}
+.delask{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#b42318}
+.btn.danger{border-color:#b42318;color:#b42318}
+
+/* 리뷰 쓰기 · 고치기 */
+.rvform{border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 16px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.rvform input,.rvform textarea{min-height:40px;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;background:var(--bg);color:var(--ink)}
+.rvform textarea{min-height:70px;resize:vertical}
+.rvform .r{display:flex;justify-content:flex-end;gap:8px}
+.starin{display:inline-flex;gap:2px}
+.starin label{position:relative;cursor:pointer;font-size:26px;line-height:1;color:#c8c8c4}
+.starin label.on{color:#f5a524}
+.starin input{position:absolute;opacity:0;width:1px;height:1px}
+.starin label:focus-within{outline:3px solid var(--brand,var(--ink));outline-offset:2px;border-radius:4px}
+.rows li .rv-edit{margin-left:auto;flex:none;width:34px;height:34px;border:0;border-radius:8px;background:none;color:var(--ink3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.rows li .rv-edit:hover,.rows li .rv-edit:focus-visible{background:var(--fill);color:var(--ink)}
+.rows li .rv-edit svg{width:17px;height:17px}
+.rows li.rv-editing{display:block;padding:12px 0}
+.rows li.rv-editing .rvform{margin:0}
+.rows li>.cav{width:34px;height:34px;font-size:13px;align-self:flex-start;margin-top:4px}
+
+/* 댓글 고치기·지우기 · 좋아요 */
+.cmt .cact{margin-left:auto;display:inline-flex;gap:8px;font-size:12.5px}
+.cmt .cact button{border:0;background:none;padding:0;color:var(--ink3);cursor:pointer;font-weight:700}
+.cmt .cact button:hover{color:var(--ink);text-decoration:underline}
+.cmt .cact button.del{color:#b42318}
+.cmt .cedit{display:flex;flex-direction:column;gap:6px;margin-top:6px;width:100%}
+.cmt .cedit textarea{min-height:60px;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.cmt .cedit div{display:flex;justify-content:flex-end;gap:6px}
+.cbody .clike{margin:2px 0 0 -8px}
+.rows li .clike{margin-left:auto}
+.rows li .clike+.rv-edit{margin-left:4px}
+.cav.me,.idtop .cav.me{background:var(--brand,var(--ink));color:#fff}
+
+/* 파일 미리보기 · HTML 도구 보기 (보안을 위해 sandbox iframe) */
+.mdview{margin:8px 0 0;max-height:200px;overflow:auto;background:var(--fill);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;white-space:pre-wrap}
+.fwarn{font-size:13px;color:#b42318;font-weight:700;margin-top:6px}
+.lnkbtn{border:0;background:none;padding:0;font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;color:var(--ink2);align-self:flex-start}
+.viewer{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);display:flex;flex-direction:column;padding:24px}
+.viewer .vbar{display:flex;align-items:center;gap:10px;background:var(--bg);color:var(--ink);border-radius:14px 14px 0 0;padding:10px 16px;border-bottom:1px solid var(--line)}
+.viewer .vbar b{flex:1}
+.viewer iframe{flex:1;border:0;background:#fff;border-radius:0 0 14px 14px;width:100%}
+@media (max-width:600px){.viewer{padding:0}.viewer .vbar,.viewer iframe{border-radius:0}}
+
+/* 실제 이미지가 들어간 결과 이미지 */
+.mimgs img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+.mimgs .shot{aspect-ratio:4/3;overflow:hidden;border-radius:10px}
+.imgs2 .drop img{max-height:90px;max-width:100%;border-radius:6px}
+.cs-empty{font-size:13.5px;color:var(--ink3)}
+
+/* 입력 창 */
+.fgrid.one,.mbody .fgrid.one{grid-template-columns:minmax(0,1fr)}
+.mact-err{margin:16px 0 0;padding:10px 14px;border-radius:10px;background:#fef3f2;color:#b42318;font-size:14px;font-weight:700;line-height:1.5}
+.errsum.upfail{background:#fef3f2;margin:4px 0 16px}
+.errsum.upfail ul{margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:var(--ink)}
+.errsum.upfail .upfail-d{margin:8px 0 0;font-size:12px;color:var(--ink2);word-break:break-all}
+.uplog textarea[aria-invalid=true]{border-color:#c62828}
+.cf-btn[aria-expanded=true] svg{transform:rotate(180deg)}
+
+/* 프로필 패널: 배지를 프로필로 고르기 */
+.mbadges li>span:nth-child(2){flex:1;min-width:0}
+.bpick{flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--ink)}
+.bpick:hover{background:var(--fill)}
+.bpick.on{border-color:var(--brand,var(--ink));background:var(--brand,var(--ink));color:#fff;cursor:default}
+.bpicks{display:flex;flex-wrap:wrap;gap:4px 16px;margin:12px 0 0}
+.bpick.reset{border:0;background:none;padding:0;text-decoration:underline;color:var(--ink2)}

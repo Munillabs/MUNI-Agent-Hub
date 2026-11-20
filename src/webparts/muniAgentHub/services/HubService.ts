@@ -175,10 +175,10 @@ export class HubService {
       soft(this.getAgents(), 'Agent'), soft(this.getIdeas(), 'Idea'), soft(this.getCases(), 'Case'), this.getReactions(),
       soft(this.getSkills(), 'Skill'), soft(this.getHtmls(), 'HTML'),
       // 프로필 배지는 없어도 됩니다 (열이 없으면 모두 자동: 최근 배지)
-      this.getAvatars().then(v => v, () => ({}))
+      this.getProfiles().then(v => v, () => ({ avatars: {}, visits: {} }))
     ]);
     return {
-      avatars: av,
+      avatars: av.avatars, visits: av.visits,
       agents: ag.list, agentsError: ag.error, ideas: id.list, ideasError: id.error, cases: cs.list, casesError: cs.error,
       reactions: rx.list.concat(HubService.ideaReactions(id.list)), reactionsError: rx.error, skills: sk.list, skillsError: sk.error, htmls: ht.list, htmlsError: ht.error
     };
@@ -186,14 +186,39 @@ export class HubService {
 
   /* ---------- 프로필 배지 (HubProfiles) ----------
      사람마다 한 줄: 만든 사람 = 그 사람, AvatarBadge = 고른 배지 키('photo'면 사진, 비우면 자동).
-     목록이 없으면 모두 자동(최근 배지)으로 보입니다. */
-  public async getAvatars(): Promise<{ [personId: number]: string }> {
-    if (!this.lists.profiles) { return {}; }
-    const rows = await this.items(this.lists.profiles, ['Id', 'AvatarBadge', 'AuthorId'], [], undefined, 5000);
-    const out: { [personId: number]: string } = {};
+     목록이 없으면 모두 자동(최근 배지)으로 보입니다.
+     방문 기록도 같은 행에 둡니다: VisitCount = Hub를 방문한 날 수(숫자), LastVisit = 마지막으로 센 날(텍스트 'YYYY-MM-DD').
+     두 열이 없으면 방문 기록만 빠지고 배지는 그대로 동작합니다. */
+  public async getProfiles(): Promise<{ avatars: { [personId: number]: string }; visits: { [personId: number]: { name: string; count: number } } }> {
+    const avatars: { [personId: number]: string } = {};
+    const visits: { [personId: number]: { name: string; count: number } } = {};
+    if (!this.lists.profiles) { return { avatars, visits }; }
+    const rows = await this.itemsOpt(this.lists.profiles, ['Id', 'AvatarBadge', 'AuthorId', 'Author/Title'], ['Author'], { select: ['VisitCount'] }, undefined, 5000);
     // 최신 행이 먼저 오므로, 같은 사람의 행이 여러 개면 최신 것만
-    rows.forEach((r: any) => { if (r.AuthorId && !(r.AuthorId in out)) { out[r.AuthorId] = str(r.AvatarBadge); } });
-    return out;
+    rows.forEach((r: any) => {
+      if (!r.AuthorId || r.AuthorId in avatars) { return; }
+      avatars[r.AuthorId] = str(r.AvatarBadge);
+      const n = num(r.VisitCount) || 0;
+      if (n > 0) { visits[r.AuthorId] = { name: str(r.Author && r.Author.Title), count: n }; }
+    });
+    return { avatars, visits };
+  }
+  /** Hub를 열 때 방문을 셉니다. 같은 사람은 하루에 한 번만 (새로 고침해도 그대로). 내 행이 없으면 만듭니다.
+      저장한 뒤의 내 방문 수를 돌려줍니다. 열이 없으면 오류로 끝나고 아무것도 바뀌지 않습니다. */
+  public async recordVisit(meId: number, email: string): Promise<number | undefined> {
+    const list = this.lists.profiles;
+    if (!list) { return undefined; }
+    const t = new Date();
+    const today = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+    const rows = await this.items(list, ['Id', 'VisitCount', 'LastVisit'], [], `AuthorId eq ${meId}`, 1);
+    if (rows.length) {
+      const n = num(rows[0].VisitCount) || 0;
+      if (str(rows[0].LastVisit) === today) { return n; }
+      await this.merge(list, rows[0].Id, { VisitCount: n + 1, LastVisit: today });
+      return n + 1;
+    }
+    await this.create(list, { Title: email, VisitCount: 1, LastVisit: today });
+    return 1;
   }
   /** 내 프로필 배지 저장: 내 행이 있으면 고치고, 없으면 만듭니다 */
   public async setAvatarBadge(meId: number, email: string, key: string): Promise<void> {
@@ -272,7 +297,7 @@ export class HubService {
     const rows = await this.itemsOpt(this.lists.agents,
       ['Id', 'Title', 'AgentName', 'Summary', 'BuildTool', 'Env', 'OpsStatus', 'TaskArea', 'Output', 'OutputNote', 'Scope',
         'Does', 'Prompts', 'MakerNote', 'Instructions', 'Config', 'Releases', 'Version', 'OpenUrl',
-        'FirstDeployedOn', 'DeployedAt', 'Uses30', 'LastUsedOn', 'Created', 'Modified',
+        'FirstDeployedOn', 'DeployedAt', 'LastUsedOn', 'Created', 'Modified',
         'Owner/Id', 'Owner/Title', 'Owner/EMail', 'Sponsor/Id', 'Sponsor/Title', 'Sponsor/EMail',
         'AttachmentFiles/FileName', 'AttachmentFiles/ServerRelativeUrl'],
       ['Owner', 'Sponsor', 'AttachmentFiles'],
@@ -294,10 +319,10 @@ export class HubService {
         linkedAgents: lookups(r.LinkedAgents, 'AgentName'), linkedSkills: lookups(r.Skills, 'Title'),
         version: str(r.Version), changeNote: releases.length ? releases[0].note : '', releases,
         installLink: str(r.OpenUrl && (r.OpenUrl.Url || r.OpenUrl)), env: str(r.Env), opsStatus: str(r.OpsStatus),
-        uses30: num(r.Uses30), views: HubService.viewsOf(r).views, lastUsed: str(r.LastUsedOn),
+        views: HubService.viewsOf(r).views, lastUsed: str(r.LastUsedOn),
         images: this.images(r.AttachmentFiles), thumb: this.thumbOf(r.AttachmentFiles),
         owner: person(r.Owner), sponsor: person(r.Sponsor),
-        // '새로 나온 Agent'·메이커 순위는 처음 배포일 기준 (없으면 항목을 만든 날)
+        // '새로 나온 Agent'는 처음 배포일 기준 (없으면 항목을 만든 날)
         created: str(r.FirstDeployedOn) || str(r.DeployedAt) || str(r.Created), modified: str(r.DeployedAt) || str(r.Modified)
       };
     });
@@ -568,6 +593,7 @@ export class HubService {
       id: `cm:${t}:${itemId}:${c.id}`, commentId: Number(c.id), targetType: t, targetId: itemId,
       kind: t === 'Idea' ? '댓글' : '리뷰', body: star ? text.slice(star[0].length) : text,
       rating: star ? Number(star[1]) : undefined,
+      likes: Number(c && c.likeCount) || 0, likedByMe: !!(c && c.isLikedByUser),
       author: a.id || a.email ? { id: Number(a.id) || 0, name: str(a.name), email: str(a.email) } : undefined,
       created: str(c.createdDate)
     };
@@ -656,6 +682,11 @@ export class HubService {
     const title = this.titleOf(t);
     const d = await this.send(`${this.listUrl(title)}/items(${itemId})/Comments`, { text }, undefined, title);
     return this.commentOf(t, itemId, d && d.id !== undefined ? d : { id: 0, text, createdDate: new Date().toISOString() });
+  }
+  /** 항목 댓글 좋아요 · 취소 (SharePoint 댓글 기본 기능) */
+  public async likeComment(t: TargetType, itemId: number, commentId: number, on: boolean): Promise<void> {
+    const title = this.titleOf(t);
+    await this.send(`${this.listUrl(title)}/items(${itemId})/Comments(${commentId})/${on ? 'like' : 'unlike'}`, undefined, undefined, title);
   }
   public async removeComment(t: TargetType, itemId: number, commentId: number): Promise<void> {
     const title = this.titleOf(t);

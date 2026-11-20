@@ -6,6 +6,7 @@ import { HubView } from '../../models/types';
 import { contains, mmdd } from '../../models/rules';
 import { IHubApi } from '../api';
 import { Crumb, Go } from '../ui';
+import { Mag } from '../mv';
 
 function relDay(iso: string, now: Date): string {
   const d = new Date(iso);
@@ -71,7 +72,7 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
     }
     const act = tab === 's' ? <button type="button" className="btn sm pri" onClick={() => api.openSkillForm()}>＋ Skill 올리기</button>
       : tab === 'h' ? <button type="button" className="btn sm pri" onClick={() => api.openHtmlForm()}>＋ HTML 올리기</button>
-        : tab === 'c' ? <button type="button" className="btn sm pri" onClick={() => api.openCaseForm()}>＋ 고객 사례 올리기</button>
+        : tab === 'c' ? <Go go={api.go} view="cases" className="btn sm pri">Case Library 가기</Go>
           : tab === 'i' ? <Go go={api.go} view="ideas" className="btn sm pri">Idea Board 가기</Go> : <Go go={api.go} view="maker" className="btn sm pri">Maker Lab 가기</Go>;
     return <><b>아직 올린 {tab === 'all' ? '콘텐츠가' : KL[tab] + (tab === 'c' || tab === 'i' ? '가' : tab === 'a' ? '가' : '이')} 없어요</b><span>올리면 여기에서 수정하고 지울 수 있어요.</span><span className="mcb">{act}</span></>;
   };
@@ -85,25 +86,29 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
             <span className="mcb"><Go go={api.go} view={n.view} id={n.target || undefined} className="btn sm">자세히</Go></span></li>
         ))}</ul> : <p className="note" style={{ margin: '4px 0 0' }}>지금 확인할 일이 없어요.</p>}
       </section></div>
-      <section className="dsec mycon" aria-labelledby="hub-mc-h">
+      <section className="dsec mycon" id="mv-myCon" aria-labelledby="hub-mc-h">
+        {/* 시안 c55: '콘텐츠 올리기'는 제목 줄 오른쪽, 검색·정렬은 탭 줄 오른쪽 */}
         <div className="mc-head"><h2 id="hub-mc-h">나의 콘텐츠</h2>
-          <div className="mc-tools">
-            <label className="mc-q"><span className="sr">나의 콘텐츠 검색</span><input type="search" placeholder="이름으로 찾기" value={q} onChange={e => { setQ(e.target.value); setPg(1); }} /></label>
-            <label className="sortsel">정렬<select value={sort} onChange={e => setSort(e.target.value)}><option value="new">최근 올린 순</option><option value="old">오래된 순</option><option value="name">이름순</option></select></label>
-            <div className="mc-add menu-host"><button type="button" className="btn sm pri" aria-expanded={add} aria-controls="hub-my-add" onClick={() => setAdd(!add)}>＋ 올리기</button>
-              <div className="avmenu" id="hub-my-add" hidden={!add}>
-                <a href="#skills" onClick={e => { e.preventDefault(); setAdd(false); api.openSkillForm(); }}>Skill</a>
-                <a href="#htools" onClick={e => { e.preventDefault(); setAdd(false); api.openHtmlForm(); }}>HTML</a>
-                <a href="#cases" onClick={e => { e.preventDefault(); setAdd(false); api.openCaseForm(); }}>고객 사례</a>
-                <Go go={api.go} view="ideas">아이디어</Go>
-                <Go go={api.go} view="maker">Agent는 Maker Lab에서</Go>
-              </div></div>
-          </div></div>
+          <div className="mc-add menu-host"><button type="button" className="btn sm pri" aria-expanded={add} aria-controls="hub-my-add" onClick={() => setAdd(!add)}>＋ 콘텐츠 올리기</button>
+            <div className="avmenu" id="hub-my-add" hidden={!add}>
+              <a href="#skills" onClick={e => { e.preventDefault(); setAdd(false); api.openSkillForm(); }}>Skill</a>
+              <a href="#htools" onClick={e => { e.preventDefault(); setAdd(false); api.openHtmlForm(); }}>HTML</a>
+              <Go go={api.go} view="ideas">아이디어</Go>
+              <Go go={api.go} view="maker">Agent는 Maker Lab에서</Go>
+            </div></div></div>
         <div className="dstats" aria-label="나의 콘텐츠 수">
           {(['a', 's', 'h', 'c', 'i'] as K[]).map(k => <button key={k} type="button" className="dstat" aria-pressed={tab === k} onClick={() => choose(k)}><span className={'dic t-' + k}>{ICON[k]}</span><span className="dl">{KL[k]}</span><b>{cnt(k)}</b></button>)}
         </div>
-        <div className="mc-tabs" role="tablist" aria-label="콘텐츠 종류">
-          {(['all', 'a', 's', 'h', 'c', 'i'] as ('all' | K)[]).map(k => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => choose(k)}>{k === 'all' ? '전체' : KL[k]} <small>{cnt(k)}</small></button>)}
+        <div className="c55-row">
+          <div className="mc-tabs" role="tablist" aria-label="콘텐츠 종류" id="mv-myTabs">
+            {(['all', 'a', 's', 'h', 'c', 'i'] as ('all' | K)[]).map(k => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => choose(k)}>{k === 'all' ? '전체' : KL[k]} <small>{cnt(k)}</small></button>)}
+          </div>
+          <div className="mc-tools">
+            <label className="mc-q"><span className="sr">나의 콘텐츠 검색</span><span className="b4-f" style={{ height: 40 }}>
+              <input type="search" id="hub-myQ" placeholder="이름으로 찾기" value={q} onChange={e => { setQ(e.target.value); setPg(1); }} />
+              <button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { const el = document.getElementById('hub-myQ'); if (el) { el.focus(); } }}><Mag /></button></span></label>
+            <label className="sortsel">정렬<select value={sort} onChange={e => setSort(e.target.value)}><option value="new">최근 올린 순</option><option value="old">오래된 순</option><option value="name">이름순</option></select></label>
+          </div>
         </div>
         <table className="mctable"><thead><tr><th scope="col" className="c-k">종류</th><th scope="col">이름</th><th scope="col" className="c-d">올린 날짜</th><th scope="col" className="c-b"><span className="sr">동작</span></th></tr></thead>
           <tbody>{shown.map(r => {
@@ -113,7 +118,7 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
                 <span className="mcb"><button type="button" className="btn sm pri" disabled={busy} onClick={() => { remove(r).catch(() => undefined); }}>삭제</button><button type="button" className="btn sm" onClick={() => setDel('')}>취소</button></span></div></td></tr>;
             }
             return (
-              <tr key={key}><td className="c-k"><span className={'kchip t-' + r.k}>{KL[r.k]}</span></td>
+              <tr key={key}><td className="c-k"><span className={'kchip t-' + r.k + ' c14-k'} data-c14k={r.k}>{KL[r.k]}</span></td>
                 <td className="c-n"><Go go={api.go} view={r.view} id={r.id}>{r.title}</Go></td>
                 <td className="c-d">{mmdd(r.date)}</td>
                 <td className="c-b"><span className="mcb">

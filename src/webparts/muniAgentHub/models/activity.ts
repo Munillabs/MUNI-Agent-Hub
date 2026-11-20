@@ -2,7 +2,7 @@
    별도 목록 없이 지금 읽어 온 목록 데이터(아이디어, Agent, 사례, 반응)로 바로 계산합니다.
    점수 기준은 랭킹 화면의 '점수는 이렇게 쌓여요' 표와 같습니다.
    공감(좋아요)과 댓글 없는 별점은 SharePoint가 날짜를 남기지 않아 '최근 30일' 계산에서 빠지고, 기간 없는 배지에만 씁니다.
-   '지금 부문별 1위'(awards)는 6개 부문 모두 기간 없이 지금까지의 활동으로 셉니다. */
+   '지금 부문별 1위'(awards)는 5개 부문 모두 기간 없이 지금까지의 활동으로 셉니다. */
 import { HubView, IHubData, IPerson } from './types';
 import { daysSince, first } from './rules';
 
@@ -99,10 +99,8 @@ export function awards(d: IHubData, me: IPerson, now: Date): IAward[] {
   const ideaKing: { [k: string]: { name: string; value: number } } = {};
   // 아이디어왕: Idea Board에 올린 아이디어 수
   d.ideas.forEach(i => { if (i.author) { add(ideaKing, String(i.author.id), i.author.name, 1); } });
-  const maker: { [k: string]: { name: string; value: number } } = {};
-  d.agents.filter(a => a.owner).forEach(a => add(maker, String(a.owner!.id), a.owner!.name, 1));
   const popular: { [k: string]: { name: string; value: number; view?: HubView; id?: number; tie?: number[] } } = {};
-  // 6개 부문 모두 기간 제한 없이 지금까지의 활동으로 셉니다. (Home에서는 1분마다 다시 계산)
+  // 5개 부문 모두 기간 제한 없이 지금까지의 활동으로 셉니다. (Home에서는 1분마다 다시 계산)
   // 인기 Agent: 평점(받은 별점의 평균, 소수 첫째 자리). 같으면 ① 조회수(ViewCount) ② 평가 수 ③ 글을 남긴 리뷰 수 순으로 가립니다
   d.agents.forEach(a => {
     const rv = d.reactions.filter(r => r.kind === '리뷰' && r.targetType === 'Agent' && r.targetId === a.id);
@@ -133,31 +131,24 @@ export function awards(d: IHubData, me: IPerson, now: Date): IAward[] {
   const sharer: { [k: string]: { name: string; value: number } } = {};
   d.skills.forEach(s => { if (s.author) { add(sharer, String(s.author.id), s.author.name, 1); } });
   d.htmls.forEach(h => { if (h.author) { add(sharer, String(h.author.id), h.author.name, 1); } });
-  // 조회수왕: Agent·Skill·HTML 중 조회수(ViewCount 열)가 가장 높은 게시물과 올린 사람. 같으면 이름순으로 하나만
-  const viewed: { [k: string]: { name: string; value: number; view?: HubView; id?: number; by?: string; owner?: number } } = {};
-  const post = (t: string, view: HubView, x: { id: number; title: string; views?: number }, p?: IPerson): void => {
-    if (!x.views || !p) { return; }
-    viewed[`${t}:${x.id}`] = { name: x.title, value: x.views, view, id: x.id, by: p.name, owner: p.id };
-  };
-  d.agents.forEach(a => post('Agent', 'agent', a, a.owner));
-  d.skills.forEach(s => post('Skill', 'skill', s, s.author));
-  d.htmls.forEach(h => post('Html', 'htool', h, h.author));
+  // 방문왕: Hub를 방문한 날 수 (HubProfiles VisitCount 열, 하루 1회만 셈)
+  const visitor: { [k: string]: { name: string; value: number } } = {};
+  const vs = d.visits || {};
+  Object.keys(vs).forEach(k => { add(visitor, k, vs[Number(k)].name || (Number(k) === me.id ? me.name : '알 수 없음'), vs[Number(k)].count); });
 
   const meKey = String(me.id);
   const list: IAward[] = [
     { k: 'idea', title: '아이디어왕', icon: '💡', crit: 'Idea Board에 올린 아이디어 수', unit: '아이디어', rows: rank(ideaKing) },
-    { k: 'maker', title: '메이커', icon: '🛠', crit: 'Marketplace에 올린 Agent 수', unit: 'Agent 배포', rows: rank(maker) },
     { k: 'pop', title: '인기 Agent', icon: '🔥', crit: '평점 (받은 별점의 평균, 같으면 조회수 → 평가 수 → 리뷰 글 수)', unit: '평점', rows: rank(popular), fmt: n => n.toFixed(1),
       tieLabels: [{ label: '조회', fmt: n => n + '회' }, { label: '평가', fmt: n => n + '개' }, { label: '리뷰 글', fmt: n => n + '개' }] },
     { k: 'review', title: '리뷰왕', icon: '⭐', crit: '다른 사람 Agent·Skill·HTML에 남긴 리뷰 + 아이디어에 남긴 댓글 수', unit: '리뷰', rows: rank(reviewer) },
     { k: 'share', title: '공유왕', icon: '📚', crit: 'Marketplace에 올린 Skill·HTML 수', unit: 'Skill·HTML 공유', rows: rank(sharer) },
-    { k: 'views', title: '조회수왕', icon: '👀', crit: '내가 올린 Agent·Skill·HTML 중 조회수가 가장 높은 게시물', unit: '조회', rows: rank(viewed) }
+    { k: 'visit', title: '방문왕', icon: '👣', crit: 'Hub를 방문한 날 수 (하루에 한 번만 셈)', unit: '방문', rows: rank(visitor), fmt: n => n + '일' }
   ];
   list.forEach(a => {
-    if (a.k === 'pop' || a.k === 'views') {
+    if (a.k === 'pop') {
       // 게시물 부문은 내 게시물 중 가장 높은 순위
       const mineRow = (r: IRankRow): boolean => {
-        if (a.k === 'views') { const v = viewed[r.key]; return !!v && v.owner === me.id; }
         const ag = first(d.agents, x => String(x.id) === r.key);
         return !!(ag && ag.owner && ag.owner.id === me.id);
       };

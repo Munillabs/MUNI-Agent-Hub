@@ -8,8 +8,8 @@ export interface IHubApi {
 
   /* 이동 */
   go(view: HubView, id?: number): void;
-  /** Hub 전체 검색 화면으로 이동 */
-  search(q: string): void;
+  /** 검색 창 열기 (흐린 화면 위). scope 'market' 이면 Agent·Skill·HTML만 */
+  search(q: string, scope?: 'all' | 'market'): void;
   searchQuery: string;
 
   /* 즐겨찾기(Agent·Skill·HTML의 ♡, 이 브라우저에 저장)와 공감(아이디어, HubIdeas 평점 설정의 좋아요) */
@@ -44,6 +44,8 @@ export interface IHubApi {
   /** SharePoint 기본 댓글은 고칠 수 없어서, 고친 내용으로 새로 달고 이전 댓글을 지웁니다 */
   editComment(reactionId: string, body: string): Promise<boolean>;
   deleteComment(reactionId: string): Promise<boolean>;
+  /** 댓글·리뷰 글 좋아요 누르기 · 취소 (아이디어 댓글, Agent·Skill·HTML 리뷰) */
+  toggleCommentLike(reactionId: string): void;
 
   /* 사례 (내가 올린 것만 고치기·지우기) */
   deleteCase(caseId: number): Promise<boolean>;

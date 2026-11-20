@@ -8,11 +8,14 @@ import {
   HubView, IAgent, IHtmlTool, IHubData, IIdea, IMe, INewCase, INewHtml, INewSkill, IPerson, IReaction, IReportTarget, ISkill, IVersion, ReactionKind, TargetType
 } from '../models/types';
 import { first, ideaStage, isHttpsUrl, mmdd, ratingOf } from '../models/rules';
-import { INotice, badges, notices } from '../models/activity';
+import { INotice, notices } from '../models/activity';
 import { IHubApi } from './api';
 import { CaseForm, HtmlForm, IdeaEditForm, ReportForm, SkillForm } from './forms';
-import { Go, IconAgent, IconBell, IconGrid, IconCases, IconHome, IconHtml, IconIdeas, IconMaker, IconMarket, IconSearch, IconSkill, Modal, Toast } from './ui';
+import { Go, IconAgent, IconBell, IconGrid, IconCases, IconHtml, IconIdeas, IconMaker, IconMarket, IconSearch, IconSkill, Modal, Toast } from './ui';
 import { BadgeMedal } from './badge';
+import { BadgeArt } from './badgeArt';
+import { badgeSeries, profileArt, ratioOf } from '../models/badges';
+import { BadgesPage } from './pages/badges';
 import { HomeView } from './pages/home';
 import { AgentStore, HtmlStore, MarketView, SkillStore } from './pages/market';
 import { AgentPage, HtmlPage, SkillPage } from './pages/detail';
@@ -20,8 +23,28 @@ import { IdeaBoard, IdeaPage } from './pages/ideas';
 import { CaseLibrary, CasePage } from './pages/cases';
 import { MakerLab } from './pages/maker';
 import { MyWorkspace } from './pages/me';
-import { SearchView } from './pages/search';
+import { SearchOverlay } from './searchov';
+import { SpaceBg, ThemeSwitch, scrollHostOf, scrollTopOf, useReveal, useScrollTick } from './mv';
 import { MUNI_LOGO } from '../assets/logo';
+import MV_CSS from '../theme/muniverseCss';
+
+/** MUNIVERSE 디자인 CSS를 페이지에 한 번만 넣습니다 (design/*.css → theme/muniverseCss.ts) */
+function ensureDesignCss(): void {
+  if (document.getElementById('mv-design-css')) { return; }
+  const s = document.createElement('style');
+  s.id = 'mv-design-css';
+  s.textContent = MV_CSS;
+  document.head.appendChild(s);
+}
+const XICON = <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>;
+type Theme = 'light' | 'dark';
+/** 저장한 선택 → 없으면 기기 설정 (시안과 같은 키 muni-theme) */
+function initialTheme(): Theme {
+  let t: string | null = null;
+  try { t = window.localStorage.getItem('muni-theme'); } catch (e) { /* 없음 */ }
+  if (t === 'dark' || t === 'light') { return t; }
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 export interface IMuniAgentHubProps {
   service: HubService;
@@ -46,7 +69,7 @@ type ModalState =
   | undefined;
 interface IRoute { view: HubView; id?: number }
 
-const LIST_VIEWS: HubView[] = ['home', 'market', 'agents', 'skills', 'htools', 'ideas', 'cases', 'maker', 'search', 'me'];
+const LIST_VIEWS: HubView[] = ['home', 'market', 'agents', 'skills', 'htools', 'ideas', 'cases', 'maker', 'search', 'me', 'badges'];
 const ITEM_VIEWS: HubView[] = ['agent', 'skill', 'htool', 'idea', 'case'];
 /** 상세·하위 화면이 머리글 메뉴의 어디에 속하는지 (시안 NAVMAP) */
 const NAV_OF: { [v: string]: string } = { htool: 'market', agents: 'market', skills: 'market', htools: 'market', agent: 'market', skill: 'market', case: 'cases', idea: 'ideas' };
@@ -56,12 +79,12 @@ const MK_OF: { [v: string]: string } = { market: 'm', agents: 'a', agent: 'a', s
     (주소와 같은 id를 붙이면 브라우저가 그 위치로 스크롤하므로 id 대신 data 속성) */
 const PAGE_ID: { [v: string]: string } = {
   home: 'home', market: 'market', agents: 'store', skills: 'toolkit', htools: 'htools', agent: 'agent', htool: 'htmlitem', skill: 'skill',
-  ideas: 'ideas', idea: 'idea', cases: 'cases', case: 'case', maker: 'maker', search: 'search', me: 'me'
+  ideas: 'ideas', idea: 'idea', cases: 'cases', case: 'case', maker: 'maker', search: 'search', me: 'me', badges: 'badges'
 };
 /** Home 자동 새로 고침 간격 (1분) */
 const REFRESH_MS = 60000;
 const EMPTY: IHubData ={ agents: [], ideas: [], cases: [], reactions: [], skills: [], htmls: [] };
-const TITLES: { [v: string]: string } = { search: '검색', case: '사례', skill: 'Skill', idea: '아이디어', me: '내 작업공간', awards: '랭킹 · 배지', market: 'Marketplace', htools: 'HTML', agents: 'Agent', skills: 'Skill', ideas: 'Idea Board', cases: 'Case Library', maker: 'Maker Lab' };
+const TITLES: { [v: string]: string } = { search: '검색', case: '사례', skill: 'Skill', idea: '아이디어', me: '내 작업공간', awards: '랭킹 · 배지', badges: '배지 모음', market: 'Marketplace', htools: 'HTML', agents: 'Agent', skills: 'Skill', ideas: 'Idea Board', cases: 'Case Library', maker: 'Maker Lab' };
 
 function readHash(): IRoute {
   const h = (window.location.hash || '').replace(/^#/, '');
@@ -86,6 +109,17 @@ function saveRead(key: string, s: IReadState): void {
 
 export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const { service } = props;
+  ensureDesignCss();
+  const [theme, setThemeState] = React.useState<Theme>(initialTheme);
+  const setTheme = (t: Theme): void => { setThemeState(t); try { window.localStorage.setItem('muni-theme', t); } catch (e) { /* 저장 못 해도 동작 */ } };
+  React.useEffect(() => {
+    // 직접 고른 적이 없으면 기기 설정이 바뀔 때 따라갑니다
+    if (!window.matchMedia) { return undefined; }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const on = (e: MediaQueryListEvent): void => { let s: string | null = null; try { s = window.localStorage.getItem('muni-theme'); } catch (x) { /* 없음 */ } if (!s) { setThemeState(e.matches ? 'dark' : 'light'); } };
+    if (mq.addEventListener) { mq.addEventListener('change', on); return () => mq.removeEventListener('change', on); }
+    return undefined;
+  }, []);
   const [route, setRoute] = React.useState<IRoute>(readHash);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [modal, setModal] = React.useState<ModalState>(undefined);
@@ -97,12 +131,69 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const [toastMsg, setToastMsg] = React.useState('');
   const [menu, setMenu] = React.useState<'' | 'market' | 'account' | 'notif'>('');
   const [readState, setReadState] = React.useState<IReadState>({ ids: [], all: '', del: [] });
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  /* 프로필 패널이 놓일 자리 = Hub가 실제로 보이는 영역 (웹 파트 상자 ∩ 스크롤 상자 ∩ 창, 위쪽 막대 아래).
+     패널이 브라우저 화면 전체가 아니라 서비스 안에 담기게 합니다. */
+  const [paneBox, setPaneBox] = React.useState<{ top: number; bottom: number; left: number; right: number } | undefined>(undefined);
+  React.useEffect(() => {
+    if (menu !== 'account') { setPaneBox(undefined); return undefined; }
+    const measure = (): void => {
+      let bottom = 0;
+      ['#SuiteNavWrapper', '#SuiteNavPlaceHolder', '#O365_NavHeader', '#suiteBarDelta', '[data-automationid="SuiteNav"]'].forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el) {
+          const r = el.getBoundingClientRect();
+          if (r.height > 0 && r.top < 10) { bottom = Math.max(bottom, r.bottom); }
+        }
+      });
+      // 화면 맨 위를 덮고 있는 Hub 밖의 막대(SharePoint 위쪽 막대, 워크벤치·브라우저 확장 막대 등)를 모두 찾습니다.
+      // 패널이 이미 그 자리를 덮고 있어도 아래에 겹친 요소까지 보도록 elementsFromPoint 를 씁니다.
+      const root = rootRef.current;
+      const W = window.innerWidth;
+      const seen: Element[] = [];
+      const scan = (x: number, y: number): void => {
+        const list: Element[] = document.elementsFromPoint ? document.elementsFromPoint(x, y)
+          : (document.elementFromPoint(x, y) ? [document.elementFromPoint(x, y) as Element] : []);
+        list.forEach(start => {
+          for (let el: Element | null = start; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+            if (root && (root.contains(el) || el.contains(root))) { break; }
+            if (seen.indexOf(el) >= 0) { continue; }
+            seen.push(el);
+            const r = el.getBoundingClientRect();
+            const pos = window.getComputedStyle(el).position;
+            const pinned = pos === 'fixed' || pos === 'sticky' || pos === 'absolute';
+            if (r.top <= 1 && r.height > 0 && r.height <= 160 && r.width >= W / 3 && (pinned || r.bottom > bottom)) { bottom = Math.max(bottom, r.bottom); }
+          }
+        });
+      };
+      [2, 12, 24].forEach(y => [W - 24, W - 160, W - 320].forEach(x => { if (x > 0) { scan(x, y); } }));
+      // Hub가 보이는 영역: 웹 파트 루트와 스크롤 상자(있으면)와 창이 겹치는 부분
+      const H = window.innerHeight;
+      let top = Math.max(0, bottom), bot = H, left = 0, right = W;
+      const clip = (r: { top: number; bottom: number; left: number; right: number }): void => {
+        top = Math.max(top, r.top); bot = Math.min(bot, r.bottom); left = Math.max(left, r.left); right = Math.min(right, r.right);
+      };
+      if (root) { clip(root.getBoundingClientRect()); }
+      const host = scrollHostOf(root);
+      if (host !== window) { clip((host as HTMLElement).getBoundingClientRect()); }
+      // 너무 좁거나 낮으면(예: Hub가 거의 안 보일 때) 창 기준으로
+      if (bot - top < 240 || right - left < 320) { top = Math.max(0, bottom); bot = H; left = 0; right = W; }
+      const next = { top: Math.round(top), bottom: Math.round(H - bot), left: Math.round(left), right: Math.round(W - right) };
+      setPaneBox(p => p && p.top === next.top && p.bottom === next.bottom && p.left === next.left && p.right === next.right ? p : next);
+    };
+    measure();
+    // 막대가 늦게 그려지는 경우가 있어 잠시 뒤 한 번 더
+    const t = window.setTimeout(measure, 250);
+    window.addEventListener('resize', measure);
+    // 페이지(또는 SharePoint 스크롤 상자)를 스크롤하면 보이는 영역이 바뀌므로 다시 맞춥니다
+    window.addEventListener('scroll', measure, true);
+    return () => { window.clearTimeout(t); window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
+  }, [menu]);
   const customLogo = (props.logoUrl || '').trim();
   const [customLogoFailed, setCustomLogoFailed] = React.useState(false);
   React.useEffect(() => { setCustomLogoFailed(false); }, [customLogo]);
   const logoSrc = customLogo && !customLogoFailed ? customLogo : MUNI_LOGO;
   const toastTimer = React.useRef<number>(0);
-  const rootRef = React.useRef<HTMLDivElement>(null);
   const bellRef = React.useRef<HTMLAnchorElement>(null);
   const now = React.useMemo(() => new Date(), [data]);
   const readKey = me ? `muniAiHub.read.${me.id}` : '';
@@ -124,8 +215,11 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     setLoading(true);
     setError('');
     try {
-      if (!me) { setMe(await service.getMe()); }
-      setData(await service.loadAll());
+      const m = me || await service.getMe();
+      if (!me) { setMe(m); }
+      // 방문 기록(하루 1회)은 읽기와 함께 보내고, 실패해도 화면은 그대로 엽니다. 저장된 내 방문 수를 바로 반영합니다.
+      const [d, n] = await Promise.all([service.loadAll(), service.recordVisit(m.id, m.email).then(v => v, () => undefined)]);
+      setData(n ? { ...d, visits: { ...(d.visits || {}), [m.id]: { name: m.name, count: n } } } : d);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Hub 데이터를 불러오지 못했어요.');
     } finally {
@@ -199,7 +293,42 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     if (el && el.getBoundingClientRect().top < 0) { el.scrollIntoView({ block: 'start' }); }
   }, []);
   const goHome = (): void => { go('home'); load().catch(() => undefined); };
-  const search = (q: string): void => { setSearchQuery(q); go('search'); };
+  /* 검색: 흐린 화면 위로 열리는 검색 창 (시안 c11). 옛 주소 #search 로 들어오면 홈에서 검색 창만 엽니다 */
+  const [sx, setSx] = React.useState<{ open: boolean; scope: 'all' | 'market'; q: string }>({ open: false, scope: 'all', q: '' });
+  const search = (q: string, scope?: 'all' | 'market'): void => { setSearchQuery(q); setMenu(''); setSx({ open: true, scope: scope || 'all', q }); };
+  React.useEffect(() => {
+    if (route.view !== 'search') { return; }
+    setRoute({ view: 'home' });
+    try { window.history.replaceState(window.history.state, '', '#home'); } catch (e) { /* 무시 */ }
+    setSx({ open: true, scope: 'all', q: searchQuery });
+  }, [route.view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 머리글: 홈 맨 위에서는 바탕 없음(hm-top), 홈에서는 스크롤해도 투명(c19-clear), 스크롤하면 b3-scr */
+  const [hdTop, setHdTop] = React.useState(true);
+  useScrollTick(rootRef, y => { const t = y <= 4; setHdTop(p => p === t ? p : t); }, [route.view]);
+  useReveal(rootRef, route.view + ':' + (route.id || '') + ':' + (loading ? 'l' : 'r'));
+
+  /* 푸터 고정 (시안 c71): 내용이 짧은 화면(예: 상세 > 업데이트 기록)에서도 푸터가 화면 맨 아래에 있게,
+     본문 최소 높이 = 보이는 높이 − 본문 위쪽까지 − 푸터 높이. SharePoint 위쪽 막대 높이가 달라도 실제로 재서 맞춥니다 */
+  const mainRef = React.useRef<HTMLElement>(null);
+  const footRef = React.useRef<HTMLElement>(null);
+  React.useLayoutEffect(() => {
+    const fit = (): void => {
+      const m = mainRef.current, f = footRef.current;
+      if (!m || !f) { return; }
+      const host = scrollHostOf(rootRef.current);
+      const isWin = host === window;
+      const hostTop = isWin ? 0 : (host as HTMLElement).getBoundingClientRect().top;
+      const viewH = isWin ? window.innerHeight : (host as HTMLElement).clientHeight;
+      const top = m.getBoundingClientRect().top - hostTop + scrollTopOf(host);
+      const need = Math.floor(viewH - top - f.offsetHeight);
+      m.style.minHeight = need > 0 ? need + 'px' : '';
+    };
+    fit();
+    const t = window.setTimeout(fit, 300);
+    window.addEventListener('resize', fit);
+    return () => { window.clearTimeout(t); window.removeEventListener('resize', fit); };
+  }, [route.view, route.id, loading]);
 
   // 바깥을 누르거나 Esc 면 펼친 메뉴·알림을 닫습니다
   React.useEffect(() => {
@@ -359,11 +488,9 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const avatarOf = (p?: IPerson): string | undefined => {
     if (!p || !p.id) { return undefined; }
     if (p.id in avatarCache) { return avatarCache[p.id]; }
-    const got = badges(data, p, now).filter(b => b.got);
     const pick = (data.avatars || {})[p.id] || '';
-    const latest = got.slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''))[0];
-    // 'photo' = 사진 · 고른 배지가 아직 있으면 그 배지 · 아니면 최근 배지
-    const k = pick === 'photo' ? undefined : (got.some(b => b.k === pick) ? pick : (latest ? latest.k : undefined));
+    // 'photo' = 사진 · 고른 칸이 있으면 그 칸의 지금 단계 그림 · 아니면 가장 최근에 받은 배지 그림
+    const k = pick === 'photo' ? undefined : profileArt(badgeSeries(data, p), pick);
     avatarCache[p.id] = k;
     return k;
   };
@@ -439,6 +566,15 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       if (!r) { return false; }
       try { await removeComment(r); toast('댓글을 지웠어요'); return true; } catch (e) { fail(e); return false; }
     },
+    toggleCommentLike: rid => {
+      const r = first(data.reactions, x => x.id === rid);
+      if (!r || !r.commentId) { return; }
+      const on = !r.likedByMe;
+      // 먼저 화면에 반영하고, 저장에 실패하면 되돌립니다
+      const patch = (liked: boolean, delta: number): void => setData(d => ({ ...d, reactions: d.reactions.map(x => x.id === rid ? { ...x, likedByMe: liked, likes: Math.max(0, (x.likes || 0) + delta) } : x) }));
+      patch(on, on ? 1 : -1);
+      service.likeComment(r.targetType, r.targetId, r.commentId, on).catch(e => { patch(!on, on ? -1 : 1); fail(e); });
+    },
     reviveIdea: async id => {
       try { const at = await service.reviveIdea(id); patchIdea(id, i => ({ ...i, revivedOn: at, archivedOn: '', status: '모집 중' })); toast('보관을 해제했어요'); return true; } catch (e) { fail(e); return false; }
     },
@@ -474,15 +610,21 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const allNotices: INotice[] = api ? notices(data, api.me, now).filter(n => readState.del.indexOf(n.id) < 0) : [];
   const unread = api ? allNotices.filter(n => !api.isRead(n.id, n.date)) : [];
   const shownNotices = allNotices;
-  const allBadges = api ? badges(data, api.me, now) : [];
-  const myBadges = allBadges.filter(b => b.got);
-  // 아직 못 받은 배지 (진행률 높은 순). Case Library 올리기를 없앨 예정이라 '첫 사례'는 빼요
-  const lockedBadges = allBadges.filter(b => !b.got && b.k !== 'first-case')
-    .sort((x, y) => ((y.have || 0) / (y.need || 1)) - ((x.have || 0) / (x.need || 1)));
+  /* 프로필 패널: 내 배지 · 도전할 배지는 3개씩, 더보기로 펼침 */
+  const [moreMine, setMoreMine] = React.useState(false);
+  const [moreTodo, setMoreTodo] = React.useState(false);
+  /* 배지 (시안 배지 도감): 칸 14개 × 단계. 내 배지 = 받은 칸(지금 단계), 도전할 배지 = 다음 단계 진행률 높은 순 */
+  const mySeries = api ? badgeSeries(data, api.me) : [];
+  const myPick = me ? ((data.avatars || {})[me.id] || '') : '';
+  // 지금 프로필 배지 칸: 고른 칸 → 없으면 가장 최근에 받은 칸
+  const latestGot = mySeries.filter(x => !!x.top).sort((a, b) => (b.top!.date || '').localeCompare(a.top!.date || ''))[0];
+  const repSid = myPick === 'photo' ? '' : (mySeries.some(x => x.sid === myPick && !!x.top) ? myPick : (latestGot ? latestGot.sid : ''));
+  const gotSeries = mySeries.filter(x => !!x.top).sort((a, b) => (a.sid === repSid ? -1 : b.sid === repSid ? 1 : (b.top!.date || '').localeCompare(a.top!.date || '')));
+  const todoSeries = mySeries.filter(x => !!x.next && !x.hid).sort((a, b) => ratioOf(b) - ratioOf(a));
   // 프로필 동그라미: 고른 배지 → 없으면 최근 배지. 사진을 골랐거나 배지가 없으면 Microsoft 365 프로필 사진
   const myAvatarKey = me ? avatarOf(me) : undefined;
-  const avBadge = first(myBadges, b => b.k === myAvatarKey);
-  const myPick = me ? ((data.avatars || {})[me.id] || '') : '';
+  const repSeries = first(mySeries, x => x.sid === repSid);
+  const avBadge = myAvatarKey ? { k: myAvatarKey, title: repSeries && repSeries.top ? repSeries.top.n : '' } : undefined;
   const photoUrl = me && me.email && !photoFailed
     ? `${props.siteUrl.replace(/\/+$/, '')}/_layouts/15/userphoto.aspx?size=M&accountname=${encodeURIComponent(me.email)}` : '';
   // 배지가 있으면 동그라미 전체를 배지로, 없으면 프로필 사진(없으면 이름 첫 글자)
@@ -531,9 +673,10 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       case 'cases': body = <CaseLibrary api={api} />; break;
       case 'case': body = <CasePage api={api} item={first(data.cases, x => x.id === id)} />; break;
       case 'maker': body = <MakerLab api={api} />; break;
-      case 'search': body = <SearchView api={api} />; break;
+      case 'search': body = null; break;
       case 'me': body = <MyWorkspace api={api} />; break;
-      default: body = <HomeView api={api} />;
+      case 'badges': body = <BadgesPage api={api} series={mySeries} pick={repSid} repArt={myAvatarKey} onPick={pickAvatar} onOpenProfile={() => setMenu('account')} />; break;
+      default: body = <HomeView api={api} dark={theme === 'dark'} rootRef={rootRef} />;
     }
   }
 
@@ -580,15 +723,19 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   shownNotices.forEach(n => { const g = groupOf(n.date); if (groups.indexOf(g) < 0) { groups.push(g); } });
 
   return (
-    <div ref={rootRef} className={styles.muniHub}>
+    <div ref={rootRef} className={`${styles.muniHub} mv-root hvs-dot${sx.open ? ' c11-lock' : ''}${modal ? ' mopen' : ''}`} data-theme={theme}>
+      <SpaceBg on={theme === 'dark'} home={route.view === 'home'} />
       {props.showHeader ? (
-        <header className="hd" onMouseLeave={() => { if (menu === 'market') { setMenu(''); } }}>
+        <header className={'hd' + (route.view === 'home' ? ' c19-clear' : '') + (route.view === 'home' && hdTop ? ' hm-top' : '') + (!hdTop ? ' b3-scr' : '') + (menu === 'market' ? ' b3-open' : '')}
+          onMouseLeave={() => { if (menu === 'market') { setMenu(''); } }}>
           <div className="wrap">
-            <a className="logo" href="#home" title="Home (새로 고침)" onClick={e => { e.preventDefault(); goHome(); }}>
-              <img src={logoSrc} alt="" style={{ height: 22, width: 'auto', display: 'block' }} onError={() => { if (logoSrc !== MUNI_LOGO) { setCustomLogoFailed(true); } }} />MUNI AI Hub</a>
+            <a className="logo" href="#home" title="홈으로" aria-label="MUNIVERSE 홈" onClick={e => { e.preventDefault(); goHome(); }}>
+              {customLogo && !customLogoFailed
+                ? <img src={logoSrc} alt="" style={{ height: 24, width: 'auto', display: 'block' }} onError={() => { if (logoSrc !== MUNI_LOGO) { setCustomLogoFailed(true); } }} />
+                : <span className="lg-mark"><i /></span>}
+              <span className="lg-word" aria-hidden="true">MUNI<b>VERSE</b></span></a>
             <nav className="gnav" aria-label="전역 메뉴">
-              {nav('home', <IconHome />, 'Home')}
-              <a href="#market" id="mktBtn" className="menu-host" aria-current={navOn === 'market' ? 'page' : undefined} aria-haspopup="true" aria-expanded={menu === 'market'} aria-controls="hub-mkmenu"
+              <a href="#market" id="mv-mktBtn" data-nav="market" className="menu-host" aria-current={navOn === 'market' ? 'page' : undefined} aria-haspopup="true" aria-expanded={menu === 'market'} aria-controls="hub-mkmenu"
                 onMouseEnter={() => setMenu('market')} onFocus={() => setMenu('market')}
                 onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setMenu('market'); } }}
                 onClick={e => { e.preventDefault(); go('market'); }}><IconMarket />Marketplace<i className="caret" aria-hidden="true" /></a>
@@ -597,24 +744,26 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
               {nav('maker', <IconMaker />, 'Maker Lab', 'mk')}
             </nav>
             <div className="util">
-              <a href="#search" aria-label="Hub 검색" onClick={e => { e.preventDefault(); go('search'); }}><IconSearch />검색</a>
+              <ThemeSwitch dark={theme === 'dark'} onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
+              <a role="button" tabIndex={0} href="#search" aria-haspopup="dialog" aria-label="Hub 검색" onClick={e => { e.preventDefault(); search(''); }}
+                onKeyDown={e => { if (e.key === ' ') { e.preventDefault(); search(''); } }}><IconSearch />검색</a>
               <span className="menu-host" style={{ display: 'contents' }}>
-                <a href="#notif" className="notifBtn" ref={bellRef} role="button" aria-haspopup="dialog" aria-controls="hub-npanel" aria-expanded={menu === 'notif'} aria-label={`알림 ${unread.length}개`}
+                <a href="#notif" id="mv-notifBtn" className="notifBtn" ref={bellRef} role="button" aria-haspopup="dialog" aria-controls="mv-notifPanel" aria-expanded={menu === 'notif'} aria-label={`알림 ${unread.length}개`}
                   onClick={e => { e.preventDefault(); setMenu(menu === 'notif' ? '' : 'notif'); }}><IconBell /><span className="sr">알림</span>{unread.length ? <span className="nbadge" aria-hidden="true">{unread.length}</span> : null}</a>
               </span>
               <div className="umenu menu-host">
-                <button type="button" className="avbtn" aria-haspopup="dialog" aria-expanded={menu === 'account'} aria-controls="hub-medrawer" onClick={() => setMenu(menu === 'account' ? '' : 'account')}>
+                <button type="button" className="avbtn" aria-haspopup="dialog" aria-expanded={menu === 'account'} aria-controls="mv-meDrawer" onClick={() => setMenu(menu === 'account' ? '' : 'account')}>
                   {avFace('av', 30)}<span className="sr">내 프로필 열기</span></button>
               </div>
             </div>
           </div>
           {/* menu-host: 메뉴 안을 누를 때 '바깥 누르면 닫기'가 먼저 메뉴를 닫아 클릭이 사라지지 않게 */}
           <div className="mktmenu menu-host" id="hub-mkmenu" hidden={menu !== 'market'} onMouseEnter={() => setMenu('market')}>
-            <div className="wrap"><p className="mk-h">Marketplace</p><div className="mk-grid">
-              <Go go={go} view="agents" className="mk-card"><span className="mk-top"><IconAgent /><em>{data.agents.length}</em></span><b>Agent</b><span>회사에서 정식으로 쓰는 Agent. 업무에 바로 열어 써요</span></Go>
-              <Go go={go} view="skills" className="mk-card"><span className="mk-top"><IconSkill /><em>{data.skills.length}</em></span><b>Skill</b><span>Agent에 붙여 결과를 맞추는 지침·양식 파일</span></Go>
-              <Go go={go} view="htools" className="mk-card"><span className="mk-top"><IconHtml /><em>{data.htmls.length}</em></span><b>HTML</b><span>브라우저에서 바로 여는 계산기·판단 도구</span></Go>
-              <Go go={go} view="market" className="mk-all"><b>Marketplace 전체 보기 →</b><span>인기·새로 올라온 것을 한눈에</span></Go>
+            <div className="wrap"><div className="mk-grid">
+              <Go go={go} view="agents" className="mk-card"><span className="mk-top"><IconAgent /><em>{data.agents.length}</em></span><b>Agent</b><span>반복되는 업무를 도와줄 AI가 필요할 때</span></Go>
+              <Go go={go} view="skills" className="mk-card"><span className="mk-top"><IconSkill /><em>{data.skills.length}</em></span><b>Skill</b><span>AI에 지침과 노하우를 더해 맞춤형 결과를 얻고 싶을 때</span></Go>
+              <Go go={go} view="htools" className="mk-card"><span className="mk-top"><IconHtml /><em>{data.htmls.length}</em></span><b>HTML</b><span>업무를 더 쉽고 편리하게 해 주는 웹 도구가 필요할 때</span></Go>
+              <Go go={go} view="market" className="mk-all"><b>Marketplace 전체 보기 →</b><span>동료들이 만든 다양한 도구와 자료를 살펴보세요</span></Go>
             </div></div>
           </div>
           {/* Marketplace 아래 화면에서만 보이는 종류 탭 (시안 mkSub) */}
@@ -629,7 +778,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
         </header>
       ) : null}
 
-      <main className="page on" data-hub-page={PAGE_ID[route.view]} aria-label={TITLES[route.view] || 'Home'}>
+      <main ref={mainRef} className="page on" id={'mv-' + PAGE_ID[route.view]} data-hub-page={PAGE_ID[route.view]} aria-label={TITLES[route.view] || 'Home'}>
         {error ? (
           <div className="wrap"><div className="state err-state" role="alert"><b>Hub를 불러오지 못했어요</b><p>{error}</p>
             <button type="button" className="btn" onClick={() => { load().catch(() => undefined); }}>다시 시도</button></div></div>
@@ -641,7 +790,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
         </>}
       </main>
 
-      <footer className="sfoot"><div className="wrap"><nav aria-label="도움말">
+      <footer className="sfoot" ref={footRef}><div className="wrap"><nav aria-label="도움말">
         <a href="#guide" onClick={e => { e.preventDefault(); go('maker'); }}>이용 가이드</a>
         <a href="#" onClick={e => { e.preventDefault(); soon('Hub 운영 기준'); }}>Hub 운영 기준</a>
         <a href="#" onClick={e => { e.preventDefault(); soon('문의 채널'); }}>문의 (Teams 채널)</a>
@@ -650,21 +799,26 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
 
       {menu === 'notif' && api ? (
         <>
-          <div className="scrim on nScrim" onClick={() => setMenu('')} />
-          <aside className="drawer npanel on menu-host" id="hub-npanel" role="dialog" aria-modal="true" aria-labelledby="hub-nT" style={bellPos()}>
-            <div className="dh"><b id="hub-nT">알림 <span className="pill">{unread.length}</span></b><button type="button" className="nread" onClick={api.markAllRead}>모두 읽음</button>{shownNotices.length ? <button type="button" className="nread" onClick={() => removeNotices(shownNotices.map(n => n.id), '알림을 모두 지웠어요')}>모두 지우기</button> : null}<button type="button" aria-label="알림 닫기" onClick={() => setMenu('')}>✕</button></div>
-            <div className="nbody">
+          <div className="scrim on nScrim" id="mv-nScrim" onClick={() => setMenu('')} />
+          <aside className="drawer npanel on menu-host" id="mv-notifPanel" role="dialog" aria-modal="true" aria-labelledby="hub-nT" style={bellPos()}>
+            {/* 시안 11/18 알림 패널: 머리 = 알림+개수 원, 모두 읽음·모두 지우기 밑줄 글자, X / 날짜 묶음 / 점 + 굵은 제목 */}
+            <div className="dh nx-h"><b id="hub-nT">알림 <span className="nx-cnt">{unread.length}</span></b>
+              <button type="button" className="nx-tl" onClick={api.markAllRead}>모두 읽음</button>
+              {shownNotices.length ? <button type="button" className="nx-tl" onClick={() => removeNotices(shownNotices.map(n => n.id), '알림을 모두 지웠어요')}>모두 지우기</button> : null}
+              <button type="button" className="nx-x" aria-label="알림 닫기" onClick={() => setMenu('')}>{XICON}</button></div>
+            <div className="nbody nx-body">
               {groups.map(g => (
-                <React.Fragment key={g}><p className="ngrp">{g}</p>
-                  <ul className="nlist">{shownNotices.filter(n => groupOf(n.date) === g).map(n => (
-                    <li key={n.id} className={api.isRead(n.id, n.date) ? '' : 'unread'}><span className="ndot" aria-hidden="true" /><div><b>{n.title}</b><span>{n.sub} · {g === '오늘' ? new Date(n.date).toTimeString().slice(0, 5) : new Date(n.date).toISOString().slice(5, 10).replace('-', '/')}</span>
-                      {n.btn ? <Go go={v => { markRead([n.id]); go(v, n.target || undefined); }} view={n.view} id={n.target || undefined} className="btn sm">{n.btn}</Go> : null}</div>
-                      <button type="button" className="ndel" aria-label={`알림 지우기: ${n.title}`} title="알림 지우기" onClick={() => removeNotices([n.id], '알림을 지웠어요')}>✕</button></li>
-                  ))}</ul></React.Fragment>
+                <section key={g} className="nx-g"><h3>{g}</h3>
+                  <ul className="nx-list">{shownNotices.filter(n => groupOf(n.date) === g).map(n => (
+                    <li key={n.id} className={api.isRead(n.id, n.date) ? '' : 'unread'}><span className="nx-dot" aria-hidden="true" />
+                      <Go go={v => { markRead([n.id]); go(v, n.target || undefined); }} view={n.view} id={n.target || undefined} className="nx-go">
+                        <b>{n.title}</b><span>{n.sub ? n.sub + ' · ' : ''}{g === '오늘' ? new Date(n.date).toTimeString().slice(0, 5) : mmdd(n.date)}</span></Go>
+                      <button type="button" className="nx-del" aria-label="이 알림 지우기" title="알림 지우기" onClick={() => removeNotices([n.id], '알림을 지웠어요')}>{XICON}</button></li>
+                  ))}</ul></section>
               ))}
-              {!shownNotices.length ? <p className="ngrp">새 알림이 없어요</p> : null}
+              {!shownNotices.length ? <p className="nx-empty"><b>새 알림이 없어요</b>내 콘텐츠에 리뷰가 달리거나 배지를 받으면 여기에 알려 드려요.</p> : null}
             </div>
-            <div className="nfoot"><Go go={go} view="me">나의 작업공간에서 모두 보기 →</Go></div>
+            <div className="nfoot nx-foot"><Go go={go} view="me">나의 작업공간에서 모두 보기 →</Go></div>
           </aside>
         </>
       ) : null}
@@ -672,44 +826,51 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       {/* 프로필 패널: 내 콘텐츠로 가기, 받은 배지 (시안 meDrawer) */}
       {menu === 'account' && api ? (
         <>
-          <div className="scrim mescrim on" onClick={() => setMenu('')} />
-          <aside className="drawer medrawer on menu-host" id="hub-medrawer" role="dialog" aria-modal="true" aria-labelledby="hub-meT">
+          <div className="scrim mescrim on" id="mv-meScrim" onClick={() => setMenu('')}
+            style={paneBox ? { top: paneBox.top, bottom: paneBox.bottom, left: paneBox.left, right: paneBox.right } : undefined} />
+          <aside className="drawer medrawer on menu-host" id="mv-meDrawer" role="dialog" aria-modal="true" aria-labelledby="hub-meT"
+            style={paneBox ? { top: paneBox.top, bottom: paneBox.bottom, right: paneBox.right, height: 'auto', maxHeight: 'none', maxWidth: `calc(100vw - ${paneBox.left + paneBox.right}px)` } : undefined}>
             <div className="mdh">{avFace('av mav', 44)}<b id="hub-meT">{api.me.name}</b>
               <button type="button" aria-label="닫기" onClick={() => setMenu('')}>✕</button></div>
+            {/* 시안 11/18 프로필 패널: 나의 작업공간 바로 가기 / 내 배지(누르면 프로필 배지로) / 도전할 배지(진행 막대) */}
             <div className="mdbody">
-              <nav className="mnav" aria-label="내 메뉴"><Go go={go} view="me"><span><b>내 콘텐츠 수정하러 가기</b><small>내가 올린 Agent, Skill, HTML, 아이디어</small></span><i aria-hidden="true">→</i></Go></nav>
-              <section aria-labelledby="hub-mbH"><h2 id="hub-mbH">내 배지 <span className="pill">{myBadges.length}</span></h2>
-                {myBadges.length ? <ul className="mbadges">{myBadges.map(b => (
-                  <li key={b.k}><BadgeMedal k={b.k} size={56} title={b.title} />
-                    <span><b>{b.title}</b><small>{b.desc}{b.date ? ' · ' + mmdd(b.date) : ''}</small></span>
-                    {avBadge && avBadge.k === b.k ? <span className="bpick on">프로필 사용 중</span>
-                      : <button type="button" className="bpick" onClick={() => pickAvatar(b.k)}>프로필로 쓰기</button>}</li>
-                ))}</ul> : <p className="note" style={{ margin: 0 }}>아직 받은 배지가 없어요. 아이디어를 붙이거나 Agent를 올리면 받을 수 있어요.</p>}
-                {myBadges.length ? (
+              <nav className="mnav" aria-label="내 메뉴"><Go go={go} view="me" className="b7p-nav"><span><b>나의 작업공간</b></span><i className="b7p-go">바로 가기<span aria-hidden="true"> →</span></i></Go></nav>
+              <section aria-labelledby="hub-mbH" className="b7p">
+                <div className="b7p-hr"><h2 id="hub-mbH" className="b7p-h">내 배지 <span className="b7p-n">{gotSeries.length}</span></h2>
+                  <Go go={go} view="badges" className="b7p-all">전체 보기<span aria-hidden="true"> →</span></Go></div>
+                {gotSeries.length ? <>
+                  <p className="b7p-tip">누르면 프로필 배지가 바뀌어요</p>
+                  <ul className="b7p-list" role="list">{(moreMine ? gotSeries : gotSeries.slice(0, 3)).map(x => {
+                    const on = x.sid === repSid;
+                    const b = x.top!;
+                    return (
+                      <li key={x.sid}><button type="button" className={'b7p-card b7p-sel' + (on ? ' on' : '')} aria-pressed={on} onClick={() => { if (!on) { pickAvatar(x.sid); } }}>
+                        <span className="b7p-em"><BadgeArt art={b.art} on={true} /></span>
+                        <span className="b7p-tx"><b>{b.n}</b>{b.date ? <small>{mmdd(b.date)} 획득</small> : null}</span>
+                        {on ? <span className="b7p-use"><span aria-hidden="true">✓</span> 프로필로 사용 중</span> : null}</button></li>
+                    );
+                  })}</ul>
+                  {gotSeries.length > 3 ? <button type="button" className="b7p-more" aria-expanded={moreMine} onClick={() => setMoreMine(!moreMine)}>{moreMine ? '접기' : `더보기 (${gotSeries.length - 3})`}</button> : null}
                   <p className="bpicks">
                     {myPick !== 'photo' ? <button type="button" className="bpick reset" onClick={() => pickAvatar('photo')}>배지 대신 내 사진 쓰기</button> : null}
                     {myPick ? <button type="button" className="bpick reset" onClick={() => pickAvatar('')}>최근 받은 배지로 자동 바꾸기</button> : null}
                   </p>
-                ) : null}
-                <p className="note" style={{ margin: '8px 0 0', fontSize: 12 }}>고른 프로필은 다른 사람의 Hub 화면(댓글·아이디어 작성자)에도 보여요.</p>
-              </section>
-              {lockedBadges.length ? (
-                <section aria-labelledby="hub-mlH"><h2 id="hub-mlH">도전할 배지 <span className="pill">{lockedBadges.length}</span></h2>
-                  <ul className="mbadges locked">{lockedBadges.map(b => {
-                    const pct = Math.round(Math.min((b.have || 0) / (b.need || 1), 1) * 100);
+                </> : <p className="b7p-tip">아직 받은 배지가 없어요. 아이디어를 올리거나 Agent를 배포하면 받을 수 있어요.</p>}
+                {todoSeries.length ? <>
+                  <div className="b7p-hr b7p-h2"><h2 className="b7p-h">도전할 배지 <span className="b7p-n">{todoSeries.length}</span></h2>
+                    <Go go={go} view="badges" className="b7p-all">전체 보기<span aria-hidden="true"> →</span></Go></div>
+                  <ul className="b7p-list">{(moreTodo ? todoSeries : todoSeries.slice(0, 3)).map(x => {
+                    const nx = x.next!;
                     return (
-                      <li key={b.k}><BadgeMedal k={b.k} size={56} locked={true} title={b.title} />
-                        <span><b>{b.title}</b><small>{b.desc}</small>
-                          <span className="bprog" aria-label={`${b.have || 0} / ${b.need}`}
-                            style={{ display: 'block', height: 6, borderRadius: 999, background: '#ececea', marginTop: 8, overflow: 'hidden' }}>
-                            <i style={{ display: 'block', height: '100%', width: pct + '%', borderRadius: 999, background: 'linear-gradient(90deg,#f5a524,#f04f7f)' }} />
-                          </span>
-                          <small style={{ display: 'block', marginTop: 4 }}>{b.have || 0} / {b.need}{pct >= 50 ? ' · 거의 다 왔어요!' : ''}</small>
-                        </span></li>
+                      <li key={x.sid} className="b7p-card b7p-todo"><span className="b7p-em"><BadgeArt art={nx.art} on={false} /></span>
+                        <span className="b7p-tx"><b>{nx.n}</b><small>{nx.c}</small>
+                          <span className="b7p-bar" aria-hidden="true"><i style={{ width: Math.max(3, ratioOf(x) * 100).toFixed(0) + '%' }} /></span>
+                          <small className="b7p-num">{nx.cur} / {nx.need}</small></span></li>
                     );
                   })}</ul>
-                </section>
-              ) : null}
+                  {todoSeries.length > 3 ? <button type="button" className="b7p-more" aria-expanded={moreTodo} onClick={() => setMoreTodo(!moreTodo)}>{moreTodo ? '접기' : `더보기 (${todoSeries.length - 3})`}</button> : null}
+                </> : null}
+              </section>
             </div>
             <div className="mfoot"><a href="#" onClick={e => { e.preventDefault(); setMenu(''); soon('로그아웃은 Microsoft 365 계정에서'); }}>로그아웃</a></div>
           </aside>
@@ -727,6 +888,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
             : <div className="state" style={{ margin: 0, background: '#fff', flex: 1, borderRadius: '0 0 14px 14px' }}>{viewer.err ? <p>{viewer.err}</p> : <><span className="spin" /><p>여는 중이에요</p></>}</div>}
         </div>
       ) : null}
+      {api ? <SearchOverlay api={api} open={sx.open} scope={sx.scope} initial={sx.q} onClose={() => setSx(s => ({ ...s, open: false }))} /> : null}
       <Toast message={toastMsg} />
     </div>
   );

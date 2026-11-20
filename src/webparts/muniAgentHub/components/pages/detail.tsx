@@ -1,10 +1,16 @@
 /* 상세 화면 (시안 그대로): Agent · Skill · HTML — 머리말, 요약 지표, 탭(개요 · 상세 정보 · 리뷰 · 업데이트 기록) */
 import * as React from 'react';
 import { IAgent, IHtmlTool, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
-import { extLabel, first, isEmail, isHttpsUrl, mmdd, ymd } from '../../models/rules';
+import { extLabel, first, isEmail, isHttpsUrl, mmdd, splitLines, ymd } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Clamp, Crumb, DetailTabs, Empty, Go, Pill, RatingSummary, ReviewRow, StarInput } from '../ui';
+import { Clamp, Crumb, DetailTabs, Empty, Go, Pill, RatingSummary } from '../ui';
 import { Person } from '../persona';
+import { BadgeMedal } from '../badge';
+
+/** '이럴 때 써요': 한 줄에 하나씩. 줄 앞에 붙인 -, •, ·, 1. 같은 표시는 뗍니다 */
+function whenList(v: string): string[] {
+  return splitLines(v).map(x => x.replace(/^([-*•·]|\d+[.)])\s*/, '')).filter(x => !!x);
+}
 
 function teamsChat(p?: IPerson): string {
   return p && isEmail(p.email) ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(p.email)}` : '';
@@ -41,39 +47,77 @@ function MakerNote(props: { text: string; images?: { url: string }[] }): JSX.Ele
 /* ---------- 리뷰 ---------- */
 /** 시험 기간에는 내가 올린 Agent·Skill·HTML에도 리뷰(별점·댓글)를 남길 수 있게 둡니다. 오픈 전에 false로 바꾸세요. */
 const ALLOW_SELF_REVIEW = true;
+const STAR_PATH = 'M12 2.8l2.75 5.6 6.15.9-4.45 4.33 1.05 6.12L12 16.87l-5.5 2.88 1.05-6.12L3.1 9.3l6.15-.9z';
+const STAR_LAB = ['', '별로예요', '아쉬워요', '보통이에요', '좋아요', '최고예요'];
+const THUMB = <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3zM7 10l4.2-7.2A2 2 0 0 1 15 4v5h4.6a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 18.3 21H7" /></svg>;
+/** 리뷰 (MUNIVERSE 시안 c16·c35·c37): 별점 + 한 칸 쓰기 → 별점 · 내용 · 좋아요 · 작성자 · 날짜 */
 function Reviews(props: { api: IHubApi; t: TargetType; id: number; mine: boolean }): JSX.Element {
   const { api } = props;
   const list = api.reviews(props.t, props.id);
   const r = api.rating(props.t, props.id);
-  const [open, setOpen] = React.useState(false);
   const [n, setN] = React.useState(0);
-  const [head, setHead] = React.useState('');
-  const [body, setBody] = React.useState('');
+  const [text, setText] = React.useState('');
+  const [edit, setEdit] = React.useState<string>('');
+  const [err, setErr] = React.useState('');
   const [busy, setBusy] = React.useState(false);
-  // 리뷰 하나 = 항목 댓글 하나 (별점은 댓글 앞에 함께 저장). 한 사람이 여러 개 남길 수 있습니다.
+  const tx = React.useRef<HTMLTextAreaElement>(null);
+  const starRef = React.useRef<HTMLDivElement>(null);
+  const reset = (): void => { setN(0); setText(''); setEdit(''); setErr(''); };
+  const fit = (t: HTMLTextAreaElement): void => { t.style.height = 'auto'; t.style.height = Math.max(44, Math.min(t.scrollHeight + 2, 180)) + 'px'; };
+  const iHave = list.some(x => !!x.author && x.author.id === api.me.id);
+  // 리뷰 하나 = 항목 댓글 하나 (별점은 댓글 앞에 함께 저장)
   const submit = async (): Promise<void> => {
-    if (!n) { api.toast('별점을 골라 주세요.'); return; }
-    if (!head.trim()) { api.toast('한 줄 평을 적어 주세요.'); return; }
+    if (props.mine && !ALLOW_SELF_REVIEW) { setErr('내가 올린 것에는 리뷰를 쓸 수 없어요.'); return; }
+    if (!n) { setErr('별점을 골라 주세요.'); const b = starRef.current && starRef.current.querySelector('button'); if (b) { b.focus(); } return; }
+    if (!text.trim()) { setErr('리뷰 내용을 적어 주세요.'); if (tx.current) { tx.current.focus(); } return; }
     setBusy(true);
-    const ok = await api.addReview(props.t, props.id, n, head.trim() + (body.trim() ? '\n' + body.trim() : ''));
+    const ok = edit ? await api.editReview(edit, n, text.trim()) : await api.addReview(props.t, props.id, n, text.trim());
     setBusy(false);
-    if (ok) { setOpen(false); setN(0); setHead(''); setBody(''); }
+    if (ok) { reset(); if (tx.current) { tx.current.style.height = ''; } }
   };
+  const hideForm = iHave && !edit;
   return (
     <>
-      <div className="sec-h" style={{ marginTop: 8 }}><h2>평가 및 리뷰</h2>
-        <button type="button" className="btn sm" onClick={() => { if (props.mine && !ALLOW_SELF_REVIEW) { api.toast('내가 올린 것에는 리뷰를 쓸 수 없어요.'); } else { setOpen(!open); } }}>리뷰 쓰기</button></div>
-      {open ? (
-        <div className="rvform">
-          <StarInput name={`hub-rv-${props.t}-${props.id}`} value={n} onChange={setN} />
-          <input id={`hub-rv-h-${props.id}`} maxLength={40} placeholder="한 줄 평 (예: 할 일 정리가 정확해요)" value={head} onChange={e => setHead(e.target.value)} aria-label="한 줄 평" />
-          <textarea id={`hub-rv-b-${props.id}`} maxLength={400} placeholder="어떻게 썼는지 더 적어 주세요 (선택)" value={body} onChange={e => setBody(e.target.value)} aria-label="리뷰 내용" />
-          <div className="r"><button type="button" className="btn sm" onClick={() => setOpen(false)}>취소</button><button type="button" className="btn sm pri" disabled={busy} onClick={() => { submit().catch(() => undefined); }}>{busy ? '남기는 중…' : '리뷰 남기기'}</button></div>
-        </div>
-      ) : null}
+      <div className="sec-h c45-rvh" style={{ marginTop: 8 }}><h2>리뷰 {list.length}</h2></div>
       <RatingSummary reviews={list} avg={r.avg} n={r.n} />
-      {list.length ? <ul className="rows">{list.map(x => <ReviewRow key={x.id} r={x}
-        onEdit={x.author && x.author.id === api.me.id ? (n2, b) => api.editReview(x.id, n2, b) : undefined} />)}</ul> : <p className="note">아직 리뷰가 없어요. 써 보고 첫 리뷰를 남겨 주세요.</p>}
+      <form className={'c16-form' + (edit ? ' c16-edit' : '')} noValidate hidden={hideForm} onSubmit={e => { e.preventDefault(); submit().catch(() => undefined); }}>
+        <h3 className="c16-h" id={`hub-c16L-${props.id}`}>{edit ? '리뷰 고치기' : '리뷰 작성하기'}</h3>
+        <div className="c16-box">
+          <div className="c16-stars" role="radiogroup" aria-labelledby={`hub-c16L-${props.id}`} ref={starRef}>
+            {[1, 2, 3, 4, 5].map(v => (
+              <button key={v} type="button" role="radio" aria-checked={n === v} aria-label={`${v}점`} className={v <= n ? 'on' : undefined} onClick={() => { setN(v); setErr(''); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d={STAR_PATH} /></svg></button>
+            ))}
+            <span className={'c16-sl' + (n ? ' on' : '')}>{n ? `${n}점 · ${STAR_LAB[n]}` : '별점을 선택해 주세요'}</span>
+          </div>
+          <label className="sr" htmlFor={`hub-c16T-${props.id}`}>리뷰 내용</label>
+          <div className="c16-row">
+            <textarea id={`hub-c16T-${props.id}`} ref={tx} className="c16-tx" rows={1} maxLength={200} autoComplete="off" placeholder="이 콘텐츠를 사용해 본 경험을 공유해 주세요."
+              value={text} onChange={e => { setText(e.target.value); fit(e.target); }} />
+            <button type="button" className="c16-cx" hidden={!edit} onClick={reset}>취소</button>
+            <button className="btn pri c16-ok" disabled={busy}>{busy ? '저장 중…' : edit ? '수정 저장' : '등록'}</button>
+          </div>
+          <p className="c16-err" role="alert" hidden={!err}>{err}</p>
+        </div>
+      </form>
+      <ul className="c16-list">
+        {list.length ? list.map(x => {
+          const my = !!x.author && x.author.id === api.me.id;
+          const st = Math.max(0, Math.min(5, x.rating || 0));
+          const badge = api.avatarOf(x.author);
+          const name = x.author ? x.author.name : '';
+          return (
+            <li key={x.id}><div className="cbody">
+              <p className="c16-st" aria-label={`별점 ${st}점`}>{'★★★★★'.slice(0, st) + '☆☆☆☆☆'.slice(0, 5 - st)}<em>{st.toFixed(1)}</em></p>
+              {x.body ? <p className="ctext">{x.body}</p> : null}
+              {x.commentId ? <button type="button" className={'c37-like' + (x.likedByMe ? ' on' : '')} aria-pressed={!!x.likedByMe} aria-label={`좋아요 ${x.likes || 0}개`} onClick={() => api.toggleCommentLike(x.id)}>{THUMB}<span>{x.likes || 0}</span></button> : null}
+              <p className="c35-who"><span className="cav b9-av" aria-hidden="true">{badge && badge !== 'photo' ? <BadgeMedal k={badge} size={22} ribbon={false} /> : <span className="c35-ini">{name.trim().charAt(0)}</span>}</span><b>{name}</b>{my ? <span className="cown">내 리뷰</span> : null}</p>
+              <p className="chead c35-ft"><small>{x.created ? mmdd(x.created) : ''}</small>
+                {my ? <span className="c16-act"><button type="button" onClick={() => { setEdit(x.id); setN(st); setText(x.body); setErr(''); window.setTimeout(() => { if (tx.current) { tx.current.focus(); fit(tx.current); } }, 0); }}>수정</button></span> : null}</p>
+            </div></li>
+          );
+        }) : <li className="cempty">아직 리뷰가 없어요.</li>}
+      </ul>
     </>
   );
 }
@@ -92,12 +136,9 @@ function Updates(props: { api: IHubApi; t: 'Agent' | 'Skill' | 'Html'; id: numbe
   const rows = list.length ? list : (props.fallback.version ? [props.fallback] : []);
   if (!rows.length) { return <p className="note">아직 업데이트 기록이 없어요.</p>; }
   return (
+    // 시안 c44: 버전 | 내용 | 날짜(오른쪽 회색)
     <ul className="vlist big">
-      {rows.map((v, k) => props.t === 'Agent'
-        ? <li key={k}><b>{v.version}</b><span>{ymd(v.date)}</span><span>{v.note || '—'}</span></li>
-        : props.t === 'Skill'
-          ? <li key={k}><b>{mmdd(v.date)}</b><span>{props.fileName} · v{v.version}</span><span>{v.note || '—'}</span></li>
-          : <li key={k}><b>{mmdd(v.date)}</b><span>v{v.version}</span><span>{v.note || '—'}</span></li>)}
+      {rows.map((v, k) => <li key={k} data-c44="1"><b>{v.version}</b><span className="c44-tx">{v.note || '—'}{props.t === 'Skill' && props.fileName && k === 0 ? ` (${props.fileName})` : ''}</span><span className="c44-dt">{mmdd(v.date)}</span></li>)}
     </ul>
   );
 }
@@ -106,13 +147,11 @@ function NotFound(props: { api: IHubApi; what: string; back: 'agents' | 'skills'
   return <div className="wrap"><Crumb go={props.api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: '찾을 수 없음' }]} />
     <Empty title={`이 ${props.what}을 찾을 수 없어요.`} actions={<Go go={props.api.go} view={props.back} className="btn">목록으로</Go>}>게시가 내려갔거나 삭제됐을 수 있어요.</Empty></div>;
 }
-/** 상세 머리말 오른쪽 아래의 작은 버튼 줄: 즐겨찾기, 링크 복사, (올린 사람) 편집·삭제 */
+/** 상세 머리말 오른쪽 아래의 작은 버튼 줄: 링크 복사, (올린 사람) 편집·삭제 */
 function OwnBar(props: { api: IHubApi; t: TargetType; id: number; view: 'agent' | 'skill' | 'htool'; children?: React.ReactNode }): JSX.Element {
   const { api } = props;
-  const on = api.liked(props.t, props.id);
   return (
     <div className="ownbar">
-      <button type="button" className="fav" aria-pressed={on} onClick={() => api.toggleLike(props.t, props.id)} title="즐겨찾기 (이 브라우저에 저장)">{on ? '♥' : '♡'} 즐겨찾기</button>
       <button type="button" className="fav" onClick={() => api.copyLink(props.view, props.id)}>링크 복사</button>
       {props.children}
     </div>
@@ -154,7 +193,6 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
             ? <a className="btn pri big" href={a.installLink} target="_blank" rel="noopener noreferrer">Teams에서 열기</a>
             : <button type="button" className="btn pri big" disabled={true} title="열기 링크가 아직 없어요">Teams에서 열기</button>}
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Agent', title: a.title, owner: a.owner }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
-          <OwnBar api={api} t="Agent" id={a.id} view="agent" />
         </div>
       </header>
       <dl className="dp-meta">
@@ -181,7 +219,6 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
               <tr><th>Owner</th><td><Person p={a.owner} /></td></tr>
               {a.sponsor ? <tr><th>Sponsor</th><td><Person p={a.sponsor} /></td></tr> : null}
               <tr><th>처음 배포</th><td>{ymd(a.created)}</td></tr>
-              {a.uses30 !== undefined ? <tr><th>30일 사용</th><td>{a.uses30}회</td></tr> : null}
               {a.views !== undefined ? <tr><th>조회수</th><td>{a.views}회</td></tr> : null}
             </tbody></table>
             <AskBtn api={api} who={[a.owner, a.sponsor]} tip={a.sponsor ? 'Owner, Sponsor에게 Teams 채팅을 열어요' : 'Owner에게 Teams 채팅을 열어요'} /></div></aside>
@@ -221,7 +258,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
   const mine = !!(k.author && k.author.id === api.me.id);
   const ib = `hub-s${k.id}`;
   return (
-    <div className="wrap skillOut">
+    <div id="mv-skillOut" className="wrap skillOut">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Skill Store', view: 'skills' }, { label: k.title }]} />
       <header className="dp-head">
         <span className="ad-icon sk" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z" /></svg></span>
@@ -245,7 +282,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
       <DetailTabs idBase={ib} label="Skill 상세" value={tab} onChange={setTab} tabs={[{ k: 'ov', label: '개요' }, { k: 'rv', label: '리뷰', n: r.n }, { k: 'up', label: '업데이트 기록' }]} />
       {tab === 'ov' ? (
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid"><div>
-          <section><h2 className="dph">이럴 때 써요</h2><ul className="does"><li>{k.purpose}</li><li>{k.summary}</li></ul></section>
+          <section><h2 className="dph">이럴 때 써요</h2><ul className="does">{whenList(k.purpose).map((w, n) => <li key={n}>{w}</li>)}</ul></section>
           <MakerNote text={k.usage} />
           <section className="dsec"><h2>본문</h2>
             {!readable ? <p className="note">Word 문서는 '파일 받기'로 내려받아 확인해 주세요.</p> : err ? <p className="note">{err}</p> : text === undefined ? <p className="note">파일을 불러오는 중이에요</p> : <Clamp text={text} more="전체 보기" />}

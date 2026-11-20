@@ -6,7 +6,8 @@
  *   2. F12 → Console 탭에 이 파일 전체를 붙여 넣고 Enter.
  *
  * 하는 일 (여러 번 실행해도 안전)
- *   - HubProfiles 목록이 없으면 만들고, AvatarBadge(프로필 배지) 열을 추가합니다.
+ *   - HubProfiles 목록이 없으면 만들고, 없는 열만 추가합니다:
+ *     AvatarBadge(프로필 배지) · VisitCount(방문 일수) · LastVisit(마지막 방문)
  *   - 항목 수준 권한: 모두 읽기 · 자기 항목만 편집 (남의 프로필을 바꾸지 못하게)
  *   - 버전 기록은 끕니다.
  *
@@ -14,7 +15,9 @@
  *   - Title       : 이메일 (목록에서 열 이름을 '이메일'로 바꿔 두면 보기 좋아요)
  *   - 만든 사람    : 그 사람 (SharePoint가 자동으로 남김)
  *   - AvatarBadge : 고른 배지 키 (예: first-idea). 'photo' = 사진, 비우면 최근 배지 자동
- *   - 프로필 패널에서 [프로필로 쓰기]를 처음 누를 때 그 사람의 줄이 생깁니다.
+ *   - VisitCount  : Hub를 방문한 날 수 (하루에 한 번만 셈) → '방문왕' 부문
+ *   - LastVisit   : 마지막으로 센 날 (예: 2026-11-20)
+ *   - Hub를 처음 열 때(또는 [프로필로 쓰기]를 처음 누를 때) 그 사람의 줄이 생깁니다.
  *
  * 권한: 직원에게 이 목록 '항목 추가' 권한이 있어야 합니다 (사이트 구성원은 기본으로 됨).
  */
@@ -43,16 +46,23 @@
     report.push({ 단계: '목록', 결과: '이미 있음' });
   }
 
-  const has = await req('GET', `${base}/fields?$select=InternalName&$filter=InternalName eq 'AvatarBadge'`);
-  if (has && has.value && has.value.length) {
-    report.push({ 단계: 'AvatarBadge 열', 결과: '건너뜀 (이미 있음)' });
-  } else {
-    await req('POST', `${base}/fields/createfieldasxml`, { parameters: { __metadata: { type: 'SP.XmlSchemaFieldCreationInformation' },
-      SchemaXml: '<Field Type="Text" Name="AvatarBadge" StaticName="AvatarBadge" DisplayName="프로필 배지" MaxLength="40" Required="FALSE" />', Options: 8 } });
-    await req('POST', `${base}/defaultview/viewfields/addviewfield('AvatarBadge')`).catch(() => undefined);
-    await req('POST', `${base}/defaultview/viewfields/addviewfield('Author')`).catch(() => undefined);
-    report.push({ 단계: 'AvatarBadge 열', 결과: '추가함' });
+  // 내부 이름은 영어로 만들고 표시 이름만 한국어로 둡니다 (Hub는 내부 이름으로 읽음)
+  const COLS = [
+    { name: 'AvatarBadge', xml: '<Field Type="Text" Name="AvatarBadge" StaticName="AvatarBadge" DisplayName="프로필 배지" MaxLength="40" Required="FALSE" />' },
+    { name: 'VisitCount', xml: '<Field Type="Number" Name="VisitCount" StaticName="VisitCount" DisplayName="방문 일수" Decimals="0" Min="0" Required="FALSE" />' },
+    { name: 'LastVisit', xml: '<Field Type="Text" Name="LastVisit" StaticName="LastVisit" DisplayName="마지막 방문" MaxLength="10" Required="FALSE" />' }
+  ];
+  for (const c of COLS) {
+    const has = await req('GET', `${base}/fields?$select=InternalName&$filter=InternalName eq '${c.name}'`);
+    if (has && has.value && has.value.length) {
+      report.push({ 단계: `${c.name} 열`, 결과: '건너뜀 (이미 있음)' });
+      continue;
+    }
+    await req('POST', `${base}/fields/createfieldasxml`, { parameters: { __metadata: { type: 'SP.XmlSchemaFieldCreationInformation' }, SchemaXml: c.xml, Options: 8 } });
+    await req('POST', `${base}/defaultview/viewfields/addviewfield('${c.name}')`).catch(() => undefined);
+    report.push({ 단계: `${c.name} 열`, 결과: '추가함' });
   }
+  await req('POST', `${base}/defaultview/viewfields/addviewfield('Author')`).catch(() => undefined);
 
   // 모두 읽기(1) · 자기 항목만 편집(2) · 버전 기록 끔
   await req('POST', base, { __metadata: { type: 'SP.List' }, ReadSecurity: 1, WriteSecurity: 2, EnableVersioning: false },

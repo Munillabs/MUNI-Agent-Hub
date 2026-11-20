@@ -5,11 +5,12 @@ import { CASE_INDUSTRIES, PRODUCT_CLASS, contains, isEmail, newestFirst, stepSpa
 import { IHubApi } from '../api';
 import { Crumb, Empty, Go, ListError } from '../ui';
 import { Person } from '../persona';
+import { Mag } from '../mv';
 
 const IND_TOP = 6;
+const PROD_TOP = 4;
 const KIND_LABEL: { [k: string]: string } = { agent: 'Agent', skill: 'Skill', html: 'HTML' };
 const SearchIcon = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
-const FilterIcon = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" /></svg>;
 /** CSS 변수(--n 등)를 style 에 넣기 위한 변환 */
 const vars = (v: { [k: string]: string | number }): React.CSSProperties => v as unknown as React.CSSProperties;
 
@@ -28,16 +29,8 @@ export function CaseLibrary(props: { api: IHubApi }): JSX.Element {
   const [ind, setInd] = React.useState('');
   const [sel, setSel] = React.useState<Sel>({ pat: [], prod: [] });
   const [sort, setSort] = React.useState('new');
-  const [panel, setPanel] = React.useState(false);
   const [moreInd, setMoreInd] = React.useState(false);
-  const wrapRef = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (!panel) { return undefined; }
-    const close = (e: MouseEvent): void => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) { setPanel(false); } };
-    const key = (e: KeyboardEvent): void => { if (e.key === 'Escape') { setPanel(false); } };
-    document.addEventListener('mousedown', close); document.addEventListener('keydown', key);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', key); };
-  }, [panel]);
+  const [moreProd, setMoreProd] = React.useState(false);
 
   const text = (c: ICase): string => [c.industry, c.client, c.dept, c.title, c.pattern, c.products.join(' '), c.keyEffect, c.summary, c.area,
     c.beforeText, c.afterText, c.before.join(' '), c.after.join(' '), c.solutions.map(s => s.name).join(' ')].join(' ');
@@ -57,6 +50,9 @@ export function CaseLibrary(props: { api: IHubApi }): JSX.Element {
     all.forEach(c => f(c).forEach(v => { if (v) { m[v] = (m[v] || 0) + 1; } }));
     return Object.keys(m).sort((a, b) => a.localeCompare(b, 'ko')).map(k => [k, m[k]] as [string, number]);
   };
+  // 활용 제품 칩: Copilot 계열 먼저, Office 앱은 뒤 (같은 묶음 안에서는 사례가 많은 순)
+  const office = (v: string): boolean => /pc-(wd|xl|pp|ol|tm)/.test(PRODUCT_CLASS[v] || '');
+  const prods = opts(c => c.products).sort((a, b) => Number(office(a[0])) - Number(office(b[0])) || b[1] - a[1]);
   const toggle = (k: keyof Sel, v: string): void => setSel(s => ({ ...s, [k]: s[k].indexOf(v) >= 0 ? s[k].filter(x => x !== v) : s[k].concat([v]) }));
   const nF = sel.pat.length + sel.prod.length;
   const active = !!q || !!ind || nF > 0;
@@ -68,38 +64,36 @@ export function CaseLibrary(props: { api: IHubApi }): JSX.Element {
 
   return (
     <div className="wrap">
-      <div className="ptop"><div><span className="k">Case Library</span><h1>Case Library</h1><p>업종과 업무로 찾아보는 고객사 프로젝트 사례</p></div>
-        <button type="button" className="btn" onClick={() => api.openCaseForm()}>＋ 사례 올리기</button></div>
+      <div className="ptop"><div><span className="k">Case Library</span><h1>Case Library</h1><p>업종과 업무로 찾아보는 고객사 프로젝트 사례</p></div></div>
       {api.data.casesError ? <ListError what="Case Library" message={api.data.casesError} /> : <div className="ca">
         <div className="ca-srow">
-          <label className="cf-search">{SearchIcon}<span className="sr">사례 검색</span>
-            <input type="search" id="hub-c-q" placeholder="업종, 조직, 업무 내용으로 검색 (예: 보고서, 상담, 재고)" autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
-            {q ? <button type="button" className="cf-clear" aria-label="검색어 지우기" onClick={() => setQ('')}>✕</button> : null}</label>
-          <div className="ca-fwrap" ref={wrapRef}>
-            <button type="button" className={'ca-fbtn' + (nF ? ' on' : '')} aria-expanded={panel} aria-controls="hub-case-filters" onClick={() => setPanel(!panel)}>{FilterIcon}필터{nF ? <span className="cf-n">{nF}</span> : null}</button>
-            <div className="ca-fpanel caseFilters" id="hub-case-filters" role="dialog" aria-label="필터" hidden={!panel}>
-              {([['pat', 'Copilot 활용 방식', (c: ICase) => [c.pattern]], ['prod', '활용 제품', (c: ICase) => c.products]] as [keyof Sel, string, (c: ICase) => string[]][]).map(f => (
-                <fieldset key={f[0]} className="ca-fg"><legend>{f[1]}</legend><div className="ca-fopts">
-                  {opts(f[2]).map(([v, n]) => <label key={v} className="cb-ck"><input type="checkbox" checked={sel[f[0]].indexOf(v) >= 0} onChange={() => toggle(f[0], v)} /><span>{v}</span><small>{n}</small></label>)}
-                </div></fieldset>
-              ))}
-              <div className="ca-ffoot"><button type="button" className="cf-reset" onClick={() => setSel({ pat: [], prod: [] })}>선택 지우기</button>
-                <button type="button" className="btn pri sm" onClick={() => setPanel(false)}>사례 {rows.length}개 보기</button></div>
-            </div>
-          </div>
+          <label className="cf-search b4-f">{SearchIcon}<span className="sr">사례 검색</span>
+            <input type="search" id="mv-caseQ" placeholder="업종이나 업무 키워드로 고객사 사례를 검색해 보세요." autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
+            {q ? <button type="button" className="cf-clear" aria-label="검색어 지우기" onClick={() => setQ('')}>✕</button> : null}
+            <button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { const el = document.getElementById('mv-caseQ'); if (el) { el.focus(); } }}><Mag /></button></label>
         </div>
-        <div className="ca-chips" role="group" aria-label="업종">
-          {chip('', '전체')}{top.map(v => chip(v, v))}{rest.map(v => chip(v, v, true))}
-          {rest.length ? <button type="button" className="ca-moreb" aria-expanded={moreInd} onClick={() => setMoreInd(!moreInd)}>{moreInd ? '접기' : <>더보기 <small>+{rest.length}</small></>}</button> : null}
-        </div>
+        {/* 시안 cz: 업종 칩 줄 + 활용 제품 칩 줄 (상세 필터 창은 없앰) */}
+        <div className="cz-f"><span className="cz-l" id="hub-czL1">업종</span>
+          <div className="ca-chips end" role="group" aria-labelledby="hub-czL1" id="mv-caseInd">
+            {chip('', '전체')}{top.map(v => chip(v, v))}{rest.map(v => chip(v, v, true))}
+            {rest.length ? <button type="button" className="ca-moreb" aria-expanded={moreInd} onClick={() => setMoreInd(!moreInd)}>{moreInd ? '접기' : <>더보기 <small>+{rest.length}</small></>}</button> : null}
+          </div></div>
+        {prods.length ? <div className="cz-f"><span className="cz-l" id="hub-czL2">활용 제품</span>
+          <div className="cz-prods" role="group" aria-labelledby="hub-czL2" id="mv-caseProd">
+            {prods.map(([v, n], k) => (
+              <button key={v} type="button" className="cz-chip" aria-pressed={sel.prod.indexOf(v) >= 0} hidden={k >= PROD_TOP && !moreProd && sel.prod.indexOf(v) < 0} onClick={() => toggle('prod', v)}>
+                <span className={'pc ' + (PRODUCT_CLASS[v] || 'pc-etc')} aria-hidden="true" />{v}<small>{n}</small></button>
+            ))}
+            {prods.length > PROD_TOP ? <button type="button" className="cz-more" aria-expanded={moreProd} onClick={() => setMoreProd(!moreProd)}>{moreProd ? '접기' : <>더보기 <small>+{prods.length - PROD_TOP}</small></>}</button> : null}
+          </div></div> : null}
         <div className="ca-bar">
-          {active ? <button type="button" className="cf-reset" onClick={clearAll}>모두 지우기</button> : null}
-          <span className="rcount" aria-live="polite"><b>사례 {rows.length}개</b>{rows.length !== all.length ? <> <span className="cb-tot">/ 전체 {all.length}개</span></> : null}</span>
+          {active ? <button type="button" className="cf-reset" onClick={clearAll}>필터 초기화</button> : null}
+          <span className="rcount" aria-live="polite"><b>총 {rows.length}개</b>{rows.length !== all.length ? <> <span className="cb-tot">/ 전체 {all.length}개</span></> : null}</span>
           <label className="sortsel">정렬<select value={sort} onChange={e => setSort(e.target.value)}><option value="new">최신순</option><option value="ind">업종순</option><option value="cli">고객사순</option></select></label>
         </div>
         <div className="cb-tw"><div className="cb-tb ca-tb" role="table" aria-label="사례 목록">
           <div className="cb-row cb-head" role="row"><span role="columnheader">고객사</span><span role="columnheader">사례</span><span role="columnheader">Copilot 활용 방식</span><span role="columnheader">활용 제품</span><span role="columnheader">대표 효과</span></div>
-          <div className="caseGrid">{rows.length ? rows.map(c => {
+          <div id="mv-caseGrid" className="caseGrid">{rows.length ? rows.map(c => {
             const kinds = c.solutions.map(s => s.kind).filter((k, i, a) => a.indexOf(k) === i && (k === 'agent' || k === 'skill'));
             return (
               <Go key={c.id} go={api.go} view="case" id={c.id} className="cb-row">
@@ -112,7 +106,7 @@ export function CaseLibrary(props: { api: IHubApi }): JSX.Element {
               </Go>
             );
           }) : all.length ? <div className="cf-empty"><p>조건에 맞는 사례가 없어요.</p><button type="button" className="btn sm" onClick={clearAll}>조건 모두 지우기</button></div>
-            : <div className="cf-empty"><p>아직 올라온 사례가 없어요. 첫 사례를 올려 주세요.</p><button type="button" className="btn sm pri" onClick={() => api.openCaseForm()}>＋ 사례 올리기</button></div>}</div>
+            : <div className="cf-empty"><p>아직 올라온 사례가 없어요.</p></div>}</div>
         </div></div>
       </div>}
     </div>
@@ -169,7 +163,7 @@ export function CasePage(props: { api: IHubApi; item?: ICase }): JSX.Element {
     setTab((cur + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length);
   };
   return (
-    <div className="wrap caseOut">
+    <div id="mv-caseOut" className="wrap caseOut">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: c.title }]} />
       <div className="cd-head"><div className="cd-meta">{c.industry ? <span className="cc-dept ct-ind">{c.industry}</span> : null}<span>{c.client}</span><i>|</i><span>{c.dept}</span><i>|</i><span>{c.period}</span></div><h1>{c.title}</h1></div>
       <div className="cd-sum">
