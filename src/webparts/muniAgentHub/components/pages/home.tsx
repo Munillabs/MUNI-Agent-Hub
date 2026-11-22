@@ -32,7 +32,7 @@ const HOF: { k: string; u: string; sx: string }[] = [
   { k: 'share', u: '공유한 도구', sx: '개' },
   { k: 'pop', u: '별점', sx: '' },
   { k: 'review', u: '등록한 리뷰', sx: '개' },
-  { k: 'visit', u: '방문한 날', sx: '일' }
+  { k: 'visit', u: '방문한 횟수', sx: '회' }
 ];
 
 function HallOfFame(props: { api: IHubApi }): JSX.Element {

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>시나리오 우선순위 매트릭스</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2733;--sub:#5d6b7b;--line:#e2e7ee;--pri:#003F6D;--onpri:#fff;--soft:#e8f2fb;--q1:#e3f5ec;--q2:#e6f0fb;--q3:#fff4e0;--q4:#f3f4f6;--k1:#1a8f63;--k2:#0a6cbd;--k3:#c77a06;--k4:#7a8796}
+@media (prefers-color-scheme:dark){:root{--bg:#0c141e;--card:#142131;--ink:#e5edf6;--sub:#9cafc3;--line:#25374c;--pri:#80CAFF;--onpri:#06233b;--soft:#1a2d44;--q1:#11302a;--q2:#13283f;--q3:#33280f;--q4:#1a2330;--k1:#45c492;--k2:#80CAFF;--k3:#f0a83a;--k4:#9cafc3}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Pretendard,"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:1160px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+.lead{color:var(--sub);margin:0 0 20px}
+.layout{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px}
+.board{position:relative;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:4/3;border-radius:12px;overflow:hidden;user-select:none;margin-left:22px;margin-bottom:22px}
+.qd{padding:12px;font-weight:800;font-size:14px}
+.qd small{display:block;font-weight:500;color:var(--sub);font-size:12px}
+.qd.a{background:var(--q2);color:var(--k2)}.qd.b{background:var(--q1);color:var(--k1)}.qd.c{background:var(--q4);color:var(--k4)}.qd.d{background:var(--q3);color:var(--k3)}
+.ax{position:absolute;color:var(--sub);font-size:12px;font-weight:700}
+.ax.y{left:-22px;top:50%;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;margin-left:-4px}
+.ax.x{bottom:-22px;left:50%;transform:translateX(-50%)}
+.boardwrap{position:relative}
+.chip{position:absolute;transform:translate(-50%,-50%);background:var(--card);border:2px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:grab;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.12);transition:border-color .2s,box-shadow .2s;touch-action:none;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.chip:active{cursor:grabbing;box-shadow:0 8px 22px rgba(0,0,0,.2)}
+.chip.k1{border-color:var(--k1)}.chip.k2{border-color:var(--k2)}.chip.k3{border-color:var(--k3)}.chip.k4{border-color:var(--k4)}
+.add{display:flex;gap:8px}
+.add input{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+button{border:0;border-radius:999px;padding:9px 16px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer;background:var(--pri);color:var(--onpri)}
+button.ghost{background:var(--soft);color:var(--ink)}
+.grp h3{font-size:14px;margin:14px 0 6px;display:flex;align-items:center;gap:8px}
+.grp h3 i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.grp ol{margin:0;padding-left:20px;font-size:14px}
+.grp li{margin:3px 0}
+.grp li button{background:none;color:var(--sub);padding:0 4px;font-size:12px}
+.empty{color:var(--sub);font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tip{font-size:12px;color:var(--sub);margin-top:8px}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Copilot 시나리오 우선순위 매트릭스</h1>
+  <p class="lead">고객 워크숍에서 나온 시나리오를 올리고, 효과와 실행 난이도에 맞게 끌어다 놓으세요. 오른쪽에 실행 순서가 바로 정리돼요.</p>
+  <div class="layout">
+    <div class="card">
+      <div class="add"><input id="name" placeholder="시나리오 이름 (예: 회의록 요약)" maxlength="40"><button id="addBtn">올리기</button></div>
+      <p class="tip">칩을 끌어서 옮기고, 두 번 누르면 지워요. 위쪽일수록 효과가 크고, 왼쪽일수록 쉬워요.</p>
+      <div class="boardwrap">
+        <div class="board" id="board">
+          <div class="qd b">빠른 성과 (Quick Win)<small>효과 크고 쉬움 → 지금 바로 파일럿</small></div>
+          <div class="qd a">전략 과제<small>효과 크고 어려움 → 계획 세워 추진</small></div>
+          <div class="qd c">작은 개선<small>효과 작고 쉬움 → 교육 때 팁으로</small></div>
+          <div class="qd d">보류<small>효과 작고 어려움 → 다음에 다시 검토</small></div>
+          <span class="ax y">효과 ↑</span><span class="ax x">실행 난이도 →</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card grp" id="groups"></div>
+      <div class="card"><h2>내보내기</h2><div class="row"><button id="copy">표로 복사</button><button class="ghost" id="sample">예시 시나리오</button><button class="ghost" id="clear">모두 지우기</button></div><p class="tip">표로 복사하면 Excel·Word·Teams에 그대로 붙여 넣을 수 있어요.</p></div>
+    </div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'scenario-matrix-v1';
+let items = [];
+try { items = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { items = []; }
+const SAMPLE = [['회의록 요약·할 일 정리', .2, .15], ['메일 답장 초안', .15, .3], ['제안서 초안 작성', .6, .17], ['고객 문의 자동 답변 Agent', .76, .31], ['주간 보고 취합', .35, .3],
+  ['엑셀 데이터 분석', .4, .45], ['사내 규정 Q&A', .45, .25], ['계약서 위험 조항 검토', .74, .64], ['슬라이드 디자인 정리', .3, .7], ['ERP 연동 발주 자동화', .8, .82]];
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) { /* 저장 못 해도 계속 써요 */ } };
+const quad = it => it.y < .5 ? (it.x < .5 ? 1 : 2) : (it.x < .5 ? 3 : 4);
+const META = { 1: ['빠른 성과 (Quick Win)', 'k1', '1~2주 안에 파일럿'], 2: ['전략 과제', 'k2', '분기 계획에 포함'], 3: ['작은 개선', 'k3', '교육 자료에 팁으로'], 4: ['보류', 'k4', '다음 분기 재검토'] };
+const cls = q => ({ 1: 'k1', 2: 'k2', 3: 'k3', 4: 'k4' }[q]);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const score = it => Math.round(((1 - it.y) * 2 + (1 - it.x)) / 3 * 100);
+
+function draw() {
+  const b = $('board');
+  b.querySelectorAll('.chip').forEach(c => c.remove());
+  items.forEach((it, i) => {
+    const c = document.createElement('div');
+    c.className = 'chip ' + cls(quad(it)); c.textContent = it.n; c.title = it.n;
+    c.style.left = it.x * 100 + '%'; c.style.top = it.y * 100 + '%';
+    c.onpointerdown = e => {
+      c.setPointerCapture(e.pointerId);
+      const r = b.getBoundingClientRect();
+      c.onpointermove = m => {
+        it.x = Math.min(.97, Math.max(.03, (m.clientX - r.left) / r.width));
+        it.y = Math.min(.96, Math.max(.04, (m.clientY - r.top) / r.height));
+        c.style.left = it.x * 100 + '%'; c.style.top = it.y * 100 + '%'; c.className = 'chip ' + cls(quad(it));
+      };
+      c.onpointerup = () => { c.onpointermove = null; save(); list(); };
+    };
+    c.ondblclick = () => { items.splice(i, 1); save(); draw(); };
+    b.appendChild(c);
+  });
+  list();
+}
+function list() {
+  $('groups').innerHTML = '<h2>실행 순서</h2>' + [1, 2, 3, 4].map(q => {
+    const g = items.filter(it => quad(it) === q).sort((a, b) => score(b) - score(a));
+    return `<h3><i style="background:var(--${META[q][1]})"></i>${META[q][0]} <span class="empty">· ${META[q][2]}</span></h3>` +
+      (g.length ? `<ol>${g.map(it => `<li>${esc(it.n)} <span class="empty">${score(it)}점</span></li>`).join('')}</ol>` : '<div class="empty">아직 없어요</div>');
+  }).join('');
+}
+function add() {
+  const n = $('name').value.trim(); if (!n) { return; }
+  items.push({ n, x: .5 + (Math.random() - .5) * .1, y: .5 + (Math.random() - .5) * .1 });
+  $('name').value = ''; save(); draw();
+}
+$('addBtn').onclick = add;
+$('name').onkeydown = e => { if (e.key === 'Enter') { add(); } };
+$('sample').onclick = () => { items = SAMPLE.map(([n, x, y]) => ({ n, x, y })); save(); draw(); };
+$('clear').onclick = () => { if (confirm('시나리오를 모두 지울까요?')) { items = []; save(); draw(); } };
+$('copy').onclick = () => {
+  const rows = [...items].sort((a, b) => quad(a) - quad(b) || score(b) - score(a)).map((it, i) => [i + 1, it.n, META[quad(it)][0], score(it), META[quad(it)][2]].join('\t'));
+  navigator.clipboard.writeText(['순위\t시나리오\t구분\t점수\t다음 단계', ...rows].join('\n'));
+  $('copy').textContent = '복사했어요'; setTimeout(() => { $('copy').textContent = '표로 복사'; }, 1500);
+};
+if (!items.length) { items = SAMPLE.map(([n, x, y]) => ({ n, x, y })); }
+draw();
+</script>
+</body>
+</html>

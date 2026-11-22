@@ -73,7 +73,7 @@ function Cell(props: { b: IStepBadge; next: boolean; onOpen: (id: string) => voi
   );
 }
 
-export function BadgesPage(props: { api: IHubApi; series: ISeriesState[]; pick: string; repArt?: string; onPick: (sid: string) => void; onOpenProfile: () => void }): JSX.Element {
+export function BadgesPage(props: { api: IHubApi; series: ISeriesState[]; pick: string; rawPick?: string; repArt?: string; onPick: (sid: string) => void; onOpenProfile: () => void }): JSX.Element {
   const { api, series } = props;
   const [tab, setTab] = React.useState('all');
   const [open, setOpen] = React.useState('');
@@ -91,6 +91,11 @@ export function BadgesPage(props: { api: IHubApi; series: ISeriesState[]; pick: 
           <div className="bdg-rep"><span className="bdg-em" style={{ width: 52, height: 52 }}>{rep && rep.top ? <BadgeArt art={rep.top.art} on={true} /> : null}</span>
             <span><small>프로필 배지</small><b>{rep && rep.top ? rep.top.n : '아직 없어요'}</b><button type="button" onClick={props.onOpenProfile}>바꾸기</button></span></div></div>
       </div>
+      {/* 프로필을 배지 대신 내 사진으로 / 다시 자동(최근 받은 배지)으로 */}
+      {got ? <p className="bpicks" style={{ justifyContent: 'flex-end', margin: '-12px 0 0' }}>
+        {props.rawPick !== 'photo' ? <button type="button" className="bpick reset" onClick={() => props.onPick('photo')}>배지 대신 내 사진 쓰기</button> : null}
+        {props.rawPick ? <button type="button" className="bpick reset" onClick={() => props.onPick('')}>최근 받은 배지로 자동 바꾸기</button> : null}
+      </p> : null}
 
       <section className="bdg-sec b3-next" aria-labelledby="hub-bdgNextH"><header><h2 id="hub-bdgNextH">곧 받을 배지</h2><small>조금만 더 하면 받아요</small></header>
         <div id="mv-bdgNext">{next.length ? <ul className="ba-next">{next.map((s, i) => {

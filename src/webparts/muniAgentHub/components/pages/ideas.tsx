@@ -114,8 +114,9 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   const tab = (v: View, label: string, tip: string): JSX.Element => (
     <button type="button" role="tab" aria-selected={view === v} aria-controls="mv-wall" data-tip={tip} onClick={() => setView(v)}>{label} <span>{by[v].length}</span></button>
   );
-  const empty = q.trim() ? `'${q.trim()}'에 맞는 ${view === 'arch' ? '보관된 ' : ''}아이디어가 없어요.${view === 'arch' ? '' : ' 위에서 새로 붙여 보세요.'}`
-    : view === 'make' ? '아직 만들고 있는 아이디어가 없어요.' : view === 'done' ? '아직 완성된 아이디어가 없어요.' : view === 'arch' ? '보관된 아이디어가 없어요.' : '모으는 중인 아이디어가 없어요. 위에서 새로 붙여 보세요.';
+  // 시안 문구 그대로
+  const empty = q.trim() ? `'${q.trim()}'에 맞는 ${view === 'arch' ? '보관된 ' : ''}아이디어가 없어요.${view === 'arch' ? '' : ' 위에서 새로 올려 보세요.'}`
+    : view === 'make' ? '아직 만들고 있는 아이디어가 없어요.' : view === 'done' ? '아직 완성된 아이디어가 없어요.' : view === 'arch' ? '보관된 아이디어가 없어요.' : '모으는 중인 아이디어가 없어요. 위에서 새로 올려 보세요.';
   return (
     <div className="wrap">
       <div className="ptop"><div><span className="k">Idea Board</span><h1>Idea Board</h1><p>필요한 AI 도구 아이디어를 자유롭게 나누고, 관심 있는 동료들과 함께 만들어 보세요.</p></div></div>
@@ -238,7 +239,12 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
     setEBusy(false);
     if (ok) { setEditing(false); }
   };
-  const chat = makers.map(p => p.email).filter(isEmail);
+  // Teams 채팅 대상: 올린 사람 + 함께해요 누른 사람 (나는 빼고, 메일이 있는 사람만, 중복 없이)
+  const chat = ([i.author] as (IPerson | undefined)[]).concat(makers)
+    .filter(p => !!p && p.id !== api.me.id && isEmail(p.email)).map(p => p!.email.toLowerCase())
+    .filter((m, k, all) => all.indexOf(m) === k);
+  // Teams 딥 링크: 메일은 쉼표로 이어 붙이고(쉼표는 인코딩하지 않음), 여러 명이면 아이디어 제목을 채팅방 이름으로
+  const chatUrl = chat.length ? `https://teams.microsoft.com/l/chat/0/0?users=${chat.map(encodeURIComponent).join(',')}${chat.length > 1 ? '&topicName=' + encodeURIComponent(i.title.slice(0, 60)) : ''}` : '';
   // 시작한 사람은 따로 남지 않아서, 함께 만드는 사람이면 누구나 멈출 수 있습니다
   const startedByMe = !!started && joined;
   const submit = async (e: React.FormEvent): Promise<void> => {
@@ -306,15 +312,15 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
         <aside className="idside"><div className="box idmini">
           <div className="imrow"><span className="iml">공감 <b>{likes}</b><small className="ib2-h">나도 필요하면 눌러요</small></span>
             <button type="button" className={'impill idlikebtn' + (liked ? ' on' : '')} aria-pressed={liked} onClick={() => api.toggleLike('Idea', i.id)}><Heart on={liked} />{liked ? '공감했어요' : '공감'}</button></div>
-          <div className="imrow"><span className="iml">함께 만드는 사람 <b>{makers.length}</b><small className="ib2-h">만들 수 있으면 먼저 &lsquo;함께해요&rsquo;를 눌러요</small></span>
+          <div className="imrow"><span className="iml">함께 만드는 사람 <b>{makers.length}</b><small className="ib2-h">{makers.length ? '같이 만들 수 있으면 눌러요' : <>만들 수 있으면 먼저 &lsquo;함께해요&rsquo;를 눌러요</>}</small></span>
             {st !== 'done' ? <button type="button" className={'impill' + (joined ? ' pri' : '')} aria-pressed={joined} onClick={() => api.toggleMake(i.id)}>{HAND}함께해요</button> : null}</div>
           {makers.length ? <>
             <ul className="impeople">{makers.map(p => <li key={p.id}><Av p={p} me={api.me.id} badge={api.avatarOf(p)} /><span><Person p={p} />{p.id === api.me.id ? ' (나)' : ''}</span></li>)}</ul>
-            {chat.length ? <a className="btn imteams" href={`https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(chat.join(','))}`} target="_blank" rel="noopener noreferrer">Teams 채팅으로 함께하기</a> : null}
+            {chatUrl ? <button type="button" className="btn imteams" onClick={() => { window.open(chatUrl, '_blank', 'noopener'); }}>Teams 채팅으로 함께하기</button> : null}
             {st === 'done' ? <div className="imdone"><p>✓ 완성했어요{i.doneAt ? ` · ${mmdd(i.doneAt)}` : ''}</p>{result ? <ResultLink api={api} r={result.view || result.href ? { ...result, label: result.label + ' 보기' } : result} className="btn imteams" /> : null}</div> : null}
             {joined && !started && st !== 'done' ? <button type="button" className="btn pri imteams tipx" data-tip="만들기 시작했으면 눌러 주세요. 다음 단계로 넘어가요" onClick={() => api.toggleStart(i.id)}>만들기 시작하기</button> : null}
             {started && st !== 'done' ? (startedByMe && stopAsk
-              ? <div className="imstop" role="group" aria-label="만들기 중지 확인"><p>만들기를 멈출까요? &lsquo;함께할 사람 찾기&rsquo; 단계로 돌아가요.</p><div><button type="button" className="btn sm pri" onClick={() => { setStopAsk(false); api.toggleStart(i.id); }}>중지</button><button type="button" className="btn sm" onClick={() => setStopAsk(false)}>취소</button></div></div>
+              ? <div className="imstop" role="group" aria-label="만들기 중지 확인"><p>만들기를 멈출까요?<br />&lsquo;제작자 모으기&rsquo; 단계로 돌아가요.</p><div><button type="button" className="btn sm pri" onClick={() => { setStopAsk(false); api.toggleStart(i.id); }}>중지</button><button type="button" className="btn sm" onClick={() => setStopAsk(false)}>취소</button></div></div>
               : <><p className="imstarted">{mmdd(started.date)}에 만들기 시작했어요</p>{startedByMe ? <button type="button" className="btn imteams imstopbtn" onClick={() => setStopAsk(true)}>만들기 중지</button> : null}</>) : null}
           </> : null}
         </div></aside>

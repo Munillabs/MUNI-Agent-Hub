@@ -16,11 +16,11 @@ function teamsChat(p?: IPerson): string {
   return p && isEmail(p.email) ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(p.email)}` : '';
 }
 /** 정보 상자 아래 'Teams로 묻기' (시안 askbtn): Owner·Sponsor·등록자에게 Teams 채팅 */
-function AskBtn(props: { api: IHubApi; who: (IPerson | undefined)[]; tip: string }): JSX.Element {
+function AskBtn(props: { api: IHubApi; who: (IPerson | undefined)[]; tip: string; label?: string }): JSX.Element {
   const mails = props.who.filter(p => !!p && isEmail(p.email)).map(p => p!.email).filter((m, i, all) => all.indexOf(m) === i);
   return (
     <button type="button" className="btn sm askbtn tipx" data-tip={props.tip}
-      onClick={() => { if (mails.length) { window.open(`https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(mails.join(','))}`, '_blank', 'noopener'); } else { props.api.toast('연락할 사람의 메일 주소가 없어요.'); } }}>Teams로 묻기</button>
+      onClick={() => { if (mails.length) { window.open(`https://teams.microsoft.com/l/chat/0/0?users=${mails.map(encodeURIComponent).join(',')}`, '_blank', 'noopener'); } else { props.api.toast('연락할 사람의 메일 주소가 없어요.'); } }}>{props.label || 'Teams로 묻기'}</button>
   );
 }
 function useTab(init: string, key: number): [string, (k: string) => void] {
@@ -107,7 +107,7 @@ function Reviews(props: { api: IHubApi; t: TargetType; id: number; mine: boolean
           const badge = api.avatarOf(x.author);
           const name = x.author ? x.author.name : '';
           return (
-            <li key={x.id}><div className="cbody">
+            <li key={x.id} data-c35="1"><div className="cbody">
               <p className="c16-st" aria-label={`별점 ${st}점`}>{'★★★★★'.slice(0, st) + '☆☆☆☆☆'.slice(0, 5 - st)}<em>{st.toFixed(1)}</em></p>
               {x.body ? <p className="ctext">{x.body}</p> : null}
               {x.commentId ? <button type="button" className={'c37-like' + (x.likedByMe ? ' on' : '')} aria-pressed={!!x.likedByMe} aria-label={`좋아요 ${x.likes || 0}개`} onClick={() => api.toggleCommentLike(x.id)}>{THUMB}<span>{x.likes || 0}</span></button> : null}
@@ -147,25 +147,8 @@ function NotFound(props: { api: IHubApi; what: string; back: 'agents' | 'skills'
   return <div className="wrap"><Crumb go={props.api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: '찾을 수 없음' }]} />
     <Empty title={`이 ${props.what}을 찾을 수 없어요.`} actions={<Go go={props.api.go} view={props.back} className="btn">목록으로</Go>}>게시가 내려갔거나 삭제됐을 수 있어요.</Empty></div>;
 }
-/** 상세 머리말 오른쪽 아래의 작은 버튼 줄: 링크 복사, (올린 사람) 편집·삭제 */
-function OwnBar(props: { api: IHubApi; t: TargetType; id: number; view: 'agent' | 'skill' | 'htool'; children?: React.ReactNode }): JSX.Element {
-  const { api } = props;
-  return (
-    <div className="ownbar">
-      <button type="button" className="fav" onClick={() => api.copyLink(props.view, props.id)}>링크 복사</button>
-      {props.children}
-    </div>
-  );
-}
-function DeleteBtn(props:{ onDelete: () => Promise<boolean> }): JSX.Element {
-  const [ask, setAsk] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
-  return ask ? (
-    <span className="delask">삭제할까요?
-      <button type="button" className="fav" disabled={busy} onClick={() => { setBusy(true); props.onDelete().then(ok => { if (!ok) { setBusy(false); setAsk(false); } }, () => setBusy(false)); }}>삭제</button>
-      <button type="button" className="fav" onClick={() => setAsk(false)}>취소</button></span>
-  ) : <button type="button" className="fav" onClick={() => setAsk(true)}>삭제</button>;
-}
+/* 상세 머리말의 작은 버튼 줄(링크 복사 · 내용 복사 · 새 버전 · 삭제)은 시안에 맞춰 없앴습니다.
+   새 버전 올리기와 삭제는 '나의 작업공간'의 내 콘텐츠 목록에서 합니다. */
 
 /* ================= Agent ================= */
 export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element {
@@ -192,7 +175,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
           {isHttpsUrl(a.installLink)
             ? <a className="btn pri big" href={a.installLink} target="_blank" rel="noopener noreferrer">Teams에서 열기</a>
             : <button type="button" className="btn pri big" disabled={true} title="열기 링크가 아직 없어요">Teams에서 열기</button>}
-          <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Agent', title: a.title, owner: a.owner }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
+          <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Agent', title: a.title, owner: a.owner, id: a.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
       <dl className="dp-meta">
@@ -219,9 +202,8 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
               <tr><th>Owner</th><td><Person p={a.owner} /></td></tr>
               {a.sponsor ? <tr><th>Sponsor</th><td><Person p={a.sponsor} /></td></tr> : null}
               <tr><th>처음 배포</th><td>{ymd(a.created)}</td></tr>
-              {a.views !== undefined ? <tr><th>조회수</th><td>{a.views}회</td></tr> : null}
             </tbody></table>
-            <AskBtn api={api} who={[a.owner, a.sponsor]} tip={a.sponsor ? 'Owner, Sponsor에게 Teams 채팅을 열어요' : 'Owner에게 Teams 채팅을 열어요'} /></div></aside>
+            <AskBtn api={api} who={[a.owner, a.sponsor]} label="담당자에게 Teams로 문의하기" tip={a.sponsor ? 'Owner, Sponsor에게 Teams 채팅을 열어요' : 'Owner에게 Teams 채팅을 열어요'} /></div></aside>
         </div></section>
       ) : null}
       {tab === 'dt' ? (
@@ -265,12 +247,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
         <div className="dp-title"><h1>{k.title}</h1><p className="sub">{k.summary}</p><p className="by"><Pill>Skill</Pill> {k.author ? <Person p={k.author}><a href={teamsChat(k.author) || '#'} target="_blank" rel="noopener noreferrer">{k.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">
           <a className="btn pri big" href={k.fileUrl + '?download=1'} download={k.fileName}>파일 받기</a>
-          <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Skill', title: k.title, owner: k.author }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
-          <OwnBar api={api} t="Skill" id={k.id} view="skill">
-            {readable ? <button type="button" className="fav" disabled={text === undefined} onClick={() => api.copy(text || '', 'Skill 내용을 복사했어요')}>내용 복사</button> : null}
-            {mine ? <button type="button" className="fav" onClick={() => api.openSkillForm(k.id)}>새 버전</button> : null}
-            {mine ? <DeleteBtn onDelete={() => api.deleteSkill(k.id)} /> : null}
-          </OwnBar>
+          <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Skill', title: k.title, owner: k.author, id: k.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
       <dl className="dp-meta">
@@ -294,9 +271,8 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
             <tr><th>활용 도구</th><td>{k.tools.map((t, i) => <React.Fragment key={t}>{i ? <br /> : null}{t}</React.Fragment>)}</td></tr>
             <tr><th>등록자</th><td><Person p={k.author} /></td></tr>
             <tr><th>처음 등록</th><td>{ymd(k.created)}</td></tr>
-            {k.views !== undefined ? <tr><th>조회수</th><td>{k.views}회</td></tr> : null}
           </tbody></table>
-          <AskBtn api={api} who={[k.author]} tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
+          <AskBtn api={api} who={[k.author]} label="담당자에게 Teams로 문의하기" tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
         </div></section>
       ) : null}
       {tab === 'rv' ? <section className="dp-panel" id={`${ib}-p-rv`} role="tabpanel" aria-labelledby={`${ib}-t-rv`}><Reviews api={api} t="Skill" id={k.id} mine={mine} /></section> : null}
@@ -321,12 +297,8 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
         <span className="ad-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 13l-2 2 2 2M15 13l2 2-2 2" /></svg></span>
         <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p><p className="by"><Pill>HTML</Pill> {h.author ? <Person p={h.author}><a href={teamsChat(h.author) || '#'} target="_blank" rel="noopener noreferrer">{h.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">
-          <button type="button" className="btn pri big" onClick={() => api.openHtml(h)}>열기 ↗</button>
-          <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'HTML', title: h.title, owner: h.author }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
-          <OwnBar api={api} t="Html" id={h.id} view="htool">
-            {mine ? <button type="button" className="fav" onClick={() => api.openHtmlForm(h.id)}>새 버전</button> : null}
-            {mine ? <DeleteBtn onDelete={() => api.deleteHtml(h.id)} /> : null}
-          </OwnBar>
+          <a className="btn pri big" href={h.fileUrl + '?download=1'} download={h.fileName}>파일 받기</a>
+          <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'HTML', title: h.title, owner: h.author, id: h.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
       <dl className="dp-meta">
@@ -348,9 +320,8 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
             <tr><th>제작 도구</th><td>{h.madeWith || '—'}</td></tr>
             <tr><th>등록자</th><td><Person p={h.author} /></td></tr>
             <tr><th>처음 등록</th><td>{ymd(h.created)}</td></tr>
-            {h.views !== undefined ? <tr><th>조회수</th><td>{h.views}회</td></tr> : null}
           </tbody></table>
-          <AskBtn api={api} who={[h.author]} tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
+          <AskBtn api={api} who={[h.author]} label="담당자에게 Teams로 문의하기" tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
         </div></section>
       ) : null}
       {tab === 'rv' ? <section className="dp-panel" id={`${ib}-p-rv`} role="tabpanel" aria-labelledby={`${ib}-t-rv`}><Reviews api={api} t="Html" id={h.id} mine={mine} /></section> : null}

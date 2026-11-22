@@ -590,10 +590,45 @@ export function ReportForm(props: { target: IReportTarget; adminEmail: string; r
     if (!to && !cc) { e.what = '받는 사람 메일 주소가 없어요. 웹 파트 설정에 Hub 관리자 메일을 넣어 주세요.'; }
     setErrors(e);
     if (Object.keys(e).length) { focusFirstError(ref.current); return; }
-    const subject = `[MUNI AI Hub 오류 신고] ${t.type} · ${t.title} · ${f.kind}`;
-    const body = [`${t.type}: ${t.title}`, `문제 종류: ${f.kind}`, '', '무슨 일이 있었나요?', f.what.trim(), '',
-      f.ask.trim() ? `보낸 질문: ${f.ask.trim()}` : '', f.when ? `언제: ${f.when.replace('T', ' ')}` : '', `신고한 사람: ${props.reporter}`, '', '(화면 캡처를 첨부해 주세요)']
-      .filter(x => x !== null).join('\n').replace(/\n{3,}/g, '\n\n');
+    // 메일 앱(mailto)은 글자만 넘길 수 있어서, 접수 메일처럼 구역을 나눈 텍스트 서식으로 씁니다
+    const now = new Date();
+    const p2 = (n: number): string => (n < 10 ? '0' : '') + n;
+    const stamp = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())} ${p2(now.getHours())}:${p2(now.getMinutes())}`;
+    const ticket = `R-${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}-${p2(now.getHours())}${p2(now.getMinutes())}`;
+    const view = t.type === 'Agent' ? 'agent' : t.type === 'Skill' ? 'skill' : 'htool';
+    const link = t.id ? `${window.location.origin}${window.location.pathname}#${view}-${t.id}` : '';
+    const line = '────────────────────────────';
+    const indent = (s: string): string => s.split(/\r?\n/).map(x => '   ' + x).join('\n');
+    const subject = `[MUNIVERSE 오류 신고] ${t.type} '${t.title}' · ${f.kind} (${ticket})`;
+    const body = [
+      `${t.owner ? t.owner.name + '님' : '담당자님'}, 안녕하세요.`,
+      `MUNIVERSE에서 '${t.title}' ${t.type}에 대한 오류 신고가 접수되었어요.`,
+      `확인 후 조치 결과를 회신해 주세요.`,
+      '',
+      line,
+      '■ 신고 정보',
+      line,
+      `· 접수 번호: ${ticket}`,
+      `· 대상: ${t.type} · ${t.title}`,
+      `· 문제 종류: ${f.kind}`,
+      `· 발생 시각: ${f.when ? f.when.replace('T', ' ') : '모름'}`,
+      `· 신고 시각: ${stamp}`,
+      `· 신고한 사람: ${props.reporter}`,
+      '',
+      line,
+      '■ 무슨 일이 있었나요?',
+      line,
+      indent(f.what.trim()),
+      ...(f.ask.trim() ? ['', '■ 이렇게 물어봤어요', indent(`"${f.ask.trim()}"`)] : []),
+      '',
+      line,
+      '■ 확인해 주세요',
+      line,
+      ...(link ? [`· 바로 가기: ${link}`] : []),
+      '· 화면 캡처: 이 메일에 첨부해 주세요 (보내기 전에 첨부)',
+      '',
+      '이 메일은 MUNIVERSE 오류 신고 화면에서 작성되었어요.'
+    ].join('\n');
     window.location.href = `mailto:${encodeURIComponent(to || cc)}?${to && cc ? `cc=${encodeURIComponent(cc)}&` : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     props.onSent();
   };

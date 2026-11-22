@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>파일럿 효과 측정 대시보드</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2733;--sub:#5d6b7b;--line:#e2e7ee;--pri:#003F6D;--onpri:#fff;--soft:#e8f2fb;--ok:#1a8f63;--warn:#d98a06;--bad:#cf3f3f;--c1:#0a6cbd;--c2:#9cc9ee}
+@media (prefers-color-scheme:dark){:root{--bg:#0c141e;--card:#142131;--ink:#e5edf6;--sub:#9cafc3;--line:#25374c;--pri:#80CAFF;--onpri:#06233b;--soft:#1a2d44;--ok:#45c492;--warn:#f0a83a;--bad:#ff7a7a;--c1:#80CAFF;--c2:#35587a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Pretendard,"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+.lead{color:var(--sub);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h2 small{font-weight:500;color:var(--sub);font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.kpi .l{color:var(--sub);font-size:13px}
+.kpi .v{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:13px;color:var(--sub)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.bars .b{display:grid;grid-template-columns:150px 1fr 90px;gap:10px;align-items:center;margin:10px 0;font-size:14px}
+.pair{display:flex;flex-direction:column;gap:3px}
+.track{height:11px;background:var(--soft);border-radius:999px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:999px;width:0;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.nps{display:flex;height:34px;border-radius:10px;overflow:hidden;font-size:12px;font-weight:700;color:#fff}
+.nps div{display:grid;place-items:center;transition:flex .6s}
+.dist{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:end;height:150px;margin-top:14px}
+.dist .c{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:12px;color:var(--sub)}
+.dist .c i{width:100%;max-width:56px;background:var(--c1);border-radius:8px 8px 0 0;transition:height .6s}
+.dist .c b{color:var(--ink);font-size:13px}
+.proj{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.proj .p{background:var(--soft);border-radius:12px;padding:14px}
+.proj .p .l{font-size:13px;color:var(--sub)}
+.proj .p .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.proj label{font-size:14px;display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.proj input,label.inl input{width:110px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.quotes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.q{border-left:3px solid var(--c1);background:var(--soft);border-radius:0 10px 10px 0;padding:10px 14px;font-size:14px}
+.q small{display:block;color:var(--sub);font-size:12px;margin-top:4px}
+.summary{white-space:pre-wrap;background:var(--soft);border-radius:12px;padding:16px;font-size:14px;margin:0}
+textarea{width:100%;min-height:180px;border:1px solid var(--line);border-radius:10px;padding:12px;font:12px/1.5 Consolas,monospace;background:var(--bg);color:var(--ink)}
+button,.file{border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer;background:var(--pri);color:var(--onpri)}
+button.ghost,.file{background:var(--soft);color:var(--ink)}
+.file input{display:none}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.hint{font-size:12px;color:var(--sub)}
+.err{color:var(--bad);font-size:14px}
+details summary{cursor:pointer;font-weight:700}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2,.quotes,.proj{grid-template-columns:1fr}.bars .b{grid-template-columns:96px 1fr 70px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Copilot 파일럿 효과 측정 대시보드</h1>
+  <p class="lead">파일럿 참가자의 사전 · 사후 설문 결과를 붙여 넣으면 절감 시간, 만족도, 추천 의향(NPS)과 전사 확산 시 기대 효과를 계산해요. 확산 의사결정 보고에 바로 쓰세요.</p>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid2">
+    <div class="card"><h2>시나리오별 주당 업무 시간 <small>사전 vs 사후 (1인 평균)</small></h2><div class="bars" id="scen"></div>
+      <div class="legend"><span><i style="background:var(--c2)"></i>사전</span><span><i style="background:var(--c1)"></i>사후</span></div></div>
+    <div class="card"><h2>부서별 1인 주당 절감 시간</h2><div class="bars" id="dept"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h2>추천 의향 (NPS) <small>0~10점 중 9~10 추천 · 0~6 비추천</small></h2><div class="nps" id="nps"></div><div class="legend" id="npsl"></div>
+      <h2 style="margin-top:22px">만족도 분포</h2><div class="dist" id="dist"></div></div>
+    <div class="card"><h2>전사 확산 시 기대 효과</h2>
+      <div class="proj"><label style="grid-column:1/-1">확산 대상 인원 <input type="number" id="n" value="1500" step="100"> 명 · 시간당 인건비 <input type="number" id="w" value="45000" step="5000"> 원</label>
+        <div class="p"><div class="l">연간 절감 시간</div><div class="v" id="ph"></div></div>
+        <div class="p"><div class="l">연간 절감 금액</div><div class="v" id="pw"></div></div>
+        <div class="p"><div class="l">정규직 환산</div><div class="v" id="pf"></div></div></div>
+      <p class="hint">파일럿 1인 평균 절감 시간 × 확산 인원 × 46주. 파일럿 참가자는 적극적인 사람이 많아 실제로는 60~70% 수준을 기대하는 것이 안전해요 (아래 보수 추정).</p>
+      <p class="hint" id="cons"></p>
+      <h2 style="margin-top:18px">참가자 목소리</h2><div class="quotes" id="quotes"></div></div>
+  </div>
+  <div class="card"><h2>확산 의사결정 보고 요약</h2><p class="summary" id="sum"></p><div class="row"><button id="copy">요약 복사</button></div></div>
+  <div class="card"><details><summary>설문 데이터 바꾸기</summary>
+    <p class="hint">머리글: 부서, 시나리오, 사전 시간, 사후 시간, 만족도, 추천, 의견 (사전 · 사후 시간은 그 업무에 쓰는 주당 시간). Forms 결과를 Excel에서 복사해 붙여도 돼요.</p>
+    <textarea id="src" spellcheck="false"></textarea>
+    <div class="row"><button id="run">다시 계산</button><label class="file">CSV 파일 열기<input type="file" id="file" accept=".csv,.txt"></label><button class="ghost" id="sample">예시 데이터</button><span class="err" id="err"></span></div>
+  </details></div>
+</div>
+<script>
+const SAMPLE = (() => {
+  const rows = [['부서', '시나리오', '사전 시간', '사후 시간', '만족도', '추천', '의견']];
+  const S = [['회의록 요약', 3.0, 1.0], ['메일 정리 · 답장', 4.0, 2.4], ['보고서 초안', 5.0, 2.6], ['자료 검색', 3.0, 1.5], ['엑셀 분석', 2.5, 1.7]];
+  const Dp = [['영업본부', 1.1], ['마케팅팀', 1.15], ['재무팀', 0.7], ['인사팀', 0.95], ['고객지원', 1.05]];
+  const Q = ['회의 끝나고 회의록 쓰는 시간이 거의 없어졌어요', '메일 답장 초안이 생각보다 자연스러워요', '숫자는 꼭 다시 확인해야 해서 아직 조심스러워요', '보고서 첫 장을 쓰는 부담이 사라졌어요', '자료 찾는 시간이 반으로 줄었어요', '엑셀은 아직 기대보다 덜 정확해요', '교육을 한 번 더 받고 싶어요', '팀 전체에 바로 쓰게 해 주세요'];
+  let seed = 7; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (let i = 0; i < 120; i++) {
+    const s = S[i % S.length], d = Dp[Math.floor(rnd() * Dp.length)];
+    const pre = +(s[1] * (0.8 + rnd() * 0.5)).toFixed(1);
+    const post = +Math.max(0.2, pre - (s[1] - s[2]) * d[1] * (0.6 + rnd() * 0.8)).toFixed(1);
+    const sat = Math.min(5, Math.max(1, Math.round(3.4 + d[1] * 0.9 + (rnd() - 0.5) * 2.4)));
+    const rec = Math.min(10, Math.max(0, Math.round(sat * 1.9 + (rnd() - 0.4) * 3)));
+    rows.push([d[0], s[0], pre, post, sat, rec, i % 9 === 0 ? Q[(i / 9) % Q.length] : '']);
+  }
+  return rows.map(r => r.join(',')).join('\n');
+})();
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const won = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억 원' : Math.round(n / 1e4).toLocaleString('ko-KR') + '만 원';
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+let rows = [];
+
+function parse(t) {
+  const lines = t.trim().split(/\r?\n/).filter(Boolean);
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const h = lines[0].split(sep).map(s => s.replace(/\s/g, ''));
+  const f = (...n) => h.findIndex(x => n.some(k => x.includes(k)));
+  const ix = { d: f('부서'), s: f('시나리오', '업무'), a: f('사전'), b: f('사후'), sat: f('만족'), rec: f('추천', 'NPS'), c: f('의견', '코멘트') };
+  if (ix.a < 0 || ix.b < 0) { throw new Error('사전 시간 · 사후 시간 열을 찾지 못했어요.'); }
+  return lines.slice(1).map(l => { const c = l.split(sep); return { d: c[ix.d] || '전체', s: c[ix.s] || '기타', a: +c[ix.a] || 0, b: +c[ix.b] || 0, sat: +c[ix.sat] || 0, rec: ix.rec >= 0 && c[ix.rec] !== '' ? +c[ix.rec] : null, c: ix.c >= 0 ? (c.slice(ix.c).join(sep) || '').trim() : '' }; });
+}
+const group = (k) => { const m = {}; rows.forEach(r => { (m[r[k]] = m[r[k]] || []).push(r); }); return m; };
+
+function render() {
+  $('err').textContent = '';
+  try { rows = parse($('src').value); } catch (e) { $('err').textContent = e.message; return; }
+  const saved = rows.map(r => r.a - r.b);
+  // 응답자 1명 = 1행(시나리오 1개) 기준. 1인 주당 절감 = 응답 평균 × 1인당 시나리오 수(행 수 ÷ 고유 응답자 수를 알 수 없어 시나리오 수로 근사)
+  const perPerson = avg(saved) * Math.min(3, Object.keys(group('s')).length);
+  const pctSaved = rows.filter(r => r.a - r.b > 0.2).length / rows.length;
+  const sat = avg(rows.filter(r => r.sat).map(r => r.sat));
+  const recs = rows.filter(r => r.rec !== null);
+  const pro = recs.filter(r => r.rec >= 9).length / (recs.length || 1), det = recs.filter(r => r.rec <= 6).length / (recs.length || 1);
+  const nps = Math.round((pro - det) * 100);
+  const cut = avg(rows.map(r => r.a ? (r.a - r.b) / r.a : 0));
+  $('kpis').innerHTML = [
+    ['1인 주당 절감 시간', perPerson.toFixed(1) + '시간', `시나리오 평균 ${avg(saved).toFixed(1)}시간 × 주요 3개`],
+    ['업무 시간 감소율', Math.round(cut * 100) + '%', `시간이 줄었다는 응답 ${Math.round(pctSaved * 100)}%`],
+    ['평균 만족도', sat.toFixed(1) + ' / 5', `4점 이상 ${Math.round(rows.filter(r => r.sat >= 4).length / rows.length * 100)}%`],
+    ['추천 의향 NPS', (nps > 0 ? '+' : '') + nps, nps >= 30 ? '확산 권장 수준' : nps >= 0 ? '보완 후 확산' : '원인 분석 필요']
+  ].map(k => `<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join('');
+
+  const sg = Object.entries(group('s')).map(([k, v]) => ({ k, a: avg(v.map(r => r.a)), b: avg(v.map(r => r.b)) })).sort((x, y) => (y.a - y.b) - (x.a - x.b));
+  const mx = Math.max(...sg.map(x => x.a)) || 1;
+  $('scen').innerHTML = sg.map(x => `<div class="b"><span>${esc(x.k)}</span><div class="pair"><div class="track"><i style="background:var(--c2)" data-w="${x.a / mx * 100}"></i></div><div class="track"><i style="background:var(--c1)" data-w="${x.b / mx * 100}"></i></div></div><span class="num">−${Math.round((1 - x.b / x.a) * 100)}%</span></div>`).join('');
+  const dg = Object.entries(group('d')).map(([k, v]) => ({ k, s: avg(v.map(r => r.a - r.b)) * Math.min(3, sg.length), n: v.length })).sort((x, y) => y.s - x.s);
+  const md = Math.max(...dg.map(x => x.s)) || 1;
+  $('dept').innerHTML = dg.map(x => `<div class="b"><span>${esc(x.k)} <span class="hint">${x.n}명</span></span><div class="track" style="height:18px"><i style="background:${x.s < perPerson * 0.75 ? 'var(--warn)' : 'var(--c1)'}" data-w="${x.s / md * 100}"></i></div><span class="num">${x.s.toFixed(1)}시간</span></div>`).join('');
+
+  const pas = 1 - pro - det;
+  $('nps').innerHTML = `<div style="flex:${det};background:var(--bad)">${Math.round(det * 100)}%</div><div style="flex:${pas};background:#8a97a6">${Math.round(pas * 100)}%</div><div style="flex:${pro};background:var(--ok)">${Math.round(pro * 100)}%</div>`;
+  $('npsl').innerHTML = '<span><i style="background:var(--bad)"></i>비추천 (0~6)</span><span><i style="background:#8a97a6"></i>중립 (7~8)</span><span><i style="background:var(--ok)"></i>추천 (9~10)</span>';
+  const cnt = [1, 2, 3, 4, 5].map(v => rows.filter(r => r.sat === v).length), cm = Math.max(...cnt) || 1;
+  $('dist').innerHTML = cnt.map((c, i) => `<div class="c"><b>${c}</b><i style="height:0" data-h="${c / cm * 85}"></i>${i + 1}점</div>`).join('');
+
+  const proj = () => {
+    const n = +$('n').value || 0, w = +$('w').value || 0, hrs = perPerson * n * 46;
+    $('ph').textContent = Math.round(hrs).toLocaleString('ko-KR') + '시간'; $('pw').textContent = won(hrs * w); $('pf').textContent = (hrs / 1840).toFixed(0) + '명';
+    $('cons').textContent = `보수 추정(65%): 연간 ${Math.round(hrs * 0.65).toLocaleString('ko-KR')}시간 · ${won(hrs * 0.65 * w)}`;
+    return { n, hrs, w };
+  };
+  const P = proj(); $('n').oninput = $('w').oninput = () => { proj(); summary(); };
+  const qs = rows.filter(r => r.c).slice(0, 6);
+  $('quotes').innerHTML = qs.map(r => `<div class="q">"${esc(r.c)}"<small>${esc(r.d)} · ${esc(r.s)} · 만족도 ${r.sat}</small></div>`).join('') || '<p class="hint">의견 열이 없어요.</p>';
+
+  function summary() {
+    const p = proj();
+    $('sum').textContent = [
+      `■ 파일럿 참가자 응답 ${rows.length}건 기준, 1인당 주 ${perPerson.toFixed(1)}시간을 절감했습니다 (업무 시간 ${Math.round(cut * 100)}% 감소).`,
+      `■ 효과가 가장 큰 업무는 ${sg[0].k}(−${Math.round((1 - sg[0].b / sg[0].a) * 100)}%)와 ${sg[1] ? sg[1].k : ''}이며, ${sg[sg.length - 1].k}은 효과가 작아 교육 보완이 필요합니다.`,
+      `■ 만족도 ${sat.toFixed(1)}/5, 추천 의향 NPS ${nps > 0 ? '+' : ''}${nps}입니다.`,
+      `■ ${p.n.toLocaleString('ko-KR')}명으로 확산하면 연간 약 ${Math.round(p.hrs * 0.65).toLocaleString('ko-KR')}~${Math.round(p.hrs).toLocaleString('ko-KR')}시간(${won(p.hrs * 0.65 * p.w)}~${won(p.hrs * p.w)})의 절감이 기대됩니다.`,
+      `■ 제안: ${nps >= 30 ? '전사 확산을 승인하고' : '보완 교육 후 단계적으로 확산하고'}, ${dg[dg.length - 1].k}에는 업무 맞춤 교육과 챔피언을 먼저 배치합니다.`
+    ].join('\n');
+  }
+  summary();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelectorAll('.track i').forEach(i => { i.style.width = i.dataset.w + '%'; });
+    document.querySelectorAll('.dist i').forEach(i => { i.style.height = i.dataset.h + '%'; });
+  }));
+}
+$('src').value = SAMPLE;
+$('run').onclick = render;
+$('sample').onclick = () => { $('src').value = SAMPLE; render(); };
+$('file').onchange = e => { const f = e.target.files[0]; if (!f) { return; } const r = new FileReader(); r.onload = () => { $('src').value = r.result; render(); }; r.readAsText(f, 'utf-8'); };
+$('copy').onclick = () => { navigator.clipboard.writeText($('sum').textContent); $('copy').textContent = '복사했어요'; setTimeout(() => { $('copy').textContent = '요약 복사'; }, 1500); };
+render();
+</script>
+</body>
+</html>

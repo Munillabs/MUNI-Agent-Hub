@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADKAR 변화 준비도 설문</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2733;--sub:#5d6b7b;--line:#e2e7ee;--pri:#003F6D;--onpri:#fff;--soft:#e8f2fb;--ok:#1a8f63;--warn:#c77a06;--bad:#cf3f3f;--c1:#0a6cbd}
+@media (prefers-color-scheme:dark){:root{--bg:#0c141e;--card:#142131;--ink:#e5edf6;--sub:#9cafc3;--line:#25374c;--pri:#80CAFF;--onpri:#06233b;--soft:#1a2d44;--ok:#45c492;--warn:#f0a83a;--bad:#ff7a7a;--c1:#80CAFF}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Pretendard,"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+.lead{color:var(--sub);margin:0 0 20px}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 16px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer}
+.tabs button.on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px}
+.stage{display:grid;grid-template-columns:150px 1fr;gap:16px;padding:14px 0;border-top:1px solid var(--line)}
+.stage:first-of-type{border-top:0}
+.stage .nm b{display:block;font-size:15px}
+.stage .nm span{font-size:12px;color:var(--sub)}
+.sq p{margin:0 0 6px;font-size:14px}
+.sq + .sq{margin-top:12px}
+.scale{display:flex;gap:6px}
+.scale button{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 0;font-weight:600;font-size:13px;font-family:inherit;cursor:pointer}
+.scale button.on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.g{border:1px solid var(--line);border-radius:12px;padding:12px}
+.g label{font-size:13px;color:var(--sub)}
+.g input{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;margin:4px 0 8px}
+.g .sl{display:grid;grid-template-columns:24px 1fr 28px;gap:6px;align-items:center;font-size:12px}
+.g .sl input{margin:0;padding:0;accent-color:var(--c1)}
+.chart{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:end;height:220px;padding:0 4px;border-bottom:1px solid var(--line);position:relative}
+.col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.col .v{font-weight:800;font-size:15px;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.col .b{width:100%;max-width:90px;border-radius:10px 10px 0 0;background:var(--c1);transition:height .6s cubic-bezier(.2,.8,.2,1),background .3s}
+.col .b.barrier{background:var(--bad)}
+.col .b.weak{background:var(--warn)}
+.labels{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;text-align:center;font-size:13px;margin-top:8px}
+.labels span small{display:block;color:var(--sub);font-size:11px}
+.line3{position:absolute;left:0;right:0;border-top:2px dashed var(--sub);opacity:.4}
+.line3 span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--sub)}
+.verdict{display:flex;gap:16px;align-items:flex-start;background:var(--soft);border-radius:12px;padding:16px;margin-top:18px}
+.verdict .ic{font-size:30px}
+.verdict h3{margin:0 0 4px;font-size:17px}
+.verdict ul{margin:6px 0 0;padding-left:18px;font-size:14px}
+button.pri{border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer;background:var(--pri);color:var(--onpri)}
+.row{display:flex;gap:8px;margin-top:14px}
+.hint{font-size:12px;color:var(--sub)}
+@media (max-width:700px){.stage{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ADKAR 변화 준비도 진단</h1>
+  <p class="lead">Copilot 도입에서 직원들이 어느 단계에서 막혀 있는지 찾아요. ADKAR 모델은 <b>앞 단계가 3점 미만이면 그 단계가 "막힌 지점"</b>이라고 봐요. 막힌 지점부터 풀어야 다음 단계가 움직여요.</p>
+  <div class="tabs"><button class="on" data-m="one">개인 설문</button><button data-m="team">그룹 결과 입력</button></div>
+
+  <div class="card" id="one"></div>
+  <div class="card" id="team" hidden><h2>그룹별 평균 점수 입력</h2><p class="hint">설문 결과의 단계별 평균(1~5)을 그룹마다 넣으면 그룹을 비교해 볼 수 있어요.</p><div class="groups" id="groups"></div></div>
+
+  <div class="card">
+    <h2 id="rtitle">결과</h2>
+    <div class="chart" id="chart"><div class="line3" id="l3"><span>3점 (막힘 기준)</span></div></div>
+    <div class="labels" id="labels"></div>
+    <div class="verdict" id="verdict"></div>
+    <div class="row"><button class="pri" id="copy">결과 복사</button></div>
+  </div>
+</div>
+<script>
+const S = [
+  { k: 'A', n: '인식', e: 'Awareness', q: ['회사가 왜 Copilot을 도입하는지 설명할 수 있다', '도입하지 않으면 어떤 문제가 생기는지 안다'],
+    act: ['경영진이 직접 도입 이유를 말하는 타운홀·영상 메시지', '팀장이 팀 회의에서 "왜"를 2분 동안 설명', '경쟁사·업계 변화 사례 공유'] },
+  { k: 'D', n: '의지', e: 'Desire', q: ['Copilot이 내 일을 편하게 해 줄 것 같다', '직접 써 보고 싶다'],
+    act: ['"내 업무에서 아낀 시간" 동료 사례 공유', '일자리·감시 걱정에 답하는 FAQ', '챔피언이 팀에서 직접 시연'] },
+  { k: 'K', n: '지식', e: 'Knowledge', q: ['Copilot을 어디서 어떻게 시작하는지 안다', '좋은 프롬프트를 쓰는 방법을 안다'],
+    act: ['직무별 1시간 실습 교육', '복사해 쓰는 프롬프트 모음 배포', '질문 채널(Teams) 열기'] },
+  { k: 'A', n: '실행력', e: 'Ability', q: ['내 실제 업무에 Copilot을 써 봤다', '막히면 스스로 해결하거나 도움을 받을 수 있다'],
+    act: ['"매일 한 번 쓰기" 2주 미션', '부서별 오피스 아워(질문 받는 시간)', '업무 맞춤 프롬프트를 챔피언과 같이 만들기'] },
+  { k: 'R', n: '정착', e: 'Reinforcement', q: ['Copilot 사용이 이제 습관이 됐다', '잘 쓰는 사람이 인정받는 분위기다'],
+    act: ['잘 쓰는 사람·팀을 공개적으로 인정', '월간 사용 현황 공유와 목표 설정', '업무 절차·양식에 Copilot 단계 넣기'] }
+];
+const $ = id => document.getElementById(id);
+const one = S.map(s => s.q.map(() => 0));
+let groups = [{ n: '영업본부', v: [4.3, 3.8, 3.1, 2.6, 2.2] }, { n: '재무팀', v: [3.6, 2.4, 2.8, 2.1, 1.8] }, { n: '연구개발', v: [4.0, 4.1, 2.5, 2.3, 2.0] }];
+let mode = 'one', sel = 0;
+
+$('one').innerHTML = '<h2>나의 변화 준비도 (각 문항 1~5점)</h2>' + S.map((s, i) => `<div class="stage"><div class="nm"><b>${s.k} · ${s.n}</b><span>${s.e}</span></div><div>` +
+  s.q.map((q, j) => `<div class="sq"><p>${q}</p><div class="scale" data-i="${i}" data-j="${j}">${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join('')}</div></div>`).join('') + '</div></div>').join('');
+document.querySelectorAll('.scale').forEach(x => x.onclick = e => { const b = e.target.closest('button'); if (!b) { return; } one[x.dataset.i][x.dataset.j] = Number(b.dataset.v); render(); });
+
+function drawGroups() {
+  $('groups').innerHTML = groups.map((g, gi) => `<div class="g" data-g="${gi}" style="${gi === sel ? 'border-color:var(--c1)' : ''}"><label>그룹 이름</label><input value="${g.n.replace(/"/g, '&quot;')}" data-n>` +
+    S.map((s, i) => `<div class="sl"><b>${s.k}</b><input type="range" min="1" max="5" step="0.1" value="${g.v[i]}" data-i="${i}"><span>${g.v[i].toFixed(1)}</span></div>`).join('') + '</div>').join('') +
+    '<div class="g" style="display:grid;place-items:center"><button class="pri" id="addG">그룹 추가</button></div>';
+  $('groups').querySelectorAll('.g[data-g]').forEach(el => {
+    const g = groups[el.dataset.g];
+    el.onclick = () => { if (sel !== Number(el.dataset.g)) { sel = Number(el.dataset.g); drawGroups(); render(); } };
+    el.querySelector('[data-n]').oninput = e => { g.n = e.target.value; render(); };
+    el.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { g.v[r.dataset.i] = Number(r.value); r.nextElementSibling.textContent = Number(r.value).toFixed(1); render(); });
+  });
+  $('addG').onclick = () => { groups.push({ n: '새 그룹', v: [3, 3, 3, 3, 3] }); sel = groups.length - 1; drawGroups(); render(); };
+}
+
+function vals() {
+  if (mode === 'team') { return groups[sel] ? groups[sel].v : [0, 0, 0, 0, 0]; }
+  return one.map(r => { const a = r.filter(Boolean); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0; });
+}
+
+function render() {
+  document.querySelectorAll('#one .scale').forEach(x => x.querySelectorAll('button').forEach(b => b.classList.toggle('on', one[x.dataset.i][x.dataset.j] === Number(b.dataset.v))));
+  const v = vals();
+  $('rtitle').textContent = mode === 'team' && groups[sel] ? `결과 · ${groups[sel].n}` : '결과 · 나의 변화 준비도';
+  const barrier = v.findIndex(x => x && x < 3);
+  const chart = $('chart');
+  chart.querySelectorAll('.col').forEach(c => c.remove());
+  v.forEach((x, i) => {
+    const c = document.createElement('div'); c.className = 'col';
+    c.innerHTML = `<div class="v">${x ? x.toFixed(1) : '–'}</div><div class="b ${i === barrier ? 'barrier' : (x && x < 3.5 ? 'weak' : '')}" style="height:0"></div>`;
+    chart.appendChild(c);
+    requestAnimationFrame(() => requestAnimationFrame(() => { c.querySelector('.b').style.height = (x / 5 * 85) + '%'; }));
+  });
+  $('l3').style.bottom = (3 / 5 * 85) + '%';
+  $('labels').innerHTML = S.map(s => `<span><b>${s.k}</b> ${s.n}<small>${s.e}</small></span>`).join('');
+  const answered = v.filter(Boolean).length;
+  if (!answered) { $('verdict').innerHTML = '<div class="ic">📝</div><div><h3>문항에 답해 주세요</h3>답하는 대로 그래프가 그려져요.</div>'; return; }
+  if (barrier < 0) {
+    $('verdict').innerHTML = `<div class="ic">🚀</div><div><h3>막힌 단계가 없어요</h3>모든 단계가 3점 이상이에요. 정착(R) 단계를 더 강화해 습관으로 만드세요.<ul>${S[4].act.map(a => `<li>${a}</li>`).join('')}</ul></div>`;
+  } else {
+    const s = S[barrier];
+    $('verdict').innerHTML = `<div class="ic">🚧</div><div><h3>막힌 지점: ${s.k} · ${s.n} (${v[barrier].toFixed(1)}점)</h3>이 단계를 풀기 전에는 뒤 단계(${S.slice(barrier + 1).map(x => x.n).join(' → ') || '없음'}) 활동의 효과가 작아요. 먼저 이렇게 해 보세요.<ul>${s.act.map(a => `<li>${a}</li>`).join('')}</ul></div>`;
+  }
+}
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  mode = b.dataset.m; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('one').hidden = mode !== 'one'; $('team').hidden = mode !== 'team'; if (mode === 'team') { drawGroups(); } render();
+});
+$('copy').onclick = () => {
+  const v = vals();
+  const txt = `[ADKAR 변화 준비도] ${$('rtitle').textContent.replace('결과 · ', '')}\n` + S.map((s, i) => `- ${s.k} ${s.n}: ${v[i] ? v[i].toFixed(1) : '–'}`).join('\n') + '\n\n' + $('verdict').innerText;
+  navigator.clipboard.writeText(txt); $('copy').textContent = '복사했어요'; setTimeout(() => { $('copy').textContent = '결과 복사'; }, 1500);
+};
+render();
+</script>
+</body>
+</html>

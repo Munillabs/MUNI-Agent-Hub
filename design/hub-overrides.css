@@ -18,6 +18,10 @@ html{background:var(--bg,#fff)}
 @media (max-width:900px){#home#home .hero h1{font-size:40px!important}}
 @media (max-width:600px){#home#home .hero h1{font-size:30px!important}}
 
+/* Skill·HTML 올리기 = 알약 버튼 (시안은 a.btn.c11-pill 에만 걸려 있어 Hub의 button 에도 같은 모양) */
+#toolkit .ptop .btn.c11-pill,#htools .ptop .btn.c11-pill{display:inline-flex!important;align-items:center;gap:6px;height:40px!important;min-height:40px!important;line-height:1!important;padding:0 20px!important;border-radius:999px!important;background:#004772!important;color:#fff!important;border:0!important;font-size:14px!important;font-weight:700!important;text-decoration:none!important;box-shadow:none!important;transition:background .2s;cursor:pointer}
+#toolkit .ptop .btn.c11-pill:hover,#htools .ptop .btn.c11-pill:hover{background:#003f6d!important}
+
 /* Marketplace '새로 올라왔어요': yyyy/mm/dd 날짜가 두 줄로 꺾이지 않게 */
 .fb-list .fb-rk{white-space:nowrap}
 

@@ -392,4 +392,6 @@ export interface IReportTarget {
   type: 'Agent' | 'Skill' | 'HTML';
   title: string;
   owner?: IPerson;
+  /** 신고 메일의 '바로 가기' 링크용 */
+  id?: number;
 }

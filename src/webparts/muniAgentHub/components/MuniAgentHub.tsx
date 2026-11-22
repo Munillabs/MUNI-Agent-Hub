@@ -525,7 +525,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const on = !i.startedOn;
       service.setStarted(id, on).then(at => {
         patchIdea(id, x => ({ ...x, startedOn: at, status: on ? '제작 중' : '모집 중' }));
-        toast(on ? '만들기를 시작했어요. 제작 중으로 바뀌어요' : "만들기를 멈췄어요. '함께할 사람 찾기' 단계로 돌아가요");
+        toast(on ? '만들기를 시작했어요. 다 만들면 Marketplace에 올려 주세요' : '만들기를 멈췄어요. 다시 시작할 수 있어요');
       }).catch(fail);
     },
     stageOf: i => ideaStage(i, now),
@@ -610,9 +610,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const allNotices: INotice[] = api ? notices(data, api.me, now).filter(n => readState.del.indexOf(n.id) < 0) : [];
   const unread = api ? allNotices.filter(n => !api.isRead(n.id, n.date)) : [];
   const shownNotices = allNotices;
-  /* 프로필 패널: 내 배지 · 도전할 배지는 3개씩, 더보기로 펼침 */
-  const [moreMine, setMoreMine] = React.useState(false);
-  const [moreTodo, setMoreTodo] = React.useState(false);
+  /* 프로필 패널(시안): 내 배지 · 도전할 배지는 3개씩만, 나머지는 '전체 보기'(배지 모음)에서 */
   /* 배지 (시안 배지 도감): 칸 14개 × 단계. 내 배지 = 받은 칸(지금 단계), 도전할 배지 = 다음 단계 진행률 높은 순 */
   const mySeries = api ? badgeSeries(data, api.me) : [];
   const myPick = me ? ((data.avatars || {})[me.id] || '') : '';
@@ -675,7 +673,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       case 'maker': body = <MakerLab api={api} />; break;
       case 'search': body = null; break;
       case 'me': body = <MyWorkspace api={api} />; break;
-      case 'badges': body = <BadgesPage api={api} series={mySeries} pick={repSid} repArt={myAvatarKey} onPick={pickAvatar} onOpenProfile={() => setMenu('account')} />; break;
+      case 'badges': body = <BadgesPage api={api} series={mySeries} pick={repSid} rawPick={myPick} repArt={myAvatarKey} onPick={pickAvatar} onOpenProfile={() => setMenu('account')} />; break;
       default: body = <HomeView api={api} dark={theme === 'dark'} rootRef={rootRef} />;
     }
   }
@@ -840,7 +838,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
                   <Go go={go} view="badges" className="b7p-all">전체 보기<span aria-hidden="true"> →</span></Go></div>
                 {gotSeries.length ? <>
                   <p className="b7p-tip">누르면 프로필 배지가 바뀌어요</p>
-                  <ul className="b7p-list" role="list">{(moreMine ? gotSeries : gotSeries.slice(0, 3)).map(x => {
+                  <ul className="b7p-list" role="list">{gotSeries.slice(0, 3).map(x => {
                     const on = x.sid === repSid;
                     const b = x.top!;
                     return (
@@ -850,16 +848,11 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
                         {on ? <span className="b7p-use"><span aria-hidden="true">✓</span> 프로필로 사용 중</span> : null}</button></li>
                     );
                   })}</ul>
-                  {gotSeries.length > 3 ? <button type="button" className="b7p-more" aria-expanded={moreMine} onClick={() => setMoreMine(!moreMine)}>{moreMine ? '접기' : `더보기 (${gotSeries.length - 3})`}</button> : null}
-                  <p className="bpicks">
-                    {myPick !== 'photo' ? <button type="button" className="bpick reset" onClick={() => pickAvatar('photo')}>배지 대신 내 사진 쓰기</button> : null}
-                    {myPick ? <button type="button" className="bpick reset" onClick={() => pickAvatar('')}>최근 받은 배지로 자동 바꾸기</button> : null}
-                  </p>
                 </> : <p className="b7p-tip">아직 받은 배지가 없어요. 아이디어를 올리거나 Agent를 배포하면 받을 수 있어요.</p>}
                 {todoSeries.length ? <>
                   <div className="b7p-hr b7p-h2"><h2 className="b7p-h">도전할 배지 <span className="b7p-n">{todoSeries.length}</span></h2>
                     <Go go={go} view="badges" className="b7p-all">전체 보기<span aria-hidden="true"> →</span></Go></div>
-                  <ul className="b7p-list">{(moreTodo ? todoSeries : todoSeries.slice(0, 3)).map(x => {
+                  <ul className="b7p-list">{todoSeries.slice(0, 3).map(x => {
                     const nx = x.next!;
                     return (
                       <li key={x.sid} className="b7p-card b7p-todo"><span className="b7p-em"><BadgeArt art={nx.art} on={false} /></span>
@@ -868,7 +861,6 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
                           <small className="b7p-num">{nx.cur} / {nx.need}</small></span></li>
                     );
                   })}</ul>
-                  {todoSeries.length > 3 ? <button type="button" className="b7p-more" aria-expanded={moreTodo} onClick={() => setMoreTodo(!moreTodo)}>{moreTodo ? '접기' : `더보기 (${todoSeries.length - 3})`}</button> : null}
                 </> : null}
               </section>
             </div>

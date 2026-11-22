@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent 도구 선택 도우미</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2733;--sub:#5d6b7b;--line:#e2e7ee;--pri:#003F6D;--onpri:#fff;--soft:#e8f2fb;--ok:#1a8f63;--c1:#0a6cbd;--c2:#7b5cd6;--c3:#d9822b}
+@media (prefers-color-scheme:dark){:root{--bg:#0c141e;--card:#142131;--ink:#e5edf6;--sub:#9cafc3;--line:#25374c;--pri:#80CAFF;--onpri:#06233b;--soft:#1a2d44;--ok:#45c492;--c1:#80CAFF;--c2:#b8a4ff;--c3:#ffb46b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Pretendard,"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+.lead{color:var(--sub);margin:0 0 22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;margin-bottom:16px}
+.steps{display:flex;gap:6px;margin-bottom:18px}
+.steps i{flex:1;height:5px;border-radius:999px;background:var(--soft);transition:.3s}
+.steps i.on{background:var(--c1)}
+.qn{color:var(--sub);font-size:13px;font-weight:700}
+.qt{font-size:21px;font-weight:800;margin:4px 0 6px;letter-spacing:-.01em}
+.qd{color:var(--sub);font-size:14px;margin:0 0 18px}
+.opts{display:grid;gap:10px}
+.opt{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:14px 16px;font:inherit;cursor:pointer;transition:.15s}
+.opt:hover{border-color:var(--c1);transform:translateX(3px)}
+.opt b{display:block}
+.opt span{color:var(--sub);font-size:13px}
+.nav{display:flex;justify-content:space-between;margin-top:16px}
+button.link{border:0;background:none;color:var(--sub);font:inherit;cursor:pointer;padding:0}
+.res-top{display:flex;gap:16px;align-items:center}
+.medal{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-size:28px;color:#fff;flex:none}
+.res-top h2{margin:0;font-size:24px}
+.res-top p{margin:2px 0 0;color:var(--sub)}
+.meter{margin:18px 0}
+.meter .m{display:grid;grid-template-columns:130px 1fr 44px;gap:10px;align-items:center;margin:8px 0;font-size:14px}
+.meter .t{height:12px;background:var(--soft);border-radius:999px;overflow:hidden}
+.meter .t i{display:block;height:100%;border-radius:999px;width:0;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.meter .p{text-align:right;font-variant-numeric:tabular-nums;color:var(--sub)}
+h3{font-size:15px;margin:18px 0 8px}
+ul{margin:0;padding-left:20px}
+li{margin:4px 0}
+.why li{color:var(--ink)}
+.cmp{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.cmp th,.cmp td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.cmp th{color:var(--sub);font-weight:600}
+.cmp td.hl{background:var(--soft);font-weight:600}
+button.pri{border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer;background:var(--pri);color:var(--onpri)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Agent 도구 선택 도우미</h1>
+  <p class="lead">만들고 싶은 Agent에 대해 7개 질문에 답하면 <b>Copilot 채팅 + 프롬프트</b>, <b>Agent Builder</b>, <b>Copilot Studio</b> 중 무엇이 맞는지 이유와 함께 알려 드려요.</p>
+  <div class="card" id="box"></div>
+</div>
+<script>
+const TOOLS = {
+  chat: { n: 'Copilot 채팅 + 프롬프트', c: 'var(--c3)', i: '💬', d: 'Agent를 만들 필요 없이 저장한 프롬프트로 충분해요.',
+    next: ['자주 쓰는 프롬프트를 Copilot 프롬프트 갤러리에 저장하세요', '팀에 공유해 같은 결과를 내게 하세요', '반복이 늘면 Agent Builder로 옮기세요'] },
+  builder: { n: 'Agent Builder', c: 'var(--c1)', i: '🧩', d: 'Microsoft 365 Copilot 안에서 코드 없이 몇 분 만에 만드는 Agent예요.',
+    next: ['Copilot 앱 → Agent 만들기에서 지침을 자연어로 쓰세요', 'SharePoint 사이트·파일을 지식으로 연결하세요', '팀원에게 공유하고 1주일 써 본 뒤 지침을 다듬으세요'] },
+  studio: { n: 'Copilot Studio', c: 'var(--c2)', i: '🛠️', d: '외부 시스템 연결, 업무 흐름 자동화, 여러 채널 배포가 필요한 Agent예요.',
+    next: ['Copilot Studio에서 환경과 데이터 손실 방지(DLP) 정책을 확인하세요', '커넥터·Power Automate 흐름을 설계하세요', '테스트 → 승인 → 게시 절차를 IT와 정하세요'] }
+};
+const Q = [
+  { t: '이 Agent는 누가 쓰나요?', d: '사용 범위가 넓을수록 관리 기능이 필요해요.', o: [
+    ['나 혼자', '내 업무를 빠르게 처리', { chat: 3, builder: 1 }, '혼자 쓰는 용도라 가볍게 시작할 수 있어요'],
+    ['우리 팀', '팀원 5~30명이 함께', { builder: 3, studio: 1 }, '팀 공유는 Agent Builder로 충분해요'],
+    ['전사 또는 고객', '부서 밖, 외부 사용자까지', { studio: 3 }, '전사·외부 배포는 Copilot Studio의 관리·배포 기능이 필요해요']] },
+  { t: '어떤 자료를 근거로 답하나요?', d: 'Agent가 참고할 지식의 위치예요.', o: [
+    ['내가 대화에 붙여 넣는 내용', '그때그때 다름', { chat: 3 }, '매번 자료가 달라 프롬프트로 충분해요'],
+    ['SharePoint·OneDrive 문서', '사내 규정, 매뉴얼, 양식', { builder: 3, studio: 1 }, 'SharePoint 문서는 Agent Builder에서 바로 연결돼요'],
+    ['외부 시스템 데이터', 'ERP, CRM, DB, 웹 API', { studio: 3 }, '외부 시스템 데이터는 Copilot Studio 커넥터가 필요해요']] },
+  { t: '답하는 것 말고 "실행"도 해야 하나요?', d: '예: 티켓 생성, 승인 요청, 메일 발송', o: [
+    ['아니요, 답만 하면 돼요', '질문과 답변', { chat: 2, builder: 2 }, '답변만 하면 되니 단순한 도구로 충분해요'],
+    ['간단한 작업 한두 개', '예: 일정 만들기', { builder: 1, studio: 2 }, '작업이 있으면 Copilot Studio가 더 안정적이에요'],
+    ['여러 단계 업무 흐름', '예: 접수 → 검토 → 승인 → 알림', { studio: 4 }, '여러 단계 자동화는 Copilot Studio + Power Automate가 맞아요']] },
+  { t: '어디에서 쓰나요?', d: '사용자가 Agent를 만나는 곳이에요.', o: [
+    ['Microsoft 365 Copilot 안에서', 'Copilot 앱, Teams 채팅', { chat: 1, builder: 3 }, 'M365 Copilot 안에서 쓰면 Agent Builder가 가장 빨라요'],
+    ['Teams 채널·웹사이트에도', '여러 채널에 배포', { studio: 3 }, '여러 채널 배포는 Copilot Studio만 할 수 있어요']] },
+  { t: '사용자에게 Copilot 라이선스가 있나요?', d: '라이선스에 따라 쓸 수 있는 방법이 달라요.', o: [
+    ['모두 있어요', 'Microsoft 365 Copilot', { chat: 1, builder: 2 }, '라이선스가 있으면 Agent Builder를 추가 비용 없이 쓸 수 있어요'],
+    ['일부만 있거나 없어요', '외부 사용자 포함', { studio: 3 }, '라이선스가 없는 사용자에게는 Copilot Studio로 배포해야 해요']] },
+  { t: '얼마나 빨리 필요해요?', d: '만드는 데 드는 시간이에요.', o: [
+    ['오늘 바로', '몇 분 ~ 1시간', { chat: 2, builder: 2 }, '오늘 바로 써야 하면 코드 없는 방법이 좋아요'],
+    ['1~2주 안에', '테스트 포함', { builder: 2, studio: 1 }, ''],
+    ['한 달 이상 프로젝트', '설계·승인 포함', { studio: 2 }, '프로젝트 단위라면 Copilot Studio로 제대로 설계할 수 있어요']] },
+  { t: '누가 만들고 관리하나요?', d: '만든 뒤 유지보수까지 생각해 보세요.', o: [
+    ['현업 담당자', '코딩 경험 없음', { chat: 1, builder: 3 }, '현업이 직접 고치려면 Agent Builder가 쉬워요'],
+    ['IT·개발 담당자', 'Power Platform 경험 있음', { studio: 3 }, 'IT 팀이 관리하면 Copilot Studio의 버전·환경 관리를 쓸 수 있어요']] }
+];
+let step = 0; const pick = [];
+const box = document.getElementById('box');
+function bar() { return `<div class="steps">${Q.map((_, i) => `<i class="${i < step || (step === Q.length) ? 'on' : ''}"></i>`).join('')}</div>`; }
+function ask() {
+  const q = Q[step];
+  box.innerHTML = bar() + `<div class="qn">질문 ${step + 1} / ${Q.length}</div><div class="qt">${q.t}</div><p class="qd">${q.d}</p>
+    <div class="opts">${q.o.map((o, i) => `<button class="opt" data-i="${i}"><b>${o[0]}</b><span>${o[1]}</span></button>`).join('')}</div>
+    <div class="nav"><button class="link" id="back" ${step ? '' : 'hidden'}>← 이전 질문</button><span></span></div>`;
+  box.querySelectorAll('.opt').forEach(b => b.onclick = () => { pick[step] = Number(b.dataset.i); step++; step < Q.length ? ask() : result(); });
+  const back = document.getElementById('back'); if (back) { back.onclick = () => { step--; ask(); }; }
+}
+function result() {
+  const sc = { chat: 0, builder: 0, studio: 0 };
+  const why = { chat: [], builder: [], studio: [] };
+  pick.forEach((p, i) => { const o = Q[i].o[p]; Object.entries(o[2]).forEach(([k, v]) => { sc[k] += v; if (o[3] && v >= 2) { why[k].push(o[3]); } }); });
+  const tot = sc.chat + sc.builder + sc.studio || 1;
+  const order = Object.keys(sc).sort((a, b) => sc[b] - sc[a]);
+  const w = order[0], T = TOOLS[w];
+  box.innerHTML = bar() + `<div class="res-top"><div class="medal" style="background:${T.c}">${T.i}</div><div><div class="qn">추천 도구</div><h2>${T.n}</h2><p>${T.d}</p></div></div>
+    <div class="meter">${order.map(k => `<div class="m"><span>${TOOLS[k].n}</span><div class="t"><i style="background:${TOOLS[k].c}" data-w="${sc[k] / tot * 100}"></i></div><span class="p">${Math.round(sc[k] / tot * 100)}%</span></div>`).join('')}</div>
+    <h3>이렇게 판단했어요</h3><ul class="why">${(why[w].length ? why[w] : ['답변을 종합하면 가장 잘 맞아요']).map(x => `<li>${x}</li>`).join('')}</ul>
+    <h3>다음에 할 일</h3><ol>${T.next.map(x => `<li>${x}</li>`).join('')}</ol>
+    <h3>한눈에 비교</h3>
+    <table class="cmp"><tr><th></th>${['chat', 'builder', 'studio'].map(k => `<th>${TOOLS[k].n}</th>`).join('')}</tr>
+      ${[['만드는 시간', '몇 분', '몇 분 ~ 몇 시간', '며칠 ~ 몇 주'], ['지식', '대화에 붙인 자료', 'SharePoint·파일·웹', '외부 시스템 포함 모든 자료'], ['실행(작업)', '없음', '제한적', '커넥터·흐름으로 자유롭게'], ['배포', '개인', '팀·조직 공유', 'Teams·웹·여러 채널'], ['만드는 사람', '누구나', '현업 담당자', 'IT·메이커']]
+        .map(r => `<tr><td>${r[0]}</td>${[1, 2, 3].map(i => `<td class="${['chat', 'builder', 'studio'][i - 1] === w ? 'hl' : ''}">${r[i]}</td>`).join('')}</tr>`).join('')}</table>
+    <div class="nav"><button class="link" id="back">← 마지막 질문으로</button><button class="pri" id="again">처음부터 다시</button></div>`;
+  requestAnimationFrame(() => requestAnimationFrame(() => box.querySelectorAll('.meter i').forEach(i => { i.style.width = i.dataset.w + '%'; })));
+  document.getElementById('again').onclick = () => { step = 0; pick.length = 0; ask(); };
+  document.getElementById('back').onclick = () => { step = Q.length - 1; ask(); };
+}
+ask();
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Copilot 도입 효과 계산기</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2733;--sub:#5d6b7b;--line:#e2e7ee;--pri:#003F6D;--onpri:#fff;--soft:#e8f2fb;--ok:#1a8f63;--bad:#cf3f3f;--c1:#0a6cbd;--c2:#9cc9ee;--c3:#cf3f3f}
+@media (prefers-color-scheme:dark){:root{--bg:#0c141e;--card:#142131;--ink:#e5edf6;--sub:#9cafc3;--line:#25374c;--pri:#80CAFF;--onpri:#06233b;--soft:#1a2d44;--ok:#45c492;--bad:#ff7a7a;--c1:#80CAFF;--c2:#35587a;--c3:#ff7a7a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Pretendard,"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+.lead{color:var(--sub);margin:0 0 22px}
+.layout{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 12px}
+.f{margin:14px 0}
+.f label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+.f label b{font-variant-numeric:tabular-nums}
+.f small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+input[type=range]{width:100%;accent-color:var(--c1)}
+input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.kpi .l{color:var(--sub);font-size:13px}
+.kpi .v{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:13px;color:var(--sub)}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.scen{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sc{border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.sc.base{border-color:var(--c1);box-shadow:0 0 0 1px var(--c1) inset}
+.sc .t{font-size:13px;color:var(--sub)}
+.sc .n{font-size:20px;font-weight:800;margin:4px 0;font-variant-numeric:tabular-nums}
+svg text{fill:var(--sub);font-size:11px;font-family:inherit}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.explain{font-size:13px;color:var(--sub);white-space:pre-wrap;background:var(--soft);border-radius:12px;padding:14px;margin:0}
+button{border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer;background:var(--pri);color:var(--onpri);margin-top:12px}
+@media (max-width:900px){.layout{grid-template-columns:1fr}.hero,.scen{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Copilot 도입 효과(ROI) 계산기</h1>
+  <p class="lead">숫자를 움직이면 연간 절감액, 순효과, 투자 회수 기간이 바로 바뀌어요. 고객 미팅에서 고객의 숫자로 함께 계산해 보세요.</p>
+  <div class="layout">
+    <div class="card" id="inputs"><h2>입력값</h2></div>
+    <div>
+      <div class="hero">
+        <div class="kpi"><div class="l">연간 순효과</div><div class="v" id="net"></div><div class="d" id="netd"></div></div>
+        <div class="kpi"><div class="l">투자 회수 기간</div><div class="v" id="pay"></div><div class="d">기준 시나리오</div></div>
+        <div class="kpi"><div class="l">연간 절감 시간</div><div class="v" id="hrs"></div><div class="d" id="fte"></div></div>
+      </div>
+      <div class="card"><h2>12개월 누적 효과</h2><svg id="chart" viewBox="0 0 640 240" width="100%"></svg>
+        <div class="legend"><span><i style="background:var(--c1)"></i>누적 절감액</span><span><i style="background:var(--c3)"></i>누적 비용</span></div></div>
+      <div class="card"><h2>세 가지 경우 비교</h2><div class="scen" id="scen"></div></div>
+      <div class="card"><h2>계산 근거</h2><p class="explain" id="explain"></p><button id="copy">근거 복사</button></div>
+    </div>
+  </div>
+</div>
+<script>
+const F = [
+  { k: 'n', l: '대상 인원', u: '명', min: 10, max: 2000, step: 10, v: 300 },
+  { k: 'h', l: '1인 주당 절감 시간', u: '시간', min: 0.5, max: 10, step: 0.5, v: 2.5, s: '메일 정리, 회의 요약, 문서 초안 등 (Microsoft 조사 기준 주 1~4시간)' },
+  { k: 'r', l: '활용률 (기준)', u: '%', min: 10, max: 100, step: 5, v: 60, s: '라이선스 받은 사람 중 실제로 꾸준히 쓰는 비율' },
+  { k: 'w', l: '시간당 인건비', u: '원', min: 20000, max: 150000, step: 5000, v: 45000 },
+  { k: 'p', l: '1인 월 라이선스 비용', u: '원', min: 0, max: 100000, step: 1000, v: 44000, s: '실제 계약 단가로 바꿔 넣으세요' },
+  { k: 'c', l: '도입 비용 (교육·컨설팅·변화관리)', u: '원', min: 0, max: 500000000, step: 5000000, v: 60000000, num: true }
+];
+const st = {}; F.forEach(f => { st[f.k] = f.v; });
+const $ = id => document.getElementById(id);
+const won = n => { const a = Math.abs(n); const s = n < 0 ? '−' : ''; return a >= 1e8 ? s + (a / 1e8).toFixed(1) + '억 원' : a >= 1e4 ? s + Math.round(a / 1e4).toLocaleString('ko-KR') + '만 원' : s + Math.round(a).toLocaleString('ko-KR') + '원'; };
+const show = f => f.u === '원' ? Number(st[f.k]).toLocaleString('ko-KR') + '원' : st[f.k] + f.u;
+
+$('inputs').innerHTML += F.map(f => `<div class="f"><label>${f.l}<b id="v_${f.k}">${show(f)}</b></label>
+  <input type="${f.num ? 'number' : 'range'}" id="i_${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.v}">${f.s ? `<small>${f.s}</small>` : ''}</div>`).join('');
+F.forEach(f => { $('i_' + f.k).addEventListener('input', e => { st[f.k] = Number(e.target.value); $('v_' + f.k).textContent = show(f); calc(); }); });
+
+function model(rate) {
+  const hours = st.n * st.h * rate * 46;
+  const save = hours * st.w;
+  const cost = st.n * st.p * 12 + st.c;
+  return { hours, save, cost, net: save - cost, pay: save > 0 ? cost / (save / 12) : Infinity };
+}
+
+function chart(m) {
+  const W = 640, H = 240, l = 56, b = 28, t = 12, r = 12;
+  const months = [...Array(13).keys()];
+  const sv = months.map(i => m.save / 12 * i);
+  const cs = months.map(i => st.c + st.n * st.p * i);
+  const max = Math.max(...sv, ...cs) * 1.08 || 1;
+  const x = i => l + (W - l - r) * i / 12, y = v => H - b - (H - b - t) * v / max;
+  let s = '';
+  for (let g = 0; g <= 4; g++) { const v = max * g / 4; s += `<line x1="${l}" x2="${W - r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${l - 6}" y="${y(v) + 4}" text-anchor="end">${won(v).replace(' 원', '')}</text>`; }
+  months.forEach(i => { if (i % 2 === 0) { s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${i}개월</text>`; } });
+  const line = (arr, c) => `<polyline points="${arr.map((v, i) => x(i) + ',' + y(v)).join(' ')}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  s += `<polygon points="${x(0)},${y(0)} ${sv.map((v, i) => x(i) + ',' + y(v)).join(' ')} ${x(12)},${y(0)}" fill="var(--c1)" opacity=".1"/>`;
+  s += line(cs, 'var(--c3)') + line(sv, 'var(--c1)');
+  if (m.pay <= 12) {
+    const pm = m.pay, vx = x(pm), vy = y(m.save / 12 * pm);
+    s += `<line x1="${vx}" x2="${vx}" y1="${t}" y2="${H - b}" stroke="var(--ok)" stroke-dasharray="4 4"/><circle cx="${vx}" cy="${vy}" r="5" fill="var(--ok)"/><text x="${vx + 8}" y="${t + 12}" style="fill:var(--ok);font-weight:700">손익분기 ${pm.toFixed(1)}개월</text>`;
+  }
+  $('chart').innerHTML = s;
+}
+
+function calc() {
+  const base = model(st.r / 100);
+  $('net').textContent = won(base.net); $('net').className = 'v ' + (base.net >= 0 ? 'pos' : 'neg');
+  $('netd').textContent = `절감 ${won(base.save)} − 비용 ${won(base.cost)}`;
+  $('pay').textContent = isFinite(base.pay) ? base.pay.toFixed(1) + '개월' : '회수 안 됨';
+  $('hrs').textContent = Math.round(base.hours).toLocaleString('ko-KR') + '시간';
+  $('fte').textContent = `정규직 약 ${(base.hours / 1840).toFixed(1)}명 분량`;
+  const cases = [['보수', Math.max(0.1, st.r / 100 - 0.2)], ['기준', st.r / 100], ['낙관', Math.min(1, st.r / 100 + 0.2)]];
+  $('scen').innerHTML = cases.map(([n, r], i) => { const m = model(r); return `<div class="sc ${i === 1 ? 'base' : ''}"><div class="t">${n} · 활용률 ${Math.round(r * 100)}%</div><div class="n ${m.net >= 0 ? 'pos' : 'neg'}">${won(m.net)}</div><div class="t">회수 ${isFinite(m.pay) ? m.pay.toFixed(1) + '개월' : '안 됨'}</div></div>`; }).join('');
+  const be = (st.n * st.p * 12 + st.c) / (st.n * st.h * 46 * st.w);
+  $('explain').textContent =
+`연간 절감 시간 = ${st.n}명 × 주 ${st.h}시간 × 활용률 ${st.r}% × 46주 = ${Math.round(base.hours).toLocaleString('ko-KR')}시간
+연간 절감액 = ${Math.round(base.hours).toLocaleString('ko-KR')}시간 × ${st.w.toLocaleString('ko-KR')}원 = ${won(base.save)}
+연간 비용 = ${st.n}명 × ${st.p.toLocaleString('ko-KR')}원 × 12개월 + 도입 비용 ${won(st.c)} = ${won(base.cost)}
+순효과 = ${won(base.net)} · 투자 회수 ${isFinite(base.pay) ? base.pay.toFixed(1) + '개월' : '안 됨'}
+손익분기 활용률 = ${(be * 100).toFixed(1)}% — 이보다 많이 쓰면 이익이에요.`;
+  chart(base);
+}
+$('copy').onclick = () => { navigator.clipboard.writeText($('explain').textContent); $('copy').textContent = '복사했어요'; setTimeout(() => { $('copy').textContent = '근거 복사'; }, 1500); };
+calc();
+</script>
+</body>
+</html>
