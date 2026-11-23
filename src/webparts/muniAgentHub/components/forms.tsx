@@ -195,8 +195,30 @@ function Act(props:{ busy: boolean; label: string; onCancel: () => void; cancelF
 const SKILL_COLS = ['Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 'Does', 'Usage', 'Releases'];
 const HTML_COLS = ['Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 'Does', 'MakerNote', 'Output', 'Releases'];
 
-/** onSubmit 은 실패하면 오류를 던집니다. 폼이 받아 버튼 위에 안내를 띄웁니다. */
-export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; libName: string; onCancel: () => void; onSubmit: (s: INewSkill) => Promise<void> }): JSX.Element {
+/** 제작 중 아이디어 연결 칸: 고르면 올린 뒤 그 아이디어가 '완성'이 되고 결과물로 이어집니다
+    (내가 함께 만드는 제작 중 아이디어 전부. 앞에 [종류]를 붙이고, 올리는 것과 같은 종류를 위에) */
+function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea[]; value: string; onChange: (v: string) => void }): JSX.Element | null {
+  const list = props.ideas.slice().sort((a, b) => Number(b.type === props.kind) - Number(a.type === props.kind));
+  // 연결할 아이디어가 없어도 칸은 보여 주고, 왜 비었는지 알려 줍니다
+  if (!list.length) {
+    return (
+      <Field id={props.id} label="이 아이디어로 만들었어요" hint="Idea Board에서 '함께해요'를 누르고 '만들기 시작하기'를 한 아이디어가 여기에 나와요">
+        <select id={props.id} value="" disabled={true}><option value="">연결할 제작 중 아이디어가 없어요</option></select>
+      </Field>
+    );
+  }
+  return (
+    <Field id={props.id} label="이 아이디어로 만들었어요" hint={`고르면 올릴 때 Idea Board의 아이디어가 '완성'으로 바뀌고, 이 ${props.kind}이 결과물로 연결돼요`}>
+      <select id={props.id} value={props.value} onChange={e => props.onChange(e.target.value)}>
+        <option value="">연결하지 않음</option>
+        {list.map(i => <option key={i.id} value={String(i.id)}>[{i.type || '기타'}] {i.title}</option>)}
+      </select>
+    </Field>
+  );
+}
+
+/** onSubmit 은 실패하면 오류를 던집니다. 폼이 받아 버튼 위에 안내를 띄웁니다. ideaId: 함께 완성할 제작 중 아이디어 */
+export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; libName: string; ideas: IIdea[]; onCancel: () => void; onSubmit: (s: INewSkill, ideaId?: number) => Promise<void> }): JSX.Element {
   const cur = props.skill;
   const editing = !!cur;
   const ref = React.useRef<HTMLFormElement>(null);
@@ -206,6 +228,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
     version: cur ? nextVersion(cur.version) : '1.0', changeNote: cur ? '' : '처음 공유'
   });
   const [file, setFile] = React.useState<{ name: string; text?: string; data?: ArrayBuffer; size: number } | undefined>(undefined);
+  const [ideaId, setIdeaId] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [failure, setFailure] = React.useState<IUploadFailure | undefined>(undefined);
   const fileErr = (m: string): void => { setFile(undefined); setErrors(e => ({ ...e, file: m })); };
@@ -250,7 +273,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
       await props.onSubmit({
         title: t, summary: f.summary.trim(), purpose: f.purpose.trim(), usage: f.usage.trim(), tools: f.tools, kind: f.kind, scope: f.scope, area: f.area,
         version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''), file: file ? { name: file.name, text: file.text, data: file.data } : undefined
-      });
+      }, ideaId ? Number(ideaId) : undefined);
     } catch (err) {
       setFailure(uploadFailure(err, props.libName, SKILL_COLS));
     }
@@ -282,6 +305,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           <Field id="hub-sk-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-sk-ver" placeholder="1.0" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-sk-chg" k="changeNote" label="변경 내용" hint={editing ? '버전을 올리면 꼭 적어 주세요' : undefined} errors={errors}><input id="hub-sk-chg" maxLength={120} placeholder={editing ? '예: 오래된 문서 표시 규칙 추가' : '처음 공유'} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
         </div>
+        <IdeaLinkField id="hub-sk-idea" kind="Skill" ideas={props.ideas} value={ideaId} onChange={setIdeaId} />
         <UploadError f={failure} />
         <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>
@@ -292,7 +316,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
 }
 
 /* ================= HTML 올리기 · 새 버전 (모달 본문) ================= */
-export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; libName: string; onCancel: () => void; onSubmit: (h: INewHtml) => Promise<void> }): JSX.Element {
+export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; libName: string; ideas: IIdea[]; onCancel: () => void; onSubmit: (h: INewHtml, ideaId?: number) => Promise<void> }): JSX.Element {
   const cur = props.tool;
   const editing = !!cur;
   const ref = React.useRef<HTMLFormElement>(null);
@@ -302,6 +326,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
     version: cur ? nextVersion(cur.version) : '0.1', changeNote: cur ? '' : '처음 공유'
   });
   const [file, setFile] = React.useState<{ name: string; text: string; size: number } | undefined>(undefined);
+  const [ideaId, setIdeaId] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [failure, setFailure] = React.useState<IUploadFailure | undefined>(undefined);
   const take = (fl: File): void => {
@@ -340,7 +365,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
         title: t, summary: f.summary.trim(), does: splitLines(f.does), makerNote: f.makerNote.trim(), madeWith: f.madeWith, scope: f.scope,
         workType: f.workType, area: f.area, output: f.output.trim(), version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''),
         file: file ? { name: file.name, text: file.text } : undefined
-      });
+      }, ideaId ? Number(ideaId) : undefined);
     } catch (err) {
       setFailure(uploadFailure(err, props.libName, HTML_COLS));
     }
@@ -372,6 +397,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
           <Field id="hub-ht-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-ht-ver" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-ht-chg" k="changeNote" label="변경 내용" errors={errors}><input id="hub-ht-chg" maxLength={120} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
         </div>
+        <IdeaLinkField id="hub-ht-idea" kind="HTML" ideas={props.ideas} value={ideaId} onChange={setIdeaId} />
         <UploadError f={failure} />
         <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>

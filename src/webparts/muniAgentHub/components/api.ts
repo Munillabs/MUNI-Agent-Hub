@@ -34,6 +34,8 @@ export interface IHubApi {
   started(ideaId: number): { who?: IPerson; date: string } | undefined;
   /** 만들기 시작하기 / 중지 (참여자만) */
   toggleStart(ideaId: number): void;
+  /** 만들기 완료 (참여자만): 결과물은 Agent·Skill·HTML 이름 또는 https 주소, 비워도 됨 */
+  finishIdea(ideaId: number, resultRef: string): Promise<boolean>;
   /** 모집 중 · 제작 중 · 완성 · 보관됨 */
   stageOf(idea: IIdea): IdeaStage;
   comments(ideaId: number): IReaction[];

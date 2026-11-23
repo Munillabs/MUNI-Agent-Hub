@@ -97,7 +97,7 @@ export function awards(d: IHubData, me: IPerson, now: Date): IAward[] {
     m[key].value += n;
   };
   const ideaKing: { [k: string]: { name: string; value: number } } = {};
-  // 아이디어왕: Idea Board에 올린 아이디어 수
+  // 아이디어 뱅크: Idea Board에 올린 아이디어 수
   d.ideas.forEach(i => { if (i.author) { add(ideaKing, String(i.author.id), i.author.name, 1); } });
   const popular: { [k: string]: { name: string; value: number; view?: HubView; id?: number; tie?: number[] } } = {};
   // 5개 부문 모두 기간 제한 없이 지금까지의 활동으로 셉니다. (Home에서는 1분마다 다시 계산)
@@ -110,7 +110,7 @@ export function awards(d: IHubData, me: IPerson, now: Date): IAward[] {
     popular[String(a.id)] = { name: a.title, value: avg, view: 'agent', id: a.id,
       tie: [a.views || 0, rated.length, rv.filter(r => !!(r.body || '').trim()).length] };
   });
-  // 리뷰왕: 다른 사람의 Agent·Skill·HTML에 남긴 리뷰 + 다른 사람 아이디어에 남긴 댓글 수 (내 것에 단 건 빼요)
+  // 리뷰 마스터: 다른 사람의 Agent·Skill·HTML에 남긴 리뷰 + 다른 사람 아이디어에 남긴 댓글 수 (내 것에 단 건 빼요)
   const reviewer: { [k: string]: { name: string; value: number } } = {};
   const posterOf = (t: string, id: number): IPerson | undefined => {
     if (t === 'Agent') { const a = first(d.agents, x => x.id === id); return a && a.owner; }
@@ -127,23 +127,23 @@ export function awards(d: IHubData, me: IPerson, now: Date): IAward[] {
     const idea = first(d.ideas, i => i.id === r.targetId);
     if (idea && !(idea.author && idea.author.id === r.author!.id)) { add(reviewer, String(r.author!.id), r.author!.name, 1); }
   });
-  // 공유왕: Marketplace에 올린 Skill·HTML 수
+  // 공유 MVP: Marketplace에 올린 Skill·HTML 수
   const sharer: { [k: string]: { name: string; value: number } } = {};
   d.skills.forEach(s => { if (s.author) { add(sharer, String(s.author.id), s.author.name, 1); } });
   d.htmls.forEach(h => { if (h.author) { add(sharer, String(h.author.id), h.author.name, 1); } });
-  // 방문왕: Hub를 방문한 날 수 (HubProfiles VisitCount 열, 하루 1회만 셈)
+  // 단골 방문자: Hub를 방문한 날 수 (HubProfiles VisitCount 열, 하루 1회만 셈)
   const visitor: { [k: string]: { name: string; value: number } } = {};
   const vs = d.visits || {};
   Object.keys(vs).forEach(k => { add(visitor, k, vs[Number(k)].name || (Number(k) === me.id ? me.name : '알 수 없음'), vs[Number(k)].count); });
 
   const meKey = String(me.id);
   const list: IAward[] = [
-    { k: 'idea', title: '아이디어왕', icon: '💡', crit: 'Idea Board에 올린 아이디어 수', unit: '아이디어', rows: rank(ideaKing) },
+    { k: 'idea', title: '아이디어 뱅크', icon: '💡', crit: 'Idea Board에 올린 아이디어 수', unit: '아이디어', rows: rank(ideaKing) },
     { k: 'pop', title: '인기 Agent', icon: '🔥', crit: '평점 (받은 별점의 평균, 같으면 조회수 → 평가 수 → 리뷰 글 수)', unit: '평점', rows: rank(popular), fmt: n => n.toFixed(1),
       tieLabels: [{ label: '조회', fmt: n => n + '회' }, { label: '평가', fmt: n => n + '개' }, { label: '리뷰 글', fmt: n => n + '개' }] },
-    { k: 'review', title: '리뷰왕', icon: '⭐', crit: '다른 사람 Agent·Skill·HTML에 남긴 리뷰 + 아이디어에 남긴 댓글 수', unit: '리뷰', rows: rank(reviewer) },
-    { k: 'share', title: '공유왕', icon: '📚', crit: 'Marketplace에 올린 Skill·HTML 수', unit: 'Skill·HTML 공유', rows: rank(sharer) },
-    { k: 'visit', title: '방문왕', icon: '👣', crit: 'Hub를 방문한 날 수 (하루에 한 번만 셈)', unit: '방문', rows: rank(visitor), fmt: n => n + '일' }
+    { k: 'review', title: '리뷰 마스터', icon: '⭐', crit: '다른 사람 Agent·Skill·HTML에 남긴 리뷰 + 아이디어에 남긴 댓글 수', unit: '리뷰', rows: rank(reviewer) },
+    { k: 'share', title: '공유 MVP', icon: '📚', crit: 'Marketplace에 올린 Skill·HTML 수', unit: 'Skill·HTML 공유', rows: rank(sharer) },
+    { k: 'visit', title: '단골 방문자', icon: '👣', crit: 'Hub를 방문한 날 수 (하루에 한 번만 셈)', unit: '방문', rows: rank(visitor), fmt: n => n + '일' }
   ];
   list.forEach(a => {
     if (a.k === 'pop') {

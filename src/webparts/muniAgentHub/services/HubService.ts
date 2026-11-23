@@ -378,7 +378,8 @@ export class HubService {
 
   /* ---------- 아이디어 (HubIdeas) ----------
      공감 = 목록 평점 설정의 좋아요(LikedBy · LikesCount), 만들래요 = 함께 만드는 사람(Makers) 사람 열.
-     만들기 시작 = 시작일(StartedOn) + 상태 '제작 중'. 완성은 운영 담당자가 상태 '완성'·완성일·결과물을 넣습니다.
+     만들기 시작 = 시작일(StartedOn) + 상태 '제작 중'. 만들기 완료 = 상태 '완성' + 완성일(DoneAt) + 결과물(ResultRef).
+     (함께 만드는 사람이 화면에서 누르거나, 운영 담당자가 목록에서 직접 넣습니다)
      댓글은 항목 댓글을 씁니다. */
   public async getIdeas(): Promise<IIdea[]> {
     const ppl = (f: string): string[] => [`${f}/Id`, `${f}/Title`, `${f}/EMail`];
@@ -447,6 +448,12 @@ export class HubService {
   public async setStarted(ideaId: number, on: boolean): Promise<string> {
     const at = on ? new Date().toISOString() : '';
     await this.merge(this.lists.ideas, ideaId, { StartedOn: at || null, Status: on ? IDEA_STATUS.making : IDEA_STATUS.live });
+    return at;
+  }
+  /** 만들기 완료: 상태 '완성' + 완성일 + 결과물(Agent·Skill·HTML 이름 또는 주소, 비워도 됨) */
+  public async setDone(ideaId: number, resultRef: string): Promise<string> {
+    const at = new Date().toISOString();
+    await this.merge(this.lists.ideas, ideaId, { Status: IDEA_STATUS.done, DoneAt: at, ResultRef: resultRef || null });
     return at;
   }
   /** 새 열이 아직 없으면 그 칸만 빼고 다시 저장합니다 */

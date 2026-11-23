@@ -38,6 +38,14 @@ function resultOf(api: IHubApi, ref: string): Result | undefined {
   const r = (ref || '').trim();
   if (!r) { return undefined; }
   if (/^https:\/\//i.test(r)) { return { label: '결과물', href: r }; }
+  // 번호로 저장한 결과물 (agent:3 · skill:12 · html:7): 이름이 바뀌어도 지금 이름으로 이어집니다
+  const m = /^(agent|skill|html):(\d+)$/i.exec(r);
+  if (m) {
+    const k = m[1].toLowerCase(), id = Number(m[2]);
+    const hit: { title: string } | undefined = k === 'agent' ? first(api.data.agents, x => x.id === id) : k === 'skill' ? first(api.data.skills, x => x.id === id) : first(api.data.htmls, x => x.id === id);
+    return hit ? { label: hit.title, view: k === 'agent' ? 'agent' : k === 'skill' ? 'skill' : 'htool', id } : { label: '결과물 (지워졌거나 숨겨졌어요)' };
+  }
+  // 예전 방식: 이름이 같은 Agent·Skill·HTML
   const same = (t: string): boolean => t.trim().toLowerCase() === r.toLowerCase();
   const a = first(api.data.agents, x => same(x.title));
   if (a) { return { label: a.title, view: 'agent', id: a.id }; }
@@ -53,6 +61,46 @@ function ResultLink(props: { api: IHubApi; r: Result; className: string; prefix?
   if (r.view && r.id) { return <Go go={props.api.go} view={r.view} id={r.id} className={props.className}>{text}</Go>; }
   if (r.href) { return <a className={props.className} href={r.href} target="_blank" rel="noopener noreferrer">{text}</a>; }
   return <span className={props.className}>{text}</span>;
+}
+
+/** 만들기 완료 확인: 결과물(Hub에 올린 Agent·Skill·HTML 또는 링크)을 고르고 완성으로 바꿉니다. 결과물은 비워도 돼요 */
+function FinishBox(props: { api: IHubApi; type: string; onCancel: () => void; onDone: (ref: string) => Promise<boolean> }): JSX.Element {
+  const { api } = props;
+  const [pick, setPick] = React.useState('');
+  const [url, setUrl] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  // 아이디어 종류와 같은 묶음을 먼저, 각 묶음 안에서는 내가 올린 것을 먼저
+  const mineFirst = <T extends { id: number; title: string; owner?: IPerson; author?: IPerson }>(list: T[]): T[] =>
+    list.slice().sort((a, b) => Number(((b.owner || b.author) || { id: 0 }).id === api.me.id) - Number(((a.owner || a.author) || { id: 0 }).id === api.me.id) || a.title.localeCompare(b.title, 'ko'));
+  // 값은 번호(skill:12)로 저장해서 이름이 바뀌어도 결과물 링크가 이어집니다
+  const opts = <T extends { id: number; title: string; owner?: IPerson; author?: IPerson }>(k: string, list: T[]): [string, string][] => mineFirst(list).map(x => [`${k}:${x.id}`, x.title]);
+  const groups: [string, [string, string][]][] = [
+    ['Agent', opts('agent', api.data.agents)],
+    ['Skill', opts('skill', api.data.skills)],
+    ['HTML', opts('html', api.data.htmls)]
+  ];
+  groups.sort((a, b) => Number(b[0] === props.type) - Number(a[0] === props.type));
+  const link = pick === '#link';
+  const okUrl = /^https:\/\/\S+$/i.test(url.trim());
+  const ref = link ? url.trim() : pick;
+  const go = (): void => {
+    if (link && !okUrl) { api.toast('https:// 로 시작하는 주소를 넣어 주세요'); return; }
+    setBusy(true);
+    props.onDone(ref).then(ok => { if (!ok) { setBusy(false); } }, () => setBusy(false));
+  };
+  return (
+    <div className="imstop imfin" role="group" aria-label="만들기 완료 확인">
+      <p>다 만드셨나요? 🎉<br />완성으로 바꾸고 결과물을 연결해요.</p>
+      <label className="sr" htmlFor="hub-finRef">결과물</label>
+      <select id="hub-finRef" value={pick} onChange={e => setPick(e.target.value)}>
+        <option value="">결과물은 나중에 연결할게요</option>
+        {groups.filter(g => g[1].length).map(g => <optgroup key={g[0]} label={g[0]}>{g[1].map(o => <option key={o[0]} value={o[0]}>{o[1]}</option>)}</optgroup>)}
+        <option value="#link">링크 직접 넣기…</option>
+      </select>
+      {link ? <input type="url" aria-label="결과물 주소" placeholder="https://" value={url} onChange={e => setUrl(e.target.value)} autoFocus /> : null}
+      <div><button type="button" className="btn sm pri" disabled={busy} onClick={go}>{busy ? '저장 중…' : '완료'}</button><button type="button" className="btn sm" disabled={busy} onClick={props.onCancel}>취소</button></div>
+    </div>
+  );
 }
 
 /** 포스트잇 한 장 (시안 article.pn) */
@@ -201,6 +249,7 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
   const i = props.idea;
   const [text, setText] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [doneAsk, setDoneAsk] = React.useState(false);
   const [stopAsk, setStopAsk] = React.useState(false);
   const [delAsk, setDelAsk] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
@@ -319,9 +368,14 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
             {chatUrl ? <button type="button" className="btn imteams" onClick={() => { window.open(chatUrl, '_blank', 'noopener'); }}>Teams 채팅으로 함께하기</button> : null}
             {st === 'done' ? <div className="imdone"><p>✓ 완성했어요{i.doneAt ? ` · ${mmdd(i.doneAt)}` : ''}</p>{result ? <ResultLink api={api} r={result.view || result.href ? { ...result, label: result.label + ' 보기' } : result} className="btn imteams" /> : null}</div> : null}
             {joined && !started && st !== 'done' ? <button type="button" className="btn pri imteams tipx" data-tip="만들기 시작했으면 눌러 주세요. 다음 단계로 넘어가요" onClick={() => api.toggleStart(i.id)}>만들기 시작하기</button> : null}
-            {started && st !== 'done' ? (startedByMe && stopAsk
+            {started && st !== 'done' ? (startedByMe && doneAsk
+              ? <FinishBox api={api} type={i.type} onCancel={() => setDoneAsk(false)} onDone={ref => api.finishIdea(i.id, ref).then(ok => { if (ok) { setDoneAsk(false); } return ok; })} />
+              : startedByMe && stopAsk
               ? <div className="imstop" role="group" aria-label="만들기 중지 확인"><p>만들기를 멈출까요?<br />&lsquo;제작자 모으기&rsquo; 단계로 돌아가요.</p><div><button type="button" className="btn sm pri" onClick={() => { setStopAsk(false); api.toggleStart(i.id); }}>중지</button><button type="button" className="btn sm" onClick={() => setStopAsk(false)}>취소</button></div></div>
-              : <><p className="imstarted">{mmdd(started.date)}에 만들기 시작했어요</p>{startedByMe ? <button type="button" className="btn imteams imstopbtn" onClick={() => setStopAsk(true)}>만들기 중지</button> : null}</>) : null}
+              : <><p className="imstarted">{mmdd(started.date)}에 만들기 시작했어요</p>{startedByMe ? <>
+                <button type="button" className="btn pri imteams" onClick={() => setDoneAsk(true)}>만들기 완료</button>
+                <button type="button" className="btn imteams imstopbtn" onClick={() => setStopAsk(true)}>만들기 중지</button>
+              </> : null}</>) : null}
           </> : null}
         </div></aside>
       </div>

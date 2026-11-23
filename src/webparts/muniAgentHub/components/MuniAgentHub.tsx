@@ -429,22 +429,35 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
 
   /* ---------- 등록 (Agent는 배포 흐름이 AgentList에 채우므로 Hub에서 등록하지 않습니다) ---------- */
   // Skill·HTML 올리기는 실패하면 오류를 던집니다. 폼이 받아서 버튼 위에 자세한 안내를 띄웁니다.
-  const submitSkill = async (s: INewSkill, editId?: number): Promise<void> => {
+  // Skill·HTML 올리기 화면의 '이 아이디어로 만들었어요' 후보: 내가 함께 만드는 제작 중 아이디어
+  const myMaking = me ? data.ideas.filter(i => ideaStage(i, now) === 'making' && i.makers.some(p => p.id === me.id)) : [];
+  /** 올린 Skill·HTML로 아이디어를 완성합니다. 결과물은 번호(skill:12)로 남겨 이름이 바뀌어도 이어집니다. 실패해도 올리기는 성공으로 둡니다 */
+  const finishWith = async (ideaId: number | undefined, ref: string): Promise<string> => {
+    if (!ideaId) { return ''; }
+    try {
+      const at = await service.setDone(ideaId, ref);
+      patchIdea(ideaId, x => ({ ...x, status: '완성', doneAt: at, resultRef: ref }));
+      return ' 아이디어도 완성으로 바꿨어요 🎉';
+    } catch (e) { return ' 아이디어를 완성으로 바꾸지 못했어요. 아이디어 화면에서 \'만들기 완료\'를 눌러 주세요.'; }
+  };
+  const submitSkill = async (s: INewSkill, editId?: number, ideaId?: number): Promise<void> => {
     const cur = editId ? first(data.skills, x => x.id === editId) : undefined;
     const id = cur ? (await service.updateSkill(cur, s), cur.id) : await service.createSkill(s);
+    const idea = await finishWith(ideaId, `skill:${id}`);
     // 저장은 끝났으니, 목록 새로 읽기가 실패해도 성공으로 봅니다
     const skills = await service.getSkills().catch(() => undefined);
     if (skills) { setData(d => ({ ...d, skills, skillsError: undefined })); }
     go('skill', id);
-    toast(cur ? `저장했어요. 지금 버전은 v${s.version}이에요.` : 'Skill을 올렸어요.');
+    toast((cur ? `저장했어요. 지금 버전은 v${s.version}이에요.` : 'Skill을 올렸어요.') + idea);
   };
-  const submitHtml = async (h: INewHtml, editId?: number): Promise<void> => {
+  const submitHtml = async (h: INewHtml, editId?: number, ideaId?: number): Promise<void> => {
     const cur = editId ? first(data.htmls, x => x.id === editId) : undefined;
     const id = cur ? (await service.updateHtml(cur, h), cur.id) : await service.createHtml(h);
+    const idea = await finishWith(ideaId, `html:${id}`);
     const htmls = await service.getHtmls().catch(() => undefined);
     if (htmls) { setData(d => ({ ...d, htmls, htmlsError: undefined })); }
     go('htool', id);
-    toast(cur ? `저장했어요. 지금 버전은 v${h.version}이에요.` : 'HTML을 올렸어요.');
+    toast((cur ? `저장했어요. 지금 버전은 v${h.version}이에요.` : 'HTML을 올렸어요.') + idea);
   };
   const submitCase = async (c: INewCase, editId?: number): Promise<boolean> => {
     try {
@@ -525,8 +538,16 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const on = !i.startedOn;
       service.setStarted(id, on).then(at => {
         patchIdea(id, x => ({ ...x, startedOn: at, status: on ? '제작 중' : '모집 중' }));
-        toast(on ? '만들기를 시작했어요. 다 만들면 Marketplace에 올려 주세요' : '만들기를 멈췄어요. 다시 시작할 수 있어요');
+        toast(on ? '만들기를 시작했어요. 다 만들면 \'만들기 완료\'를 눌러 주세요' : '만들기를 멈췄어요. 다시 시작할 수 있어요');
       }).catch(fail);
+    },
+    finishIdea: async (id, resultRef) => {
+      try {
+        const at = await service.setDone(id, resultRef);
+        patchIdea(id, x => ({ ...x, status: '완성', doneAt: at, resultRef }));
+        toast('완성했어요! 함께 만든 분들 수고 많으셨어요');
+        return true;
+      } catch (e) { fail(e); return false; }
     },
     stageOf: i => ideaStage(i, now),
     updateIdea: async (id, idea) => {
@@ -689,12 +710,12 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const cur = modal.id ? first(data.skills, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'Skill 새 버전 올리기' : 'Skill 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
-      modalBody = <SkillForm key={modal.id || 0} skill={cur} existingTitles={data.skills.map(s => s.title)} libName={service.listName('contents')} onCancel={closeModal} onSubmit={s => submitSkill(s, cur ? cur.id : undefined)} />;
+      modalBody = <SkillForm key={modal.id || 0} skill={cur} existingTitles={data.skills.map(s => s.title)} libName={service.listName('contents')} ideas={myMaking} onCancel={closeModal} onSubmit={(s, ideaId) => submitSkill(s, cur ? cur.id : undefined, ideaId)} />;
     } else if (modal.kind === 'html') {
       const cur = modal.id ? first(data.htmls, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'HTML 새 버전 올리기' : 'HTML 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
-      modalBody = <HtmlForm key={modal.id || 0} tool={cur} existingTitles={data.htmls.map(h => h.title)} libName={service.listName('contents')} onCancel={closeModal} onSubmit={h => submitHtml(h, cur ? cur.id : undefined)} />;
+      modalBody = <HtmlForm key={modal.id || 0} tool={cur} existingTitles={data.htmls.map(h => h.title)} libName={service.listName('contents')} ideas={myMaking} onCancel={closeModal} onSubmit={(h, ideaId) => submitHtml(h, cur ? cur.id : undefined, ideaId)} />;
     } else if (modal.kind === 'case') {
       const cur = modal.id ? first(data.cases, x => x.id === modal.id) : undefined;
       modalTitle = cur ? '사례 고치기' : '사례 올리기';
