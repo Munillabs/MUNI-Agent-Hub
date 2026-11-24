@@ -4,7 +4,7 @@
    - 열 내부 이름은 README의 'SharePoint 목록'과 같습니다. */
 import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions } from '@microsoft/sp-http';
 import {
-  IAgent, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill,
+  IAgent, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill, INewShot, INewThumb,
   IPerson, IReaction, ISkill, IVersion, TargetType
 } from '../models/types';
 import {
@@ -713,7 +713,9 @@ export class HubService {
   }
   /** 항목의 첨부 파일 (여럿이면 가장 최근에 올린 것: 이름 앞의 숫자가 올린 시각) */
   private fileOf(files: any): { stored: string; ref: string; url: string } {
+    // 썸네일(thumb.*)과 결과 이미지(result1.* · result2.*)는 본문 파일이 아니라서 뺍니다
     const list: any[] = (Object.prototype.toString.call(files) === '[object Array]' ? files : ((files && files.results) || []))
+      .filter((a: any) => !/^(thumb|result-?[12])\./i.test(str(a.FileName)))
       .slice().sort((a: any, b: any) => str(b.FileName).localeCompare(str(a.FileName)));
     const f = list[0];
     const ref = f ? str(f.ServerRelativeUrl) : '';
@@ -728,10 +730,12 @@ export class HubService {
     return this.send(`${this.listUrl(list)}/items(${id})/AttachmentFiles('${encodeURIComponent(name.replace(/'/g, "''"))}')`, undefined, { 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }, list);
   }
   /** 새 항목: 정보를 먼저 저장하고 파일을 첨부합니다. 첨부가 실패하면 방금 만든 항목을 휴지통으로 보내 빈 항목이 남지 않게 합니다. */
-  private async createWithFile(list: string, fields: any, name: string, body: string | ArrayBuffer): Promise<number> {
+  private async createWithFile(list: string, fields: any, name: string, body: string | ArrayBuffer, thumb?: INewThumb, shots?: INewShot[]): Promise<number> {
     const d = await this.staged('info', () => this.create(list, fields));
     try {
       await this.staged('file', () => this.addAttachment(list, d.Id, name, body));
+      if (thumb) { await this.staged('file', () => this.addAttachment(list, d.Id, `thumb.${thumb.ext}`, thumb.data)); }
+      for (const s of shots || []) { await this.staged('file', () => this.addAttachment(list, d.Id, `result${s.slot}.${s.ext}`, s.data)); }
     } catch (e) {
       await this.send(`${this.listUrl(list)}/items(${d.Id})/recycle()`, undefined, undefined, list).catch(() => undefined);
       throw e;
@@ -746,6 +750,39 @@ export class HubService {
       if (oldName && oldName !== name) { await this.removeAttachment(list, id, oldName).catch(() => undefined); }
     }
     await this.staged('info', () => this.merge(list, id, fields));
+  }
+  /** 썸네일 바꾸기 · 지우기. 첨부 파일 thumb.<ext> 하나만 둡니다 (이름이 같으면 먼저 지워야 새로 붙일 수 있어요). */
+  private async applyThumb(list: string, id: number, old: IImage | undefined, thumb?: INewThumb, drop?: boolean): Promise<void> {
+    if (thumb) {
+      const name = `thumb.${thumb.ext}`;
+      const same = !!old && old.name.toLowerCase() === name.toLowerCase();
+      if (old && same) { await this.staged('file', () => this.removeAttachment(list, id, old.name)); }
+      await this.staged('file', () => this.addAttachment(list, id, name, thumb.data));
+      if (old && !same) { await this.removeAttachment(list, id, old.name).catch(() => undefined); }
+    } else if (drop && old) {
+      await this.staged('file', () => this.removeAttachment(list, id, old.name));
+    }
+  }
+
+  /** '제작자는 이렇게 썼어요' 이미지 바꾸기 · 빼기. 칸(slot) 1 · 2 마다 첨부 파일 result<slot>.<ext> 하나만 둡니다.
+      Skill · HTML은 HubContents 항목에 붙입니다. Agent는 Hub에서 넣지 않고 AgentList 첨부 파일을 읽기만 합니다. */
+  public async saveShots(t: 'Skill' | 'Html', id: number, old: IImage[], add: INewShot[], drop: number[]): Promise<void> {
+    const list = this.lists.contents;
+    const at = (slot: number): IImage | undefined => old.filter(x => x.slot === slot)[0];
+    for (const s of add) {
+      await this.replaceAttachment(list, id, at(s.slot), `result${s.slot}.${s.ext}`, s.data);
+    }
+    for (const slot of drop) {
+      const o = at(slot);
+      if (o && !add.some(s => s.slot === slot)) { await this.staged('file', () => this.removeAttachment(list, id, o.name)); }
+    }
+  }
+  /** 같은 이름이면 먼저 지워야 새로 붙일 수 있어서, 이름이 같을 때만 먼저 지우고 다르면 붙인 뒤에 지웁니다 */
+  private async replaceAttachment(list: string, id: number, old: IImage | undefined, name: string, data: ArrayBuffer): Promise<void> {
+    const same = !!old && old.name.toLowerCase() === name.toLowerCase();
+    if (old && same) { await this.staged('file', () => this.removeAttachment(list, id, old.name)); }
+    await this.staged('file', () => this.addAttachment(list, id, name, data));
+    if (old && !same) { await this.removeAttachment(list, id, old.name).catch(() => undefined); }
   }
 
   /* ---------- HubContents: Skill · HTML (한 목록, 구분 열로 나눔) ----------
@@ -787,7 +824,7 @@ export class HubService {
         purpose: str(r.Does), usage: str(r.Usage), tools: choices(r.Tools),
         kind: str(r.Category), scope: scopes.join(' · '), scopes, area: areas.join(' · '), areas,
         version: rel.length ? rel[0].version : '1.0', changeNote: rel.length ? rel[0].note : '',
-        storedName: f.stored, fileName: originalSkillName(f.stored), ext: extOf(f.stored), fileRef: f.ref, fileUrl: f.url,
+        storedName: f.stored, fileName: originalSkillName(f.stored), ext: extOf(f.stored), fileRef: f.ref, fileUrl: f.url, thumb: this.thumbOf(r.AttachmentFiles), images: this.images(r.AttachmentFiles),
         author: person(r.Author), created: str(r.Created), modified: str(r.Modified), ...HubService.viewsOf(r)
       };
     });
@@ -805,12 +842,14 @@ export class HubService {
   /** Skill 올리기. 승인 없이 바로 모두에게 보입니다. */
   public async createSkill(s: INewSkill): Promise<number> {
     if (!s.file) { throw new HubError('Skill 파일을 골라 주세요.', 400); }
-    return this.createWithFile(this.lists.contents, this.skillFields(s, HubService.withRelease('', s.version, s.changeNote)), storedSkillName(s.file.name), this.fileBody(s));
+    return this.createWithFile(this.lists.contents, this.skillFields(s, HubService.withRelease('', s.version, s.changeNote)), storedSkillName(s.file.name), this.fileBody(s), s.thumb, s.shots);
   }
   /** Skill 새 버전. 새 파일이 있으면 첨부 파일을 바꾸고, 정보 열과 업데이트 기록을 고칩니다. */
   public async updateSkill(skill: ISkill, s: INewSkill): Promise<void> {
     const rel = HubService.withRelease(await this.releasesOf(skill.id), s.version, s.changeNote);
     await this.updateWithFile(this.lists.contents, skill.id, skill.storedName, this.skillFields(s, rel), s.file ? { name: s.file.name, body: this.fileBody(s) } : undefined);
+    await this.applyThumb(this.lists.contents, skill.id, skill.thumb, s.thumb, s.dropThumb);
+    await this.saveShots('Skill', skill.id, skill.images, s.shots || [], s.dropShots || []);
   }
   /** Skill 삭제. 항목과 첨부 파일이 사이트 휴지통으로 갑니다. */
   public async deleteSkill(id: number): Promise<void> {
@@ -841,7 +880,7 @@ export class HubService {
         makerNote: str(r.MakerNote), madeWith: tools.join(' · '), tools, scope: scopes.join(' · '), scopes,
         workType: str(r.Category), area: areas.join(' · '), areas, output: str(r.Output),
         version: rel.length ? rel[0].version : '1.0', changeNote: rel.length ? rel[0].note : '',
-        storedName: f.stored, fileName: originalSkillName(f.stored), fileRef: f.ref, fileUrl: f.url,
+        storedName: f.stored, fileName: originalSkillName(f.stored), fileRef: f.ref, fileUrl: f.url, thumb: this.thumbOf(r.AttachmentFiles), images: this.images(r.AttachmentFiles),
         author: person(r.Author), created: str(r.Created), modified: str(r.Modified), ...HubService.viewsOf(r)
       };
     });
@@ -855,11 +894,13 @@ export class HubService {
   /** HTML 올리기. 승인 없이 바로 보입니다. */
   public async createHtml(h: INewHtml): Promise<number> {
     if (!h.file) { throw new HubError('HTML 파일을 골라 주세요.', 400); }
-    return this.createWithFile(this.lists.contents, this.htmlFields(h, HubService.withRelease('', h.version, h.changeNote)), storedSkillName(h.file.name), h.file.text);
+    return this.createWithFile(this.lists.contents, this.htmlFields(h, HubService.withRelease('', h.version, h.changeNote)), storedSkillName(h.file.name), h.file.text, h.thumb, h.shots);
   }
   public async updateHtml(tool: IHtmlTool, h: INewHtml): Promise<void> {
     const rel = HubService.withRelease(await this.releasesOf(tool.id), h.version, h.changeNote);
     await this.updateWithFile(this.lists.contents, tool.id, tool.storedName, this.htmlFields(h, rel), h.file ? { name: h.file.name, body: h.file.text } : undefined);
+    await this.applyThumb(this.lists.contents, tool.id, tool.thumb, h.thumb, h.dropThumb);
+    await this.saveShots('Html', tool.id, tool.images, h.shots || [], h.dropShots || []);
   }
 
   /** 실패하면 어느 단계(파일 / 정보)였는지 오류에 적어 둡니다. 화면이 알맞은 안내를 고를 수 있게. */

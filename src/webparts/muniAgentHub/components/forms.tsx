@@ -1,10 +1,10 @@
 /* 입력 화면 (시안 마크업): Skill 올리기, HTML 올리기, 사례 올리기, 오류 신고 */
 import * as React from 'react';
-import { ICase, IHtmlTool, IIdea, INewCase, INewHtml, INewIdea, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
+import { ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml, INewIdea, INewShot, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
 import {
   CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_KINDS, HTML_MAX_BYTES, IDEA_FREQS, IDEA_TYPES, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
   SKILL_TOOLS, SOLUTION_KINDS,
-  compareVersion, extOf, fileSize, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
+  compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
   splitLines
 } from '../models/rules';
 
@@ -217,6 +217,92 @@ function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea
   );
 }
 
+/* ---------- 썸네일 이미지 (선택): Marketplace 카드에 보이는 그림, 첨부 파일 thumb.<ext> ---------- */
+const THUMB_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+const THUMB_MAX_BYTES = 2 * 1024 * 1024;
+interface IThumbState { file?: { ext: string; data: ArrayBuffer; url: string; name: string; size: number }; drop: boolean }
+function useThumb(): [IThumbState, React.Dispatch<React.SetStateAction<IThumbState>>] {
+  const [t, setT] = React.useState<IThumbState>({ drop: false });
+  // 미리보기 주소 정리
+  React.useEffect(() => () => { if (t.file) { URL.revokeObjectURL(t.file.url); } }, [t.file]);
+  return [t, setT];
+}
+function ThumbField(props: { id: string; current?: string; value: IThumbState; onChange: (v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>>; ratio: string }): JSX.Element {
+  const v = props.value;
+  const bad = (m: string): void => props.setErrors(e => ({ ...e, thumb: m }));
+  const take = (fl: File): void => {
+    const ext = extOf(fl.name);
+    if (THUMB_EXTS.indexOf(ext) < 0) { bad('.png · .jpg · .gif · .webp 이미지만 올릴 수 있어요.'); return; }
+    if (fl.size > THUMB_MAX_BYTES) { bad('2MB 이하 이미지만 올릴 수 있어요.'); return; }
+    readAs(fl, 'buffer').then(r => {
+      props.setErrors(e => { const n = { ...e }; delete n.thumb; return n; });
+      props.onChange({ file: { ext: ext === 'jpeg' ? 'jpg' : ext, data: r as ArrayBuffer, url: URL.createObjectURL(fl), name: fl.name, size: fl.size }, drop: false });
+    }, () => bad('이미지를 읽지 못했어요. 다시 골라 주세요.'));
+  };
+  const shown = v.file ? v.file.url : (!v.drop && props.current) || '';
+  return (
+    <Field k="thumb" label="썸네일 이미지 (선택)" hint={`Marketplace 카드에 보여요. 가로가 긴 이미지(${props.ratio})가 잘 맞아요. 없으면 기본 그림이 나와요.`} errors={props.errors}>
+      <div className="thumbpick">
+        {shown ? <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label="썸네일 미리보기" /> : null}
+        <Drop id={props.id} accept=".png,.jpg,.jpeg,.gif,.webp" has={!!v.file} title={v.file ? v.file.name : shown ? '다른 이미지로 바꾸려면 누르세요' : '이미지를 끌어다 놓거나 눌러서 고르세요'}
+          sub={v.file ? `${fileSize(v.file.size)} · 다른 이미지를 고르려면 누르세요` : '.png · .jpg · .gif · .webp · 2MB 이하'} onPick={take} />
+      </div>
+      {shown ? <button type="button" className="btn sm thumbdel" onClick={() => props.onChange({ drop: !!props.current })}>썸네일 빼기</button> : null}
+    </Field>
+  );
+}
+function thumbOut(t: IThumbState): { thumb?: { ext: string; data: ArrayBuffer }; dropThumb?: boolean } {
+  return t.file ? { thumb: { ext: t.file.ext, data: t.file.data } } : t.drop ? { dropThumb: true } : {};
+}
+
+/* ---------- '제작자는 이렇게 썼어요' 이미지 (선택, 최대 2장): 첨부 파일 result1.<ext> · result2.<ext> ---------- */
+const SHOT_MAX_BYTES = 3 * 1024 * 1024;
+const SHOT_SLOTS = [1, 2];
+function useShots(): [IThumbState[], (slot: number, v: IThumbState) => void] {
+  const [s, setS] = React.useState<IThumbState[]>([{ drop: false }, { drop: false }]);
+  // 미리보기 주소 정리
+  const urls = s.map(x => x.file ? x.file.url : '').join('|');
+  React.useEffect(() => () => { s.forEach(x => { if (x.file) { URL.revokeObjectURL(x.file.url); } }); }, [urls]);
+  return [s, (slot, v) => setS(all => all.map((x, i) => i === slot - 1 ? v : x))];
+}
+function ShotsField(props: { id: string; current?: IImage[]; value: IThumbState[]; onChange: (slot: number, v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>> }): JSX.Element {
+  const bad = (m: string): void => props.setErrors(e => ({ ...e, shots: m }));
+  const take = (slot: number, fl: File): void => {
+    const ext = extOf(fl.name);
+    if (THUMB_EXTS.indexOf(ext) < 0) { bad('.png · .jpg · .gif · .webp 이미지만 올릴 수 있어요.'); return; }
+    if (fl.size > SHOT_MAX_BYTES) { bad('3MB 이하 이미지만 올릴 수 있어요.'); return; }
+    readAs(fl, 'buffer').then(r => {
+      props.setErrors(e => { const n = { ...e }; delete n.shots; return n; });
+      props.onChange(slot, { file: { ext: ext === 'jpeg' ? 'jpg' : ext, data: r as ArrayBuffer, url: URL.createObjectURL(fl), name: fl.name, size: fl.size }, drop: false });
+    }, () => bad('이미지를 읽지 못했어요. 다시 골라 주세요.'));
+  };
+  return (
+    <Field k="shots" label="결과 이미지 (선택, 최대 2장)" hint="상세 화면의 '제작자는 이렇게 썼어요' 아래에 나란히 보여요. 사용 화면이나 적용 전 · 후를 넣어 보세요." errors={props.errors}>
+      <div className="shotpick">
+        {SHOT_SLOTS.map(slot => {
+          const v = props.value[slot - 1];
+          const cur = first(props.current || [], x => x.slot === slot);
+          const shown = v.file ? v.file.url : (!v.drop && cur && cur.url) || '';
+          return (
+            <div key={slot} className="shotslot">
+              {shown ? <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label={`결과 이미지 ${slot} 미리보기`} /> : null}
+              <Drop id={`${props.id}-${slot}`} accept=".png,.jpg,.jpeg,.gif,.webp" has={!!v.file} title={v.file ? v.file.name : shown ? `이미지 ${slot} 바꾸기` : `이미지 ${slot}`}
+                sub={v.file ? `${fileSize(v.file.size)} · 다시 고르려면 누르세요` : '끌어다 놓거나 눌러서 고르세요 · 3MB 이하'} onPick={fl => take(slot, fl)} />
+              {shown ? <button type="button" className="btn sm thumbdel" onClick={() => props.onChange(slot, { drop: !!cur })}>빼기</button> : null}
+            </div>
+          );
+        })}
+      </div>
+    </Field>
+  );
+}
+function shotsOut(s: IThumbState[]): { shots?: INewShot[]; dropShots?: number[] } {
+  const shots: INewShot[] = [];
+  const dropShots: number[] = [];
+  s.forEach((x, i) => { if (x.file) { shots.push({ slot: i + 1, ext: x.file.ext, data: x.file.data }); } else if (x.drop) { dropShots.push(i + 1); } });
+  return { shots, dropShots };
+}
+
 /** onSubmit 은 실패하면 오류를 던집니다. 폼이 받아 버튼 위에 안내를 띄웁니다. ideaId: 함께 완성할 제작 중 아이디어 */
 export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; libName: string; ideas: IIdea[]; onCancel: () => void; onSubmit: (s: INewSkill, ideaId?: number) => Promise<void> }): JSX.Element {
   const cur = props.skill;
@@ -229,6 +315,8 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
   });
   const [file, setFile] = React.useState<{ name: string; text?: string; data?: ArrayBuffer; size: number } | undefined>(undefined);
   const [ideaId, setIdeaId] = React.useState('');
+  const [thumb, setThumb] = useThumb();
+  const [shots, setShot] = useShots();
   const [busy, setBusy] = React.useState(false);
   const [failure, setFailure] = React.useState<IUploadFailure | undefined>(undefined);
   const fileErr = (m: string): void => { setFile(undefined); setErrors(e => ({ ...e, file: m })); };
@@ -265,6 +353,8 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
     else if (cur && file && compareVersion(v, cur.version) <= 0) { e.version = `파일을 바꾸면 버전을 올려 주세요. 지금 버전은 ${cur.version}이에요.`; }
     else if (cur && compareVersion(v, cur.version) < 0) { e.version = `지금 버전(${cur.version})보다 낮게 적을 수 없어요.`; }
     if (cur && compareVersion(v, cur.version) !== 0 && !f.changeNote.trim()) { e.changeNote = '무엇이 바뀌었는지 적어 주세요.'; }
+    if (errors.thumb) { e.thumb = errors.thumb; }
+    if (errors.shots) { e.shots = errors.shots; }
     setErrors(e);
     if (Object.keys(e).length) { focusFirstError(ref.current); return; }
     setBusy(true);
@@ -272,7 +362,8 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
     try {
       await props.onSubmit({
         title: t, summary: f.summary.trim(), purpose: f.purpose.trim(), usage: f.usage.trim(), tools: f.tools, kind: f.kind, scope: f.scope, area: f.area,
-        version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''), file: file ? { name: file.name, text: file.text, data: file.data } : undefined
+        version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''), file: file ? { name: file.name, text: file.text, data: file.data } : undefined,
+        ...thumbOut(thumb), ...shotsOut(shots)
       }, ideaId ? Number(ideaId) : undefined);
     } catch (err) {
       setFailure(uploadFailure(err, props.libName, SKILL_COLS));
@@ -289,6 +380,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           {file && file.text ? <pre className="mdview" aria-label="파일 앞부분">{file.text.split(/\r?\n/).slice(0, 10).join('\n')}</pre> : null}
           {secret ? <p className="fwarn">API 키나 비밀번호로 보이는 줄이 있어요. 올리기 전에 지워 주세요.</p> : null}
         </Field>
+        <ThumbField id="hub-sk-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="4:3 정도" />
         <Field id="hub-sk-name" k="name" label="이름" req={true} errors={errors}><input id="hub-sk-name" maxLength={24} placeholder="예: 출처 달기" value={f.title} onChange={e => set('title', e.target.value)} {...inv(errors, 'name')} /></Field>
         <Field id="hub-sk-desc" k="desc" label="한 줄 소개" req={true} errors={errors}><input id="hub-sk-desc" maxLength={40} placeholder="예: 답변 끝에 근거 문서와 위치를 표시" value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'desc')} /></Field>
         <fieldset className={'field' + (errors.tools ? ' bad' : '')} data-f="tools" style={{ border: 0, padding: 0, margin: '0 0 20px' }}>
@@ -301,6 +393,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
         <Field id="hub-sk-area" label="업무 분야"><select id="hub-sk-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
         <Field id="hub-sk-when" k="purpose" label="이럴 때 써요" hint="여러 개는 Enter로 줄을 바꿔 한 줄에 하나씩 적어 주세요" req={true} errors={errors}><textarea id="hub-sk-when" rows={4} placeholder={'예: 규정 답변에 근거를 꼭 보여줘야 할 때\n고객사 미팅 자료를 준비할 때'} value={f.purpose} onChange={e => set('purpose', e.target.value)} {...inv(errors, 'purpose')} /></Field>
         <Field id="hub-sk-usage" k="usage" label="활용 방법" req={true} hint="상세 화면의 '제작자는 이렇게 썼어요'에 보여요" errors={errors}><textarea id="hub-sk-usage" placeholder="예: 지침 맨 아래에 붙여 두면 어떤 Agent든 같은 규칙으로 답해요. 처음에는 Cowork 대화에 파일만 첨부해서 확인해 보세요." value={f.usage} onChange={e => set('usage', e.target.value)} {...inv(errors, 'usage')} /></Field>
+        <ShotsField id="hub-sk-shot" current={cur ? cur.images : undefined} value={shots} onChange={setShot} errors={errors} setErrors={setErrors} />
         <div className="row2">
           <Field id="hub-sk-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-sk-ver" placeholder="1.0" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-sk-chg" k="changeNote" label="변경 내용" hint={editing ? '버전을 올리면 꼭 적어 주세요' : undefined} errors={errors}><input id="hub-sk-chg" maxLength={120} placeholder={editing ? '예: 오래된 문서 표시 규칙 추가' : '처음 공유'} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
@@ -327,6 +420,8 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
   });
   const [file, setFile] = React.useState<{ name: string; text: string; size: number } | undefined>(undefined);
   const [ideaId, setIdeaId] = React.useState('');
+  const [thumb, setThumb] = useThumb();
+  const [shots, setShot] = useShots();
   const [busy, setBusy] = React.useState(false);
   const [failure, setFailure] = React.useState<IUploadFailure | undefined>(undefined);
   const take = (fl: File): void => {
@@ -356,12 +451,15 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
     if (!isVersion(v)) { e.version = '버전은 0.1처럼 숫자와 점으로 적어 주세요.'; }
     else if (cur && file && compareVersion(v, cur.version) <= 0) { e.version = `파일을 바꾸면 버전을 올려 주세요. 지금 버전은 ${cur.version}이에요.`; }
     if (cur && compareVersion(v, cur.version) !== 0 && !f.changeNote.trim()) { e.changeNote = '무엇이 바뀌었는지 적어 주세요.'; }
+    if (errors.thumb) { e.thumb = errors.thumb; }
+    if (errors.shots) { e.shots = errors.shots; }
     setErrors(e);
     if (Object.keys(e).length) { focusFirstError(ref.current); return; }
     setBusy(true);
     setFailure(undefined);
     try {
       await props.onSubmit({
+        ...thumbOut(thumb), ...shotsOut(shots),
         title: t, summary: f.summary.trim(), does: splitLines(f.does), makerNote: f.makerNote.trim(), madeWith: f.madeWith, scope: f.scope,
         workType: f.workType, area: f.area, output: f.output.trim(), version: v, changeNote: f.changeNote.trim() || (cur ? cur.changeNote : ''),
         file: file ? { name: file.name, text: file.text } : undefined
@@ -378,6 +476,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
           <Drop id="hub-ht-file" accept=".html,.htm" has={!!file} title={file ? file.name : '파일을 끌어다 놓거나 눌러서 고르세요'}
             sub={file ? `${fileSize(file.size)} · 다른 파일을 고르려면 누르세요` : editing ? `지금 파일: ${cur!.fileName}` : '.html · 2MB 이하 · 파일 하나로 동작하는 도구'} onPick={take} />
         </Field>
+        <ThumbField id="hub-ht-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="도구 화면 캡처, 16:9 정도" />
         <div className="row2">
           <Field id="hub-ht-name" k="name" label="이름" req={true} errors={errors}><input id="hub-ht-name" maxLength={24} placeholder="예: 견적 계산기" value={f.title} onChange={e => set('title', e.target.value)} {...inv(errors, 'name')} /></Field>
           <Field id="hub-ht-made" label="만든 도구"><select id="hub-ht-made" value={f.madeWith} onChange={e => set('madeWith', e.target.value)}>{MADE_WITH.map(x => <option key={x}>{x}</option>)}</select></Field>
@@ -393,6 +492,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
           <Field id="hub-ht-scope" k="scope" label="사용 범위" req={true} errors={errors}><select id="hub-ht-scope" value={f.scope} onChange={e => set('scope', e.target.value)} {...inv(errors, 'scope')}>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
         </div>
         <Field id="hub-ht-note" k="makerNote" label="제작자는 이렇게 썼어요" req={true} errors={errors}><textarea id="hub-ht-note" rows={4} placeholder="예: 매주 월요일 고객 견적 요청이 오면 품목만 붙여 넣고 바로 견적표를 만들어 보내요." value={f.makerNote} onChange={e => set('makerNote', e.target.value)} {...inv(errors, 'makerNote')} /></Field>
+        <ShotsField id="hub-ht-shot" current={cur ? cur.images : undefined} value={shots} onChange={setShot} errors={errors} setErrors={setErrors} />
         <div className="row2">
           <Field id="hub-ht-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-ht-ver" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-ht-chg" k="changeNote" label="변경 내용" errors={errors}><input id="hub-ht-chg" maxLength={120} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>

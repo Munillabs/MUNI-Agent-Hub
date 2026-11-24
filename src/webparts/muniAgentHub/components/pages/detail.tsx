@@ -1,11 +1,12 @@
 /* 상세 화면 (시안 그대로): Agent · Skill · HTML — 머리말, 요약 지표, 탭(개요 · 상세 정보 · 리뷰 · 업데이트 기록) */
 import * as React from 'react';
-import { IAgent, IHtmlTool, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
+import { IAgent, IHtmlTool, IImage, INewShot, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
 import { extLabel, first, isEmail, isHttpsUrl, mmdd, splitLines, ymd } from '../../models/rules';
 import { IHubApi } from '../api';
 import { Clamp, Crumb, DetailTabs, Empty, Go, Pill, RatingSummary } from '../ui';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
+import { thumbBg } from './market';
 
 /** '이럴 때 써요': 한 줄에 하나씩. 줄 앞에 붙인 -, •, ·, 1. 같은 표시는 뗍니다 */
 function whenList(v: string): string[] {
@@ -33,13 +34,63 @@ function NameLine(props: { text: string }): JSX.Element {
   const i = props.text.indexOf(' · ');
   return i > 0 ? <li><b>{props.text.slice(0, i)}</b><span>{props.text.slice(i + 3)}</span></li> : <li><b>{props.text}</b></li>;
 }
-function MakerNote(props: { text: string; images?: { url: string }[] }): JSX.Element | null {
-  if (!props.text.trim() && !(props.images && props.images.length)) { return null; }
+const SHOT_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+const SHOT_MAX_BYTES = 3 * 1024 * 1024;
+const SHOT_SLOTS = [1, 2];
+/** '제작자는 이렇게 썼어요': 글 + 이미지 최대 2장 (첨부 파일 result1.* · result2.*).
+    edit 이 있으면(Skill · HTML 등록자) 이미지 칸마다 넣기 · 바꾸기 · 빼기를 보여 줍니다. Agent는 리스트 첨부 파일을 보여 주기만 합니다. */
+function MakerNote(props: { text: string; images?: IImage[]; stamp?: string; edit?: { api: IHubApi; t: 'Skill' | 'Html'; id: number } }): JSX.Element | null {
+  const { edit } = props;
+  const images = props.images || [];
+  const [busy, setBusy] = React.useState(0);
+  // 같은 이름으로 바꾸면 브라우저가 예전 그림을 보여 줘서, 바꿀 때마다 주소 끝을 바꿉니다
+  const [bust, setBust] = React.useState(0);
+  const pick = React.useRef<HTMLInputElement>(null);
+  const slotRef = React.useRef(1);
+  if (!props.text.trim() && !images.length && !edit) { return null; }
+  const at = (slot: number): IImage | undefined => first(images, x => x.slot === slot);
+  const urlOf = (im: IImage): string => `${im.url}?v=${encodeURIComponent((props.stamp || '') + '.' + bust)}`;
+  const run = async (slot: number, add: INewShot[], drop: number[]): Promise<void> => {
+    setBusy(slot);
+    const ok = await edit!.api.saveShots(edit!.t, edit!.id, add, drop);
+    setBusy(0);
+    if (ok) { setBust(b => b + 1); }
+  };
+  const take = (fl: File): void => {
+    const ext = (/\.([a-z0-9]+)$/i.exec(fl.name) || ['', ''])[1].toLowerCase();
+    if (SHOT_EXTS.indexOf(ext) < 0) { edit!.api.toast('.png · .jpg · .gif · .webp 이미지만 넣을 수 있어요.', 'error'); return; }
+    if (fl.size > SHOT_MAX_BYTES) { edit!.api.toast('3MB 이하 이미지만 넣을 수 있어요.', 'error'); return; }
+    const slot = slotRef.current;
+    const r = new FileReader();
+    r.onload = () => { run(slot, [{ slot, ext: ext === 'jpeg' ? 'jpg' : ext, data: r.result as ArrayBuffer }], []).catch(() => undefined); };
+    r.onerror = () => edit!.api.toast('이미지를 읽지 못했어요. 다시 골라 주세요.', 'error');
+    r.readAsArrayBuffer(fl);
+  };
+  const choose = (slot: number): void => { slotRef.current = slot; if (pick.current) { pick.current.value = ''; pick.current.click(); } };
+  // 보는 사람: 있는 이미지만. 고칠 수 있는 사람: 두 칸 모두 (빈 칸은 '이미지 넣기')
+  const slots = edit ? SHOT_SLOTS : images.map(x => x.slot);
   return (
     <section className="dsec"><h2>제작자는 이렇게 썼어요</h2>
       <article className="mnote">
         {props.text.split(/\r?\n/).filter(x => !!x.trim()).map((p, k) => <p key={k}>{p}</p>)}
-        {props.images && props.images.length ? <div className="mimgs">{props.images.map((im, k) => <div key={k} className="shot"><img src={im.url} alt={`결과 이미지 ${k + 1}`} /></div>)}</div> : null}
+        {slots.length ? <div className="mimgs">{slots.map(slot => {
+          const im = at(slot);
+          return (
+            <div key={slot} className={'shot' + (im ? '' : ' shot-add') + (busy === slot ? ' is-busy' : '')}>
+              {im ? <a href={urlOf(im)} target="_blank" rel="noopener noreferrer" title="원본 크기로 보기"><img src={urlOf(im)} alt={`결과 이미지 ${slot}`} /></a> : null}
+              {edit ? (im
+                ? <div className="shot-act">
+                    <button type="button" className="btn sm" disabled={!!busy} onClick={() => choose(slot)}>바꾸기</button>
+                    <button type="button" className="btn sm" disabled={!!busy} onClick={() => { run(slot, [], [slot]).catch(() => undefined); }}>빼기</button>
+                  </div>
+                : <button type="button" className="shot-new" disabled={!!busy} onClick={() => choose(slot)}>
+                    <span aria-hidden="true">＋</span><b>이미지 넣기</b><small>사용 화면, 적용 전 · 후 등 · 3MB 이하</small>
+                  </button>) : null}
+              {busy === slot ? <span className="shot-wait" role="status">올리는 중…</span> : null}
+            </div>
+          );
+        })}</div> : null}
+        {edit ? <input ref={pick} type="file" accept=".png,.jpg,.jpeg,.gif,.webp" hidden={true} onChange={e => { const f = e.target.files && e.target.files[0]; if (f) { take(f); } }} /> : null}
       </article></section>
   );
 }
@@ -165,7 +216,9 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
     <div className="wrap">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'Agent', view: 'agents' }, { label: a.title }]} />
       <header className="dp-head">
-        <span className="ad-icon" aria-hidden="true">{a.title.trim().charAt(0)}</span>
+        {/* 썸네일: AgentList 항목 첨부 파일 thumb.png (없으면 이름 첫 글자) */}
+        {a.thumb ? <span className="ad-icon dthumb" aria-hidden="true" style={thumbBg(a.thumb.url, a.modified)} />
+          : <span className="ad-icon" aria-hidden="true">{a.title.trim().charAt(0)}</span>}
         <div className="dp-title">
           <h1>{a.title}</h1>
           <p className="sub">{a.summary}</p>
@@ -190,7 +243,8 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid">
           <div>
             <section><h2 className="dph">이런 일을 해요</h2>{a.does.length ? <ul className="does">{a.does.map((x, k) => <li key={k}>{x}</li>)}</ul> : <p className="note">아직 소개가 없어요.</p>}</section>
-            <MakerNote text={a.makerNote} images={a.images} />
+            {/* Agent 이미지는 Hub에서 넣지 않고 AgentList 항목 첨부 파일(result1.png · result2.png)을 그대로 보여 줍니다 */}
+            <MakerNote text={a.makerNote} images={a.images} stamp={a.modified} />
             {a.prompts.length ? (
               <section className="dsec"><h2>이렇게 말해 보세요</h2>
                 <ul className="pex">{a.prompts.map((p, k) => <li key={k}>{a.workTypes[0] ? <span className="ptag">{a.workTypes[0]}</span> : null}<p>{p}</p><button className="btn sm" type="button" onClick={() => api.copy(p, '복사했어요')}>복사</button></li>)}</ul></section>
@@ -243,7 +297,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
     <div id="mv-skillOut" className="wrap skillOut">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Skill Store', view: 'skills' }, { label: k.title }]} />
       <header className="dp-head">
-        <span className="ad-icon sk" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z" /></svg></span>
+        {k.thumb ? <span className="ad-icon dthumb skth" aria-hidden="true" style={thumbBg(k.thumb.url, k.modified)} /> : <span className="ad-icon sk" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z" /></svg></span>}
         <div className="dp-title"><h1>{k.title}</h1><p className="sub">{k.summary}</p><p className="by"><Pill>Skill</Pill> {k.author ? <Person p={k.author}><a href={teamsChat(k.author) || '#'} target="_blank" rel="noopener noreferrer">{k.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">
           <a className="btn pri big" href={k.fileUrl + '?download=1'} download={k.fileName}>파일 받기</a>
@@ -260,7 +314,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
       {tab === 'ov' ? (
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid"><div>
           <section><h2 className="dph">이럴 때 써요</h2><ul className="does">{whenList(k.purpose).map((w, n) => <li key={n}>{w}</li>)}</ul></section>
-          <MakerNote text={k.usage} />
+          <MakerNote text={k.usage} images={k.images} stamp={k.modified} edit={mine ? { api, t: 'Skill', id: k.id } : undefined} />
           <section className="dsec"><h2>본문</h2>
             {!readable ? <p className="note">Word 문서는 '파일 받기'로 내려받아 확인해 주세요.</p> : err ? <p className="note">{err}</p> : text === undefined ? <p className="note">파일을 불러오는 중이에요</p> : <Clamp text={text} more="전체 보기" />}
           </section>
@@ -294,7 +348,8 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
     <div className="wrap">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'HTML', view: 'htools' }, { label: h.title }]} />
       <header className="dp-head">
-        <span className="ad-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 13l-2 2 2 2M15 13l2 2-2 2" /></svg></span>
+        {h.thumb ? <span className="ad-icon dthumb" aria-hidden="true" style={thumbBg(h.thumb.url, h.modified)} />
+          : <span className="ad-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 13l-2 2 2 2M15 13l2 2-2 2" /></svg></span>}
         <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p><p className="by"><Pill>HTML</Pill> {h.author ? <Person p={h.author}><a href={teamsChat(h.author) || '#'} target="_blank" rel="noopener noreferrer">{h.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">
           <a className="btn pri big" href={h.fileUrl + '?download=1'} download={h.fileName}>파일 받기</a>
@@ -311,7 +366,7 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
       {tab === 'ov' ? (
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid"><div>
           <section><h2 className="dph">이런 일을 해요</h2><ul className="does">{h.does.map((x, i) => <li key={i}>{x}</li>)}</ul></section>
-          <MakerNote text={h.makerNote} />
+          <MakerNote text={h.makerNote} images={h.images} stamp={h.modified} edit={mine ? { api, t: 'Html', id: h.id } : undefined} />
         </div>
         <aside className="dp-side"><div className="box"><h3>정보</h3>
           <table className="kv"><tbody>

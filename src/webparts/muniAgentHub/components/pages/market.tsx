@@ -158,6 +158,11 @@ function useSkillPreview(api: IHubApi, k: ISkill): string {
   }, [k.fileRef]);
   return text || k.purpose || k.usage;
 }
+/** 썸네일 배경: 어두운 화면 규칙(background … !important)이 인라인 그림을 지우지 않게 CSS 변수 --th 로 넘깁니다 */
+export function thumbBg(url: string, stamp: string): React.CSSProperties {
+  const u = `url("${url}?v=${encodeURIComponent(stamp)}")`;
+  return { backgroundImage: u, ['--th' as string]: u } as React.CSSProperties;
+}
 export function SkillCard(props: { api: IHubApi; skill: ISkill; q?: string }): JSX.Element {
   const { api, skill: k } = props;
   const r = api.rating('Skill', k.id);
@@ -165,7 +170,8 @@ export function SkillCard(props: { api: IHubApi; skill: ISkill; q?: string }): J
   return (
     <article className="card bc bc-s skcard cl">
       <div className="bcov"><KindTag className="btag" k="Skill"><IconSkill size={14} />Skill</KindTag><span className="bdate">{mmdd(k.modified)} 업데이트</span>
-        <div className="bpaper"><span className="skql">지침 미리보기</span><p>{preview}</p></div></div>
+        {k.thumb ? <div className="bpaper skthumb" aria-hidden="true" style={thumbBg(k.thumb.url, k.modified)} />
+          : <div className="bpaper"><span className="skql">지침 미리보기</span><p>{preview}</p></div>}</div>
       <div className="bbd">
         <h3><Go go={api.go} view="skill" id={k.id} className="stretch" style={{ textDecoration: 'none' }}><Highlight text={k.title} q={props.q || ''} /></Go></h3>
         <p><Highlight text={k.summary} q={props.q || ''} /></p>
@@ -221,7 +227,8 @@ export function HtmlCard(props: { api: IHubApi; tool: IHtmlTool; q?: string }): 
   return (
     <article className="card bc bc-h cl">
       <div className="bcov"><KindTag className="btag" k="HTML"><IconHtml size={14} />HTML</KindTag><span className="bdate">{mmdd(h.modified)} 업데이트</span>
-        <div className="bshot" aria-hidden="true"><div className="bsbar"><i /><i /><i /><span>{h.title}</span></div><div className="aprev"><i /><i /><i /></div></div></div>
+        <div className="bshot" aria-hidden="true"><div className="bsbar"><i /><i /><i /><span>{h.title}</span></div>
+          {h.thumb ? <div className="aprev hthumb" style={thumbBg(h.thumb.url, h.modified)} /> : <div className="aprev"><i /><i /><i /></div>}</div></div>
       <div className="bbd">
         <h3><Go go={api.go} view="htool" id={h.id} className="stretch" style={{ textDecoration: 'none' }}><Highlight text={h.title} q={props.q || ''} /></Go></h3>
         <p><Highlight text={h.summary} q={props.q || ''} /></p>

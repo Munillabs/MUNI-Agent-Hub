@@ -1,5 +1,5 @@
 /* 화면 컴포넌트들이 공통으로 쓰는 상태와 동작. MuniAgentHub(최상위)가 만들어 내려 줍니다. */
-import { HubView, IHtmlTool, IHubData, IIdea, IMe, INewIdea, IPerson, IReaction, IReportTarget, IVersion, IdeaStage, TargetType } from '../models/types';
+import { HubView, IHtmlTool, IHubData, IIdea, IMe, INewIdea, INewShot, IPerson, IReaction, IReportTarget, IVersion, IdeaStage, TargetType } from '../models/types';
 
 export interface IHubApi {
   data: IHubData;
@@ -69,6 +69,8 @@ export interface IHubApi {
   deleteHtml(id: number): Promise<boolean>;
   loadFileText(fileRef: string): Promise<string>;
   loadVersions(t: 'Agent' | 'Skill' | 'Html', id: number): Promise<IVersion[]>;
+  /** '제작자는 이렇게 썼어요' 이미지 넣기 · 바꾸기 · 빼기 (Owner · 등록자만). 성공하면 목록을 다시 읽습니다 */
+  saveShots(t: 'Skill' | 'Html', id: number, add: INewShot[], drop: number[]): Promise<boolean>;
 
   /* 알림 */
   /** 그 사람의 프로필 배지 키 (고른 배지 → 없으면 최근 배지). 사진을 고른 사람·배지가 없는 사람은 undefined */

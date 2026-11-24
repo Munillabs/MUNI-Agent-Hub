@@ -613,6 +613,19 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     },
     loadFileText: ref => service.getFileText(ref),
     loadVersions: (t, id): Promise<IVersion[]> => t === 'Agent' ? service.getAgentVersions(id) : t === 'Skill' ? service.getSkillVersions(id) : service.getHtmlVersions(id),
+    saveShots: async (t, id, add, drop) => {
+      // Agent 이미지는 Hub에서 넣지 않습니다 (AgentList 첨부 파일 thumb.png · result1.png · result2.png)
+      const item = t === 'Skill' ? first(data.skills, x => x.id === id) : first(data.htmls, x => x.id === id);
+      if (!item) { return false; }
+      try {
+        await service.saveShots(t, id, item.images, add, drop);
+        // 저장은 끝났으니, 목록 새로 읽기가 실패해도 성공으로 봅니다
+        if (t === 'Skill') { const skills = await service.getSkills().catch(() => undefined); if (skills) { setData(d => ({ ...d, skills })); } }
+        else { const htmls = await service.getHtmls().catch(() => undefined); if (htmls) { setData(d => ({ ...d, htmls })); } }
+        toast(add.length ? '이미지를 넣었어요' : '이미지를 뺐어요');
+        return true;
+      } catch (e) { fail(e); return false; }
+    },
     avatarOf,
     isRead: (id, date) => readState.ids.indexOf(id) >= 0 || (!!readState.all && date <= readState.all),
     markRead,

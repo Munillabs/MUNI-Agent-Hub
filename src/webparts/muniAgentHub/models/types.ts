@@ -252,6 +252,10 @@ export interface ISkill {
   fileRef: string;
   /** 브라우저에서 여는 전체 주소 */
   fileUrl: string;
+  /** 목록 카드 썸네일 (첨부 파일 thumb.*, 없으면 지침 미리보기) */
+  thumb?: IImage;
+  /** '제작자는 이렇게 썼어요' 이미지 (첨부 파일 result1.* · result2.*) */
+  images: IImage[];
   author?: IPerson;
   created: string;
   modified: string;
@@ -272,6 +276,25 @@ export interface INewSkill {
   changeNote: string;
   /** 새로 올리는 파일. 편집할 때 파일을 바꾸지 않으면 비워 둡니다. md·txt는 text, docx는 data */
   file?: { name: string; text?: string; data?: ArrayBuffer };
+  /** 새 썸네일 (첨부 파일 thumb.<ext>로 저장) */
+  thumb?: INewThumb;
+  /** 편집할 때 지금 썸네일을 지움 */
+  dropThumb?: boolean;
+  /** '제작자는 이렇게 썼어요' 이미지: 새로 넣거나 바꿀 칸 */
+  shots?: INewShot[];
+  /** 편집할 때 뺄 이미지 칸 (1 · 2) */
+  dropShots?: number[];
+}
+
+/** 등록 화면에서 고른 썸네일 이미지 */
+export interface INewThumb {
+  /** png · jpg · jpeg · gif · webp */
+  ext: string;
+  data: ArrayBuffer;
+}
+/** '제작자는 이렇게 썼어요'에 넣을 이미지 한 장 (slot 1 · 2 → 첨부 파일 result1.<ext> · result2.<ext>) */
+export interface INewShot extends INewThumb {
+  slot: number;
 }
 
 /** HubContents 목록의 HTML (구분 = HTML): 브라우저에서 바로 여는 .html 도구 (파일은 첨부 파일) */
@@ -299,6 +322,10 @@ export interface IHtmlTool {
   fileName: string;
   fileRef: string;
   fileUrl: string;
+  /** 목록 카드 썸네일 (첨부 파일 thumb.*, 없으면 기본 그림) */
+  thumb?: IImage;
+  /** '제작자는 이렇게 썼어요' 이미지 (첨부 파일 result1.* · result2.*) */
+  images: IImage[];
   author?: IPerson;
   created: string;
   modified: string;
@@ -321,6 +348,10 @@ export interface INewHtml {
   version: string;
   changeNote: string;
   file?: { name: string; text: string };
+  thumb?: INewThumb;
+  dropThumb?: boolean;
+  shots?: INewShot[];
+  dropShots?: number[];
 }
 
 /** 업데이트 기록 한 줄 (AgentList · HubContents 의 업데이트 기록(Releases) JSON: {"v","d","n"}) */
