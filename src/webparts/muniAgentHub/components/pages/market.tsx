@@ -170,8 +170,8 @@ export function SkillCard(props: { api: IHubApi; skill: ISkill; q?: string }): J
   return (
     <article className="card bc bc-s skcard cl">
       <div className="bcov"><KindTag className="btag" k="Skill"><IconSkill size={14} />Skill</KindTag><span className="bdate">{mmdd(k.modified)} 업데이트</span>
-        {k.thumb ? <div className="bpaper skthumb" aria-hidden="true" style={thumbBg(k.thumb.url, k.modified)} />
-          : <div className="bpaper"><span className="skql">지침 미리보기</span><p>{preview}</p></div>}</div>
+        {/* 카드에는 썸네일 대신 늘 지침 본문 앞부분을 보여 줍니다 (썸네일은 상세 머리에만) */}
+        <div className="bpaper"><span className="skql">지침 미리보기</span><p>{preview}</p></div></div>
       <div className="bbd">
         <h3><Go go={api.go} view="skill" id={k.id} className="stretch" style={{ textDecoration: 'none' }}><Highlight text={k.title} q={props.q || ''} /></Go></h3>
         <p><Highlight text={k.summary} q={props.q || ''} /></p>
@@ -225,10 +225,11 @@ export function HtmlCard(props: { api: IHubApi; tool: IHtmlTool; q?: string }): 
   const { api, tool: h } = props;
   const r = api.rating('Html', h.id);
   return (
-    <article className="card bc bc-h cl">
+    <article className={'card bc bc-h cl' + (h.thumb ? ' hfull' : '')}>
       <div className="bcov"><KindTag className="btag" k="HTML"><IconHtml size={14} />HTML</KindTag><span className="bdate">{mmdd(h.modified)} 업데이트</span>
-        <div className="bshot" aria-hidden="true"><div className="bsbar"><i /><i /><i /><span>{h.title}</span></div>
-          {h.thumb ? <div className="aprev hthumb" style={thumbBg(h.thumb.url, h.modified)} /> : <div className="aprev"><i /><i /><i /></div>}</div></div>
+        {/* 썸네일이 있으면 Agent 카드처럼 그림이 위쪽을 꽉 채우고, 없으면 브라우저 창 모양 */}
+        {h.thumb ? <div className="bthumb hthumb" aria-hidden="true" style={thumbBg(h.thumb.url, h.modified)} />
+          : <div className="bshot" aria-hidden="true"><div className="bsbar"><i /><i /><i /><span>{h.title}</span></div><div className="aprev"><i /><i /><i /></div></div>}</div>
       <div className="bbd">
         <h3><Go go={api.go} view="htool" id={h.id} className="stretch" style={{ textDecoration: 'none' }}><Highlight text={h.title} q={props.q || ''} /></Go></h3>
         <p><Highlight text={h.summary} q={props.q || ''} /></p>
