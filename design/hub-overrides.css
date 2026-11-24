@@ -140,7 +140,8 @@ html{background:var(--bg,#fff)}
 .dstack .grp>.plain li:has(a),.dstack .grp>.plain li:has(a):hover{border:0!important;background:none!important;border-radius:0!important}
 /* HTML 카드 썸네일 (첨부 파일 thumb.*): Agent 카드처럼 그림이 카드 위쪽을 꽉 채움 */
 .bc-h.hfull .bcov{padding:0}
-.bc-h.hfull .bthumb.hthumb{display:block;padding:0;background-color:#fff;background-size:cover!important;background-position:top center!important;background-repeat:no-repeat!important}
+/* 썸네일(가로 2.2:1)이 카드 칸(약 1.6:1)보다 넓어 cover 면 양옆이 잘려서, 그림 전체가 들어가게(contain) 두고 남는 위 · 아래는 흰 바탕 */
+.bc-h.hfull .bthumb.hthumb{display:block;padding:0;background-color:#fff!important;background-size:contain!important;background-position:center!important;background-repeat:no-repeat!important}
 .bc-h.hfull .bdate{background:rgba(255,255,255,.92);border-radius:999px;padding:3px 9px;top:10px;right:12px;color:#40506a}
 
 /* Skill 카드 썸네일 (첨부 파일 thumb.*): 지침 미리보기 종이 자리에 그림 (밝은 · 어두운 화면 모두) */
@@ -161,8 +162,11 @@ html{background:var(--bg,#fff)}
 /* Skill · HTML 상세 머리: 썸네일이 있으면 아이콘 칸에 그림 (밝은 · 어두운 화면 모두) */
 .dp-head .ad-icon.dthumb,:root[data-theme=dark] .dp-head .ad-icon.dthumb{background-color:#fff!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;box-shadow:0 0 0 1px var(--line)}
 /* 썸네일 그림은 CSS 변수(--th)로 다시 지정: 어두운 화면 규칙의 background 단축 속성(!important)이 그림을 지우기 때문 */
-:root:is(#_d,html):is(#_e,html) .card.skcard .bpaper.skthumb,:root:is(#_d,html):is(#_e,html) .card.bc-h .bthumb.hthumb,:root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb{background-image:var(--th)!important;background-size:cover!important;background-repeat:no-repeat!important;padding:0!important}
-:root:is(#_d,html):is(#_e,html) .card.skcard .bpaper.skthumb,:root:is(#_d,html):is(#_e,html) .card.bc-h .bthumb.hthumb{background-position:top center!important}
+:root:is(#_d,html):is(#_e,html) .card.skcard .bpaper.skthumb,:root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb{background-image:var(--th)!important;background-size:cover!important;background-repeat:no-repeat!important;padding:0!important}
+:root:is(#_d,html):is(#_e,html) .card.skcard .bpaper.skthumb{background-position:top center!important}
+:root:is(#_d,html):is(#_e,html) .card.bc-h .bthumb.hthumb{background-image:var(--th)!important;background-color:#fff!important;background-size:contain!important;background-position:center!important;background-repeat:no-repeat!important;padding:0!important}
 :root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb{background-position:center!important}
+/* HTML 상세 머리 썸네일: 칸(정사각형)은 그대로 두고, 가로 2.2:1 그림을 줄여 전체가 들어가게 (남는 위 · 아래는 흰 바탕) */
+:root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.hth{background-size:contain!important;background-position:center!important;background-color:#fff!important}
 /* Skill 상세 머리 썸네일: Skill 썸네일은 오른쪽에 화면 예시가 있어 그쪽을 보여 줌 */
 :root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.skth{background-position:84% 30%!important}
