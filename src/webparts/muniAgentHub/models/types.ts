@@ -84,6 +84,10 @@ export interface IIdea {
   title: string;
   /** Agent / Skill / HTML / 기타 / 빈 값 */
   type: string;
+  /** 카테고리 (Category): IDEA_CATS 중 하나. 예전 아이디어는 비어 있을 수 있음 */
+  category: string;
+  /** 외부에서 스크랩한 아이디어면 원문 주소, 주소 없이 스크랩이면 '외부', 아니면 빈 값 (ScrapSource) */
+  source: string;
   /** 자세한 내용 (선택) */
   detail: string;
   /** 모집 중 / 제작 중 / 완성 / 보관. '만들기 완료'를 누르면 '완성'. 운영 담당자가 '완성'·'보관'으로 바꿔도 그대로 따릅니다. */
@@ -116,6 +120,8 @@ export interface IIdea {
 export interface INewIdea {
   title: string;
   type: string;
+  category?: string;
+  source?: string;
   detail?: string;
   pain?: string;
   frequency?: string;

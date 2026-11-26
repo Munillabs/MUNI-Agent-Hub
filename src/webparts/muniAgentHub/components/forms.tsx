@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { IAgent, IAgentEdit, ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml, INewIdea, INewShot, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
 import {
-  CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_KINDS, HTML_MAX_BYTES, IDEA_FREQS, IDEA_TYPES, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
+  CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_KINDS, HTML_MAX_BYTES, IDEA_CATS, IDEA_CAT_DESC, IDEA_FREQS, IDEA_SCRAP, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
   SKILL_TOOLS, SOLUTION_KINDS,
   compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
   splitLines
@@ -214,7 +214,7 @@ function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea
     <Field id={props.id} label="이 아이디어로 만들었어요" hint={`고르면 올릴 때 Idea Board의 아이디어가 '완성'으로 바뀌고, 이 ${props.kind}이 결과물로 연결돼요`}>
       <select id={props.id} value={props.value} onChange={e => props.onChange(e.target.value)}>
         <option value="">연결하지 않음</option>
-        {list.map(i => <option key={i.id} value={String(i.id)}>[{i.type || '기타'}] {i.title}</option>)}
+        {list.map(i => <option key={i.id} value={String(i.id)}>[{i.category || i.type || '기타'}] {i.title}</option>)}
       </select>
     </Field>
   );
@@ -386,7 +386,6 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           {file && file.text ? <pre className="mdview" aria-label="파일 앞부분">{file.text.split(/\r?\n/).slice(0, 10).join('\n')}</pre> : null}
           {secret ? <p className="fwarn">API 키나 비밀번호로 보이는 줄이 있어요. 올리기 전에 지워 주세요.</p> : null}
         </Field>
-        <ThumbField id="hub-sk-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="4:3 정도" />
         <Field id="hub-sk-name" k="name" label="이름" req={true} errors={errors}><input id="hub-sk-name" maxLength={24} placeholder="예: 출처 달기" value={f.title} onChange={e => set('title', e.target.value)} {...inv(errors, 'name')} /></Field>
         <Field id="hub-sk-desc" k="desc" label="한 줄 소개" req={true} errors={errors}><input id="hub-sk-desc" maxLength={40} placeholder="예: 답변 끝에 근거 문서와 위치를 표시" value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'desc')} /></Field>
         <fieldset className={'field' + (errors.tools ? ' bad' : '')} data-f="tools" style={{ border: 0, padding: 0, margin: '0 0 20px' }}>
@@ -731,7 +730,9 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
 export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmit: (idea: INewIdea) => Promise<boolean> }): JSX.Element {
   const [title, setTitle] = React.useState(props.idea.title);
   const [detail, setDetail] = React.useState(props.idea.detail);
-  const [type, setType] = React.useState(props.idea.type || 'Agent');
+  const [cat, setCat] = React.useState(props.idea.category);
+  const [scrap, setScrap] = React.useState(!!props.idea.source);
+  const [link, setLink] = React.useState(/^https?:\/\//i.test(props.idea.source) ? props.idea.source : '');
   const [pain, setPain] = React.useState(props.idea.pain);
   const [freq, setFreq] = React.useState(props.idea.frequency);
   const [mins, setMins] = React.useState(typeof props.idea.minutes === 'number' ? String(props.idea.minutes) : '');
@@ -741,15 +742,20 @@ export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmi
     e.preventDefault();
     if (!title.trim()) { setErr('아이디어를 한 줄 적어 주세요.'); (document.getElementById('hub-ie-title') as HTMLElement).focus(); return; }
     setBusy(true);
-    await props.onSubmit({ title: title.trim(), type, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined });
+    const l = link.trim();
+    const source = scrap ? (l ? (/^https?:\/\//i.test(l) ? l : 'https://' + l) : IDEA_SCRAP) : '';
+    await props.onSubmit({ title: title.trim(), type: props.idea.type, category: cat, source, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined });
     setBusy(false);
   };
   return (
     <form id="mv-ieForm" className="ieForm" noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
       <div className={'field' + (err ? ' bad' : '')}><label htmlFor="hub-ie-title">아이디어<Req /></label><input id="hub-ie-title" maxLength={60} value={title} onChange={e => { setTitle(e.target.value); setErr(''); }} aria-invalid={!!err} /><span className="err">{err}</span></div>
       <div className="field"><label htmlFor="hub-ie-desc">자세한 설명</label><textarea id="hub-ie-desc" rows={4} placeholder="어떤 일에서 불편한지, 있으면 무엇이 좋아지는지 적어 주세요." value={detail} onChange={e => setDetail(e.target.value)} /></div>
-      <fieldset className="field"><legend>무엇으로 만들면 좋을까요</legend>
-        <div className="seg" role="radiogroup" aria-label="유형">{IDEA_TYPES.map(x => <label key={x}><input type="radio" name="hub-ie-kind" value={x} checked={type === x} onChange={() => setType(x)} /> {x}</label>)}</div></fieldset>
+      <div className="field"><label htmlFor="hub-ie-cat">카테고리</label>
+        <select id="hub-ie-cat" value={cat} onChange={e => setCat(e.target.value)}>{cat ? null : <option value="">카테고리 선택</option>}{IDEA_CATS.map(x => <option key={x} value={x}>{x}</option>)}</select>
+        {cat && IDEA_CAT_DESC[cat] ? <span className="hint ib4-hint">{IDEA_CAT_DESC[cat]}</span> : null}</div>
+      <div className="field"><label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}><input type="checkbox" checked={scrap} onChange={e => setScrap(e.target.checked)} /> 🔭 외부에서 스크랩했어요</label>
+        {scrap ? <input id="hub-ie-link" type="url" inputMode="url" aria-label="원문 링크 (선택)" placeholder="원문 링크 붙여 넣기 (선택)" value={link} onChange={e => setLink(e.target.value)} /> : null}</div>
       <div className="field"><label htmlFor="hub-ie-pain">지금 겪는 불편</label><textarea id="hub-ie-pain" rows={3} placeholder="지금은 어떻게 하고 있고, 무엇이 번거로운지 적어 주세요." value={pain} onChange={e => setPain(e.target.value)} /></div>
       <div className="field"><label htmlFor="hub-ie-freq">얼마나 자주 하나요</label>
         <select id="hub-ie-freq" value={freq} onChange={e => setFreq(e.target.value)}><option value="">고르지 않음</option>{IDEA_FREQS.map(x => <option key={x}>{x}</option>)}</select></div>

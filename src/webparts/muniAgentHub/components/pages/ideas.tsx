@@ -1,9 +1,9 @@
 /* Idea Board (시안 그대로): 포스트잇 붙이기(한 줄 + 자세한 내용), 모집 중 · 제작 중 · 완성 · 보관함 / 아이디어 상세 */
 import * as React from 'react';
 import { IIdea, IPerson, IReaction } from '../../models/types';
-import { IDEA_ARCHIVE_DAYS, IDEA_LIKE_GOAL, IDEA_TYPES, contains, daysSince, daysToArchive, first, ideaStart, isEmail, mmdd } from '../../models/rules';
+import { IDEA_ARCHIVE_DAYS, IDEA_CATS, IDEA_CAT_DESC, IDEA_CAT_PAL, IDEA_LIKE_GOAL, IDEA_SCRAP, contains, daysSince, daysToArchive, first, ideaStart, isEmail, mmdd } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Avatar, Crumb, Empty, Go, KindTag, ListError } from '../ui';
+import { Avatar, Crumb, Empty, Go, ListError } from '../ui';
 import { Mag } from '../mv';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
@@ -15,6 +15,24 @@ const CMT = <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="
 const Heart = (props: { on: boolean }): JSX.Element => <svg viewBox="0 0 24 24" width="15" height="15" fill={props.on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>;
 
 function tcls(t: string): string { return t === 'Agent' ? 'agent' : t === 'Skill' ? 'skill' : t === 'HTML' ? 'html' : 'etc'; }
+/* ---------- 시안 11/25 ib3: 카테고리 색 · 외부 스크랩 ---------- */
+/** 카테고리 색 변수 (종이 · 글자 · 형광펜). 카테고리가 없으면 시안 기본색(노랑 종이, 남색 글자) */
+export function catVars(cat: string): React.CSSProperties {
+  const p = IDEA_CAT_PAL[cat];
+  return (p ? { '--ib3-bg': p[0], '--ib3-fg': p[1], '--ib3-hl': p[2] } : {}) as React.CSSProperties;
+}
+/** 포스트잇 위 라벨: 카테고리, 예전 아이디어는 유형 */
+function catLabel(i: IIdea): string { return i.category || i.type || '기타'; }
+/** 원문 주소 (스크랩인데 주소가 없으면 빈 값) */
+function srcUrl(i: IIdea): string { return /^https?:\/\//i.test(i.source || '') ? i.source : ''; }
+const LINK = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1" /><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1" /></svg>;
+/** 띠지(함께해요) · Scrap 도장 자리를 비워 제목이 그 밑으로 들어가지 않게 하는 자리 잡이 */
+function Spacers(props: { hand: boolean; scrap: boolean }): JSX.Element | null {
+  const { hand, scrap } = props;
+  if (!hand && !scrap) { return null; }
+  return <>{hand ? <><i className="ib3-r1" /><i className="ib3-r2" /></> : null}{scrap ? (hand ? <i className="ib3-s1" /> : <><i className="ib3-s0" /><i className="ib3-s1" /></>) : null}</>;
+}
+const Stamp = (): JSX.Element => <><span className="ib3-st" aria-hidden="true" /><span className="sr">외부에서 스크랩한 아이디어</span></>;
 /** 사람 동그라미 (ui.tsx 의 Avatar 와 같음) */
 const Av = Avatar;
 function Avs(props: { people: IPerson[]; me: number; badgeOf?: (p: IPerson) => string | undefined }): JSX.Element {
@@ -116,11 +134,12 @@ function Note(props: { api: IHubApi; idea: IIdea }): JSX.Element {
   const n = api.likeCount('Idea', i.id);
   const comments = api.comments(i.id).length;
   const result = resultOf(api, i.resultRef);
+  const scrap = !!i.source;
   return (
-    <article className={`pn t-${tcls(i.type)}${c ? ' hand' : ''}${soon ? ' soon' : ''}`}>
+    <div className="ib3-sh"><article style={catVars(i.category)} className={`pn ib3${scrap ? ' ib3-ext ib3-paper' : ''} t-${tcls(i.type)}${c ? ' hand' : ''}${soon ? ' soon' : ''}`}>
       {c ? <span className="pn-rib" aria-hidden="true"><span className="pn-tape">{HAND}{c}명과 함께해요</span></span> : null}
-      <div className="pn-row"><KindTag className="pn-ty" k={i.type || '기타'} />{soon ? <span className="pn-old" title="3개월 동안 만들 사람이 없으면 보관함으로 옮겨져요">{left}일 뒤 보관</span> : null}</div>
-      <Go go={api.go} view="idea" id={i.id} className="open"><b>{i.title}</b></Go>
+      <div className="pn-row"><span className="pn-ty">{catLabel(i)}</span>{soon ? <span className="pn-old" title="3개월 동안 만들 사람이 없으면 보관함으로 옮겨져요">{left}일 뒤 보관</span> : null}</div>
+      <Go go={api.go} view="idea" id={i.id} className="open"><b><Spacers hand={!!c} scrap={scrap} />{i.title}</b></Go>
       <span className="who">{i.author ? i.author.name : ''}</span>
       {c ? <span className="pn-hl"><Avs people={makers} me={api.me.id} badgeOf={api.avatarOf} /><span className="sr">{c}명이 함께해요</span></span> : null}
       {st === 'done' && result ? <ResultLink api={api} r={result} className="pn-done" prefix={`✓ ${i.type && i.type !== '기타' ? i.type + ' ' : ''}완성 · `} /> : null}
@@ -129,22 +148,99 @@ function Note(props: { api: IHubApi; idea: IIdea }): JSX.Element {
         {st !== 'done' ? <button type="button" className={'pn-pill' + (joined ? ' on' : '')} aria-pressed={joined} aria-label={`함께해요, 누른 사람 ${c}명`} title="내가 만들어 볼게요. 여러 명이 함께할 수 있어요" onClick={() => api.toggleMake(i.id)}>{HAND}함께해요{c ? <> <span className="n">{c}</span></> : null}</button> : null}
         <span className="pn-cmt" aria-label={`댓글 ${comments}개`} title={`댓글 ${comments}개`}>{CMT}{comments}</span>
       </div>
-    </article>
+      {scrap ? <Stamp /> : null}
+    </article></div>
   );
+}
+
+/** 쓰기 칸의 카테고리 고르기 (시안 ib3-dd: 단추 + 설명이 있는 목록). 목록은 접힌 모서리(mask) 밖으로 나오도록 쓰기 칸 바깥에 둡니다 */
+function useCatPicker(value: string, onPick: (v: string) => void): { button: (invalid: boolean) => JSX.Element; list: JSX.Element } {
+  const [open, setOpen] = React.useState(false);
+  const [act, setAct] = React.useState(0);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const lbRef = React.useRef<HTMLUListElement>(null);
+  const n = IDEA_CATS.length;
+  const close = (focus: boolean): void => { setOpen(false); if (focus && btnRef.current) { btnRef.current.focus(); } };
+  const show = (): void => { const k = IDEA_CATS.indexOf(value); setAct(k < 0 ? 0 : k); setOpen(true); };
+  const pick = (k: number): void => { onPick(IDEA_CATS[k]); close(true); };
+  React.useEffect(() => { if (open && lbRef.current) { lbRef.current.focus(); } }, [open]);
+  React.useEffect(() => {
+    if (!open || !lbRef.current) { return; }
+    const li = lbRef.current.children[act] as HTMLElement | undefined;
+    if (li && li.scrollIntoView) { li.scrollIntoView({ block: 'nearest' }); }
+  }, [open, act]);
+  React.useEffect(() => {
+    if (!open) { return undefined; }
+    const out = (e: MouseEvent): void => {
+      const t = e.target as Node;
+      if (btnRef.current && btnRef.current.contains(t)) { return; }
+      if (lbRef.current && lbRef.current.contains(t)) { return; }
+      setOpen(false);
+    };
+    document.addEventListener('click', out);
+    return () => document.removeEventListener('click', out);
+  }, [open]);
+  const p = IDEA_CAT_PAL[value];
+  const CH = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5b5b5b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>;
+  const button = (invalid: boolean): JSX.Element => (
+    <div className="ib3-dd">
+      <button type="button" ref={btnRef} className="ib3-ddb" aria-haspopup="listbox" aria-expanded={open} aria-invalid={invalid || undefined} aria-label={value ? '카테고리: ' + value : '카테고리 선택'}
+        onClick={() => { if (open) { close(true); } else { show(); } }}
+        onKeyDown={e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); show(); } }}>
+        {p ? <b style={{ color: p[1], background: `linear-gradient(transparent 55%,${p[2]} 55%)` }}>{value}</b> : <b className="ph">카테고리 선택</b>}{CH}
+      </button>
+    </div>
+  );
+  const list = (
+    <ul ref={lbRef} className="ib3-lb" role="listbox" aria-label="카테고리" tabIndex={-1} hidden={!open} aria-activedescendant={open ? 'hub-ib3o' + act : undefined}
+      onKeyDown={e => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); setAct((act + 1) % n); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setAct((act + n - 1) % n); }
+        else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(act); }
+        else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); close(true); }
+      }}>
+      {IDEA_CATS.map((k, j) => (
+        <li key={k} id={'hub-ib3o' + j} role="option" aria-selected={k === value} className={j === act ? 'act' : undefined}
+          onClick={() => pick(j)} onMouseMove={() => { if (act !== j) { setAct(j); } }}>
+          <span className="ib3-lt"><b style={{ color: IDEA_CAT_PAL[k][1], background: `linear-gradient(transparent 55%,${IDEA_CAT_PAL[k][2]} 55%)` }}>{k}</b><small>{IDEA_CAT_DESC[k]}</small></span>
+        </li>
+      ))}
+    </ul>
+  );
+  return { button, list };
 }
 
 type View = 'live' | 'make' | 'done' | 'arch';
 export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   const { api } = props;
   const [text, setText] = React.useState('');
-  const [type, setType] = React.useState('');
+  const [cat, setCat] = React.useState('');
+  const [scrap, setScrap] = React.useState(false);
+  const [link, setLink] = React.useState('');
   const [err, setErr] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [view, setView] = React.useState<View>('live');
   const [q, setQ] = React.useState('');
+  const [fcat, setFcat] = React.useState('');
+  const [colW, setColW] = React.useState(0);
+  const wallRef = React.useRef<HTMLDivElement>(null);
+  const linkRef = React.useRef<HTMLInputElement>(null);
+  const picker = useCatPicker(cat, v => { setCat(v); if (err && /골라/.test(err)) { setErr(''); } });
+  // 시안 ib3: 쓰기 칸 가로 = 보드 포스트잇 한 칸 가로
+  React.useEffect(() => {
+    const w = wallRef.current;
+    if (!w) { return undefined; }
+    const measure = (): void => { const c = parseFloat(getComputedStyle(w).gridTemplateColumns.split(' ')[0]); if (c > 0) { setColW(c); } };
+    measure();
+    let ro: { observe: (el: Element) => void; disconnect: () => void } | undefined;
+    const RO = (window as unknown as { ResizeObserver?: new (cb: () => void) => { observe: (el: Element) => void; disconnect: () => void } }).ResizeObserver;
+    if (RO) { ro = new RO(measure); ro.observe(w); }
+    window.addEventListener('resize', measure);
+    return () => { window.removeEventListener('resize', measure); if (ro) { ro.disconnect(); } };
+  }, [!!api.data.ideasError]);
   const by: { [v: string]: IIdea[] } = { live: [], make: [], done: [], arch: [] };
   api.data.ideas.forEach(i => { const st = api.stageOf(i); by[st === 'making' ? 'make' : st === 'archived' ? 'arch' : st].push(i); });
-  const match = (i: IIdea): boolean => !q.trim() || contains(i.title + ' ' + i.detail + ' ' + (i.author ? i.author.name : ''), q.trim());
+  const match = (i: IIdea): boolean => (!fcat || i.category === fcat) && (!q.trim() || contains(i.title + ' ' + i.detail + ' ' + catLabel(i) + ' ' + (i.author ? i.author.name : ''), q.trim()));
   // 시안 순서: 손 든 사람이 많은 순, 그다음 공감 많은 순
   const order = (x: IIdea, y: IIdea): number => api.makers(y.id).length - api.makers(x.id).length || api.likeCount('Idea', y.id) - api.likeCount('Idea', x.id);
   const rows = (view === 'arch' ? by.arch.slice().sort((x, y) => archivedOn(y).localeCompare(archivedOn(x))) : by[view].slice().sort(order)).filter(match);
@@ -152,34 +248,48 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
     e.preventDefault();
     const t = text.trim();
     if (!t) { setErr('만들고 싶은 것을 한 줄 써 주세요'); (document.getElementById('mv-noteText') as HTMLElement).focus(); return; }
-    // 시안 c13: Agent · Skill · HTML · 기타 중 하나는 꼭 골라요
-    if (!type) { setErr('Agent, Skill, HTML 중 하나를 골라 주세요'); (document.getElementById('mv-noteCat') as HTMLElement).focus(); return; }
+    // 시안 ib3: 카테고리는 꼭 골라요
+    if (!cat) { setErr('카테고리를 골라 주세요'); const b = document.querySelector('.ib3-ddb') as HTMLElement | null; if (b) { b.focus(); } return; }
+    const l = link.trim();
+    const source = scrap ? (l ? (/^https?:\/\//i.test(l) ? l : 'https://' + l) : IDEA_SCRAP) : '';
     setBusy(true);
-    const ok = await api.addIdea({ title: t, type, detail: '', pain: '', frequency: '', minutes: undefined });
+    const ok = await api.addIdea({ title: t, type: '', category: cat, source, detail: '', pain: '', frequency: '', minutes: undefined });
     setBusy(false);
-    if (ok) { setText(''); setType(''); setView('live'); }
+    if (ok) { setText(''); setCat(''); setScrap(false); setLink(''); setErr(''); setView('live'); }
   };
+  const tint = IDEA_CAT_PAL[cat];
+  const formStyle = { ...(tint ? { '--ib3-tint': tint[0] } : {}), ...(colW ? { '--ib3-colw': colW + 'px' } : {}) } as React.CSSProperties;
   const tab = (v: View, label: string, tip: string): JSX.Element => (
     <button type="button" role="tab" aria-selected={view === v} aria-controls="mv-wall" data-tip={tip} onClick={() => setView(v)}>{label} <span>{by[v].length}</span></button>
   );
   // 시안 문구 그대로
-  const empty = q.trim() ? `'${q.trim()}'에 맞는 ${view === 'arch' ? '보관된 ' : ''}아이디어가 없어요.${view === 'arch' ? '' : ' 위에서 새로 올려 보세요.'}`
+  const empty = fcat && !q.trim() ? '이 카테고리의 아이디어가 아직 없어요.' : q.trim() ?`'${q.trim()}'에 맞는 ${view === 'arch' ? '보관된 ' : ''}아이디어가 없어요.${view === 'arch' ? '' : ' 위에서 새로 올려 보세요.'}`
     : view === 'make' ? '아직 만들고 있는 아이디어가 없어요.' : view === 'done' ? '아직 완성된 아이디어가 없어요.' : view === 'arch' ? '보관된 아이디어가 없어요.' : '모으는 중인 아이디어가 없어요. 위에서 새로 올려 보세요.';
   return (
     <div className="wrap">
       <div className="ptop"><div><span className="k">Idea Board</span><h1>Idea Board</h1><p>필요한 AI 도구 아이디어를 자유롭게 나누고, 관심 있는 동료들과 함께 만들어 보세요.</p></div></div>
       <div className="ib"><div className="ib-main">
         <div className="composer">
-          <form className={'note-new' + (type ? ' t-' + tcls(type) : '')} id="mv-noteForm" aria-label="새 아이디어 포스트잇" noValidate={true} onSubmit={e => { post(e).catch(() => undefined); }}>
+          <div className="ib3-csh">
+          <form className={'note-new ib3f' + (scrap ? ' ib3-paper' : '')} id="mv-noteForm" aria-label="새 아이디어 포스트잇" noValidate={true} style={formStyle} onSubmit={e => { post(e).catch(() => undefined); }}>
+            {picker.button(!!err && !cat && !!text.trim())}
             <label className="sr" htmlFor="mv-noteText">아이디어 한 줄</label>
             <textarea id="mv-noteText" className="noteText" maxLength={60} rows={2} placeholder={'이런 AI 도구가 있으면 좋겠다!\n자유롭게 아이디어를 적어 보세요.'} aria-describedby="mv-noteErr" aria-invalid={!!err && !text.trim()} value={text}
-              onChange={e => { setText(e.target.value.replace(/[\r\n]+/g, ' ')); if (e.target.value.trim() && !type) { setErr(''); } }}
+              onChange={e => { setText(e.target.value.replace(/[\r\n]+/g, ' ')); if (e.target.value.trim() && /한 줄/.test(err)) { setErr(''); } }}
               onKeyDown={e => { if (e.key === 'Enter' && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); post(e).catch(() => undefined); } }} />
             <p className="nerr" id="mv-noteErr" role="alert" hidden={!err}>{err}</p>
-            <div className="row"><label className="sr" htmlFor="mv-noteCat">도구 선택</label>
-              <select id="mv-noteCat" aria-required="true" aria-invalid={!!err && !type && !!text.trim()} value={type} onChange={e => { setType(e.target.value); if (e.target.value) { setErr(''); } }}><option value="">도구 선택</option>{IDEA_TYPES.map(x => <option key={x} value={x}>{x === '기타' ? x : x.toUpperCase()}</option>)}</select>
-              <button className="btn sm pri" type="submit" disabled={busy}>게시</button><span className="ib2-cnt" id="mv-noteCnt" aria-hidden="true">{text.length} / 60</span></div>
+            <label className="ib3-ck"><input type="checkbox" id="mv-noteExt" checked={scrap} onChange={e => { setScrap(e.target.checked); if (e.target.checked) { setTimeout(() => { if (linkRef.current) { linkRef.current.focus(); } }, 0); } }} /><i aria-hidden="true" />🔭 외부에서 스크랩했어요</label>
+            <div className="ib3-ln" hidden={!scrap}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c8c8c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1" /><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1" /></svg>
+              <label className="sr" htmlFor="mv-noteLink">원문 링크 (선택)</label>
+              <input ref={linkRef} id="mv-noteLink" type="url" inputMode="url" placeholder="원문 링크 붙여 넣기 (선택)" autoComplete="off" value={link} onChange={e => setLink(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); post(e).catch(() => undefined); } }} />
+              <button type="button" className="x" aria-label="링크 지우기" hidden={!link} onClick={() => { setLink(''); if (linkRef.current) { linkRef.current.focus(); } }}><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="#8c8c8c" strokeWidth="2.6" strokeLinecap="round" /></svg></button>
+            </div>
+            <div className="ib3-ft"><span className="ib2-cnt" id="mv-noteCnt" aria-live="polite">{text.length} / 60</span><button className="btn sm pri" type="submit" disabled={busy || !text.trim()}>게시</button></div>
           </form>
+          {picker.list}
+          </div>
           <div className="c20-fw"><p className="c20-ft" id="hub-c20ft">아이디어가 실현될 때까지</p>
             <ol className="iflow xf" aria-labelledby="hub-c20ft">
               <li><b>아이디어 올리기</b><span>직접 만들기 어려운 AI 도구 아이디어를 자유롭게 작성해요.</span></li>
@@ -196,15 +306,19 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
             {tab('done', '제작 완료', '동료들이 제작까지 끝낸 아이디어예요')}
             {tab('arch', '보관됨', `게시된 지 ${IDEA_ARCHIVE_DAYS / 30}개월이 지나 보관된 아이디어예요`)}
           </div>
-          <label className="psearch b4-f"><span className="sr">아이디어 검색</span><input type="search" id="hub-n-q" placeholder="아이디어 검색" value={q} onChange={e => setQ(e.target.value)} /><button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { const el = document.getElementById('hub-n-q'); if (el) { el.focus(); } }}><Mag /></button></label>
+          <div className="ib3-flt">
+            <select className="ib3-fsel" aria-label="카테고리로 거르기" value={fcat} onChange={e => setFcat(e.target.value)}><option value="">카테고리 전체</option>{IDEA_CATS.map(k => <option key={k} value={k}>{k}</option>)}</select>
+            <label className="psearch b4-f"><span className="sr">아이디어 검색</span><input type="search" id="hub-n-q" placeholder="아이디어 검색" value={q} onChange={e => setQ(e.target.value)} /><button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { const el = document.getElementById('hub-n-q'); if (el) { el.focus(); } }}><Mag /></button></label>
+          </div>
         </div>
-        {api.data.ideasError ? <ListError what="Idea Board" message={api.data.ideasError} /> : <div className="wall" id="mv-wall" role="tabpanel">
+        {api.data.ideasError ? <ListError what="Idea Board" message={api.data.ideasError} /> : <div className="wall" id="mv-wall" role="tabpanel" ref={wallRef}>
           {rows.length ? rows.map(i => view !== 'arch' ? <Note key={i.id} api={api} idea={i} /> : (
-            <article key={i.id} className="pn t-etc archived">
+            <div key={i.id} className="ib3-sh"><article style={catVars(i.category)} className={'pn ib3 t-etc archived' + (i.source ? ' ib3-ext ib3-paper' : '')}>
               <div className="pn-row"><span className="pn-ty">보관됨</span><span className="pn-old" style={{ color: 'var(--ink2)' }}>{mmdd(archivedOn(i))}</span></div>
-              <Go go={api.go} view="idea" id={i.id} className="open"><b>{i.title}</b></Go>
+              <Go go={api.go} view="idea" id={i.id} className="open"><b><Spacers hand={false} scrap={!!i.source} />{i.title}</b></Go>
               <div className="acts">{i.author && i.author.id === api.me.id ? <button type="button" className="pn-pill" onClick={() => { api.reviveIdea(i.id).catch(() => undefined); }}>보관 해제</button> : <span className="who">{i.author ? i.author.name : ''}</span>}</div>
-            </article>
+              {i.source ? <Stamp /> : null}
+            </article></div>
           )) : <p className="note">{empty}</p>}
         </div>}
       </div></div>
@@ -254,7 +368,7 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
   const [delAsk, setDelAsk] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [eTitle, setETitle] = React.useState('');
-  const [eType, setEType] = React.useState('');
+  const [eCat, setECat] = React.useState('');
   const [eBusy, setEBusy] = React.useState(false);
   if (!i) {
     return <div className="wrap"><Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Idea Board', view: 'ideas' }, { label: '아이디어' }]} />
@@ -284,7 +398,7 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
     const t = eTitle.replace(/\s+/g, ' ').trim();
     if (!t) { api.toast('아이디어를 한 줄 적어 주세요'); return; }
     setEBusy(true);
-    const ok = await api.updateIdea(i.id, { title: t, type: eType, detail: i.detail, pain: i.pain, frequency: i.frequency, minutes: i.minutes });
+    const ok = await api.updateIdea(i.id, { title: t, type: i.type, category: eCat, detail: i.detail, pain: i.pain, frequency: i.frequency, minutes: i.minutes });
     setEBusy(false);
     if (ok) { setEditing(false); }
   };
@@ -310,15 +424,15 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Idea Board', view: 'ideas' }, { label: '아이디어' }]} />
       <div className="idw"><div>
         <div className="idboard">
-          {/* 시안 c31: 보드 포스트잇과 같은 모양. 수정은 포스트잇에서 바로 (c42) */}
-          <article className={`pn t-${tcls(editing ? eType : i.type)} c31-pn${editing ? ' c42-on' : ''}${makers.length ? ' hand' : ''}`}>
+          {/* 시안 c31: 보드 포스트잇과 같은 모양. 수정은 포스트잇에서 바로 (c42). 시안 ib3: 카테고리 색, 스크랩은 줄 공책 + 도장 */}
+          <div className="ib3-sh c31-pn"><article style={catVars(editing ? eCat : i.category)} className={`pn ib3 ib3d t-${tcls(i.type)}${i.source ? ' ib3-ext ib3-paper' : ''}${editing ? ' c42-on' : ''}${makers.length ? ' hand' : ''}`}>
             {makers.length ? <span className="pn-rib" aria-hidden="true"><span className="pn-tape">{HAND}{makers.length}명과 함께해요</span></span> : null}
             <div className="pn-row">
-              {editing ? <select className="c42-ty" aria-label="무엇인가요?" value={eType} onChange={e => setEType(e.target.value)}>{IDEA_TYPES.map(x => <option key={x} value={x}>{x === '기타' ? x : x.toUpperCase()}</option>)}</select>
-                : <KindTag className="pn-ty" k={i.type || '기타'} />}
+              {editing ? <select className="c42-ty" aria-label="카테고리" value={eCat} onChange={e => setECat(e.target.value)}>{eCat ? null : <option value="">카테고리 선택</option>}{IDEA_CATS.map(x => <option key={x} value={x}>{x}</option>)}</select>
+                : <span className="pn-ty ib3-k">{catLabel(i)}</span>}
               {st === 'live' && !makers.length ? <span className="pn-old" title="3개월 동안 만들 사람이 없으면 보관함으로 옮겨져요">{daysToArchive(i, api.now)}일 뒤 보관</span> : null}
               {mine && !editing ? <>
-                <button type="button" className="idedit" onClick={() => { setETitle(i.title); setEType(i.type || '기타'); setEditing(true); }}>수정</button>
+                <button type="button" className="idedit" onClick={() => { setETitle(i.title); setECat(i.category); setEditing(true); }}>수정</button>
                 {delAsk ? <span className="cact"><button type="button" onClick={() => { api.deleteIdea(i.id).then(ok => { if (ok) { api.go('ideas'); } else { setDelAsk(false); } }, () => setDelAsk(false)); }}>삭제할까요? 삭제</button><button type="button" onClick={() => setDelAsk(false)}>취소</button></span>
                   : <button type="button" className="idedit" onClick={() => setDelAsk(true)}>삭제</button>}
               </> : null}
@@ -328,6 +442,7 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
                 onKeyDown={e => { if (e.key === 'Enter' && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); saveEdit().catch(() => undefined); } else if (e.key === 'Escape') { setEditing(false); } }} />
             ) : <h1 className="c31-t"><b>{i.title}</b></h1>}
             {!editing ? <span className="who"><Av p={i.author} me={api.me.id} badge={api.avatarOf(i.author)} /><b><Person p={i.author} fallback="" /></b><span>{days ? `${days}일 전 올림` : '오늘 올림'}</span></span> : null}
+            {!editing && i.source ? <span className="ib3-srcw">{srcUrl(i) ? <a className="ib3-src" href={srcUrl(i)} target="_blank" rel="noopener noreferrer">{LINK}원문 보기</a> : '🔭 외부에서 스크랩한 아이디어'}</span> : null}
             {editing ? (
               <div className="c42-bar"><button type="button" className="c42-x" onClick={() => setEditing(false)}>취소</button><button type="button" className="c42-ok" disabled={eBusy} onClick={() => { saveEdit().catch(() => undefined); }}>{eBusy ? '저장 중…' : '저장'}</button></div>
             ) : (
@@ -337,7 +452,8 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
                 <span className="pn-cmt" aria-label={`댓글 ${comments.length}개`} title={`댓글 ${comments.length}개`}>{CMT}{comments.length}</span>
               </div>
             )}
-          </article>
+            {i.source ? <Stamp /> : null}
+          </article></div>
           {st === 'archived' ? (
             <p className="archnote">{i.archivedOn || i.status === '보관' ? '보관된 아이디어예요.' : `만드는 사람 없이 ${IDEA_ARCHIVE_DAYS / 30}개월이 지나 보관됐어요.`}{mine ? <> <button type="button" className="btn sm" onClick={() => { api.reviveIdea(i.id).catch(() => undefined); }}>보관 해제</button></> : ' 올린 사람이 보관을 해제할 수 있어요.'}</p>
           ) : (

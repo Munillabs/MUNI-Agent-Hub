@@ -406,10 +406,12 @@ export class HubService {
     // 공감은 목록 평점 설정(좋아요)의 '좋아요 표시한 사람(LikedBy)'. 평점 설정이 꺼져 있으면 그 열만 빼고 읽습니다.
     const rows = await this.itemsOpt(this.lists.ideas,
       ['Id', 'Title', 'Type', 'Status', 'Detail', 'Pain', 'Frequency', 'MinutesPerRun', 'StartedOn', 'DoneAt', 'ResultRef', 'ArchivedOn', 'RevivedOn', 'Created', 'Modified']
-        .concat(AUTHOR, ppl('Makers')), ['Author', 'Makers'], { select: ppl('LikedBy'), expand: ['LikedBy'] }, undefined, 5000);
+        .concat(AUTHOR, ppl('Makers')), ['Author', 'Makers'],
+      // 카테고리(Category) · 출처(ScrapSource) 열은 11/25 시안에서 더해져 아직 없을 수 있어 따로 읽어 봅니다
+      [{ select: ppl('LikedBy'), expand: ['LikedBy'] }, { select: ['Category', 'ScrapSource'] }], undefined, 5000);
     const people = (v: any): IPerson[] => HubService.users(v).map(person).filter(p => !!p) as IPerson[];
     return rows.map((r: any): IIdea => ({
-      id: r.Id, title: str(r.Title), type: str(r.Type), detail: str(r.Detail), status: str(r.Status),
+      id: r.Id, title: str(r.Title), type: str(r.Type), category: str(r.Category), source: str(r.ScrapSource), detail: str(r.Detail), status: str(r.Status),
       likers: people(r.LikedBy), makers: people(r.Makers),
       startedOn: str(r.StartedOn), doneAt: str(r.DoneAt), resultRef: str(r.ResultRef), archivedOn: str(r.ArchivedOn), revivedOn: str(r.RevivedOn),
       pain: str(r.Pain), frequency: str(r.Frequency), minutes: num(r.MinutesPerRun),
@@ -428,18 +430,32 @@ export class HubService {
     return out;
   }
   private ideaFields(idea: INewIdea): any {
-    return {
+    const f: any = {
       Title: idea.title, Type: idea.type || null, Detail: idea.detail || '', Pain: idea.pain || '',
       Frequency: idea.frequency || null, MinutesPerRun: typeof idea.minutes === 'number' && !isNaN(idea.minutes) ? idea.minutes : null
     };
+    if (idea.category !== undefined) { f.Category = idea.category || null; }
+    if (idea.source !== undefined) { f.ScrapSource = idea.source || null; }
+    return f;
+  }
+  /** Category · ScrapSource 열이 아직 없으면(400) 그 두 열만 빼고 다시 저장합니다. 화면은 다시 읽은 값으로 빠진 것을 알려 줍니다 */
+  private async ideaSave<T>(idea: INewIdea, run: (fields: any) => Promise<T>): Promise<T> {
+    const f = this.ideaFields(idea);
+    try {
+      return await run(f);
+    } catch (e) {
+      if (!(e instanceof HubError && e.status === 400) || !('Category' in f || 'ScrapSource' in f)) { throw e; }
+      delete f.Category; delete f.ScrapSource;
+      return run(f);
+    }
   }
   public async createIdea(idea: INewIdea): Promise<number> {
-    const d = await this.create(this.lists.ideas, { ...this.ideaFields(idea), Status: IDEA_STATUS.live });
+    const d = await this.ideaSave(idea, f => this.create(this.lists.ideas, { ...f, Status: IDEA_STATUS.live }));
     return d.Id;
   }
   /** 내 아이디어 고치기 */
   public async updateIdea(id: number, idea: INewIdea): Promise<void> {
-    await this.merge(this.lists.ideas, id, this.ideaFields(idea));
+    await this.ideaSave(idea, f => this.merge(this.lists.ideas, id, f));
   }
   /** 사람 열(Makers)에 나를 넣거나 뺍니다. 다른 사람이 방금 누른 것을 지우지 않도록 저장 직전에 다시 읽습니다. */
   private async togglePerson(id: number, field: 'Makers', meId: number, on: boolean): Promise<number[]> {

@@ -6,6 +6,7 @@ import { HubView, IPerson } from '../../models/types';
 import { IHubApi } from '../api';
 import { Go } from '../ui';
 import { BadgeMedal } from '../badge';
+import { catVars } from './ideas';
 import { ArrowMore, CountUp, Globe, IGlobePin, reducedMotion, useScrollTick, useTypingPlaceholder } from '../mv';
 import { InlineSearch } from '../searchov';
 
@@ -213,9 +214,11 @@ export function HomeView(props: { api: IHubApi; dark?: boolean; rootRef?: React.
                 const kd = t === 'agent' ? 'a' : t === 'skill' ? 's' : t === 'html' ? 'h' : undefined;
                 const days = daysSince(i.created, api.now);
                 const mk = api.makers(i.id).length;
+                // 시안 11/25 ib3: 카테고리가 있으면 카테고리 색 종이, 스크랩이면 줄 공책 종이
+                const cat = !!i.category;
                 return (
-                  <Go key={i.id} go={api.go} view="idea" id={i.id} className={'c14-pn t-' + tc}>
-                    <span className="c14-top"><span className={'c14-kd' + (kd ? ' c14-k' : '')} data-c14k={kd}>{i.type || '기타'}</span><span>{days > 0 ? days + '일 전' : '오늘'}</span></span>
+                  <Go key={i.id} go={api.go} view="idea" id={i.id} className={'c14-pn t-' + tc + (cat || i.source ? ' ib3c' : '') + (i.source ? ' ib3-paper' : '')} style={catVars(i.category)}>
+                    <span className="c14-top">{cat ? <span className="c14-kd ib3-k">{i.category}</span> : <span className={'c14-kd' + (kd ? ' c14-k' : '')} data-c14k={kd}>{i.type || '기타'}</span>}<span>{days > 0 ? days + '일 전' : '오늘'}</span></span>
                     <b>{i.title}</b><span className="c14-meta"><span>♡ {api.likeCount('Idea', i.id)}</span>{mk ? <span>{mk}명이 함께해요</span> : null}</span></Go>
                 );
               })}</div> : <p className="note">아직 올라온 아이디어가 없어요. 첫 아이디어를 올려 보세요.</p>}

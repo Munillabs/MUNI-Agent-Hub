@@ -184,3 +184,6 @@ html{background:var(--bg,#fff)}
   header.hd .gnav{position:static;left:auto;transform:none;flex:none;justify-self:center}
   header.hd>.wrap>.util{justify-self:end;margin-left:0}
 }
+
+/* 11/26 Idea Board ib3: 카테고리를 안 고르고 게시하면 카테고리 단추를 빨갛게 (시안은 숨은 select 의 aria-invalid 로 표시) */
+.ib3-ddb[aria-invalid=true]{border-color:#c0392b;box-shadow:0 0 0 2px rgba(192,57,43,.12)}

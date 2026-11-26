@@ -552,7 +552,11 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     },
     stageOf: i => ideaStage(i, now),
     updateIdea: async (id, idea) => {
-      try { await service.updateIdea(id, idea); patchIdea(id, i => ({ ...i, ...idea, detail: idea.detail || '', pain: idea.pain || '', frequency: idea.frequency || '' })); toast('아이디어를 고쳤어요'); return true; } catch (e) { fail(e); return false; }
+      try {
+        await service.updateIdea(id, idea);
+        patchIdea(id, i => ({ ...i, ...idea, detail: idea.detail || '', pain: idea.pain || '', frequency: idea.frequency || '', category: idea.category !== undefined ? idea.category : i.category, source: idea.source !== undefined ? idea.source : i.source }));
+        toast('아이디어를 고쳤어요'); return true;
+      } catch (e) { fail(e); return false; }
     },
     deleteIdea: async id => {
       try { await service.deleteIdea(id); setData(d => ({ ...d, ideas: d.ideas.filter(i => i.id !== id) })); toast('아이디어를 지웠어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
@@ -578,7 +582,13 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     },
     comments: id => data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '댓글').sort((x, y) => (x.created || '').localeCompare(y.created || '')),
     addIdea: async idea => {
-      try { await service.createIdea(idea); const ideas = await service.getIdeas(); setData(d => withIdeas(d, ideas)); toast('포스트잇을 붙였어요'); return true; } catch (e) { fail(e); return false; }
+      try {
+        const id = await service.createIdea(idea); const ideas = await service.getIdeas(); setData(d => withIdeas(d, ideas));
+        const saved = ideas.filter(x => x.id === id)[0];
+        // HubIdeas 에 Category 열이 아직 없으면 카테고리만 빠지고 저장됩니다
+        toast(saved && idea.category && !saved.category ? '포스트잇을 붙였어요. 목록에 Category 열이 없어 카테고리는 저장되지 않았어요' : '포스트잇을 붙였어요');
+        return true;
+      } catch (e) { fail(e); return false; }
     },
     addComment: async (id, body) => {
       try { await addIdeaComment(id, body); toast('댓글을 달았어요'); return true; } catch (e) { fail(e); return false; }
