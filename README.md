@@ -171,7 +171,7 @@ Hub가 읽는 열 (배포·심사용 나머지 열은 읽지 않습니다):
 | `LinkedAgents` | 조회 여러 개 (AgentList의 AgentName) | 연결된 Agent |
 | `Skills` | 조회 여러 개 (HubContents의 Title) | 연결된 Skill |
 
-**썸네일**(`thumb.*`)과 **결과 이미지**(`result1.*` 또는 `result-1.*`, `result2.*` 또는 `result-2.*`)는 항목의 **첨부 파일**입니다. 목록 설정 > 고급 설정에서 **첨부 파일**을, 평점 설정에서 **별 등급**을 켜 주세요.
+**썸네일**(`thumb.*`, Marketplace 카드), **프로필**(`icon.*`, 상세 화면 머리의 정사각형 그림 · Agent와 HTML · 없으면 썸네일을 씀)과 **결과 이미지**(`result1.*` 또는 `result-1.*`, `result2.*` 또는 `result-2.*`)는 항목의 **첨부 파일**입니다. 목록 설정 > 고급 설정에서 **첨부 파일**을, 평점 설정에서 **별 등급**을 켜 주세요.
 
 ### 2. HubContents — Skill과 HTML (한 목록 + 첨부 파일)
 

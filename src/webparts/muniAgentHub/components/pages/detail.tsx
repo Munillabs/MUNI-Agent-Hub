@@ -217,7 +217,8 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'Agent', view: 'agents' }, { label: a.title }]} />
       <header className="dp-head">
         {/* 썸네일: AgentList 항목 첨부 파일 thumb.png (없으면 이름 첫 글자) */}
-        {a.thumb ? <span className="ad-icon dthumb hth" aria-hidden="true" style={thumbBg(a.thumb.url, a.modified)} />
+        {a.icon ? <span className="ad-icon dthumb hth icn" aria-hidden="true" style={thumbBg(a.icon.url, a.modified)} />
+          : a.thumb ? <span className="ad-icon dthumb hth acap" aria-hidden="true" style={thumbBg(a.thumb.url, a.modified)} />
           : <span className="ad-icon" aria-hidden="true">{a.title.trim().charAt(0)}</span>}
         <div className="dp-title">
           <h1>{a.title}</h1>
@@ -351,7 +352,8 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
     <div className="wrap">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'HTML', view: 'htools' }, { label: h.title }]} />
       <header className="dp-head">
-        {h.thumb ? <span className="ad-icon dthumb hth" aria-hidden="true" style={thumbBg(h.thumb.url, h.modified)} />
+        {h.icon ? <span className="ad-icon dthumb hth icn" aria-hidden="true" style={thumbBg(h.icon.url, h.modified)} />
+          : h.thumb ? <span className="ad-icon dthumb hth hcap" aria-hidden="true" style={thumbBg(h.thumb.url, h.modified)} />
           : <span className="ad-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 13l-2 2 2 2M15 13l2 2-2 2" /></svg></span>}
         <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p><p className="by"><Pill>HTML</Pill> {h.author ? <Person p={h.author}><a href={teamsChat(h.author) || '#'} target="_blank" rel="noopener noreferrer">{h.author.name}</a></Person> : null}</p></div>
         <div className="dp-cta">

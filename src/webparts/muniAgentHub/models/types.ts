@@ -63,6 +63,8 @@ export interface IAgent {
   images: IImage[];
   /** 목록 카드 썸네일 (첨부 파일 thumb.*) */
   thumb?: IImage;
+  /** 상세 화면 프로필 (첨부 파일 icon.*, 정사각형). 없으면 썸네일을 씀 */
+  icon?: IImage;
   owner?: IPerson;
   sponsor?: IPerson;
   /** 처음 배포일 (없으면 배포 일시, 항목 만든 날) */
@@ -257,6 +259,7 @@ export interface ISkill {
   fileUrl: string;
   /** 목록 카드 썸네일 (첨부 파일 thumb.*, 없으면 지침 미리보기) */
   thumb?: IImage;
+  icon?: IImage;
   /** '제작자는 이렇게 썼어요' 이미지 (첨부 파일 result1.* · result2.*) */
   images: IImage[];
   author?: IPerson;
@@ -297,6 +300,9 @@ export interface IAgentEdit {
   makerNote: string;
   thumb?: INewThumb;
   dropThumb?: boolean;
+  /** 새 프로필 (첨부 파일 icon.<ext>) */
+  icon?: INewThumb;
+  dropIcon?: boolean;
   shots?: INewShot[];
   dropShots?: number[];
 }
@@ -339,6 +345,8 @@ export interface IHtmlTool {
   fileUrl: string;
   /** 목록 카드 썸네일 (첨부 파일 thumb.*, 없으면 기본 그림) */
   thumb?: IImage;
+  /** 상세 화면 프로필 (첨부 파일 icon.*, 정사각형). 없으면 썸네일을 씀 */
+  icon?: IImage;
   /** '제작자는 이렇게 썼어요' 이미지 (첨부 파일 result1.* · result2.*) */
   images: IImage[];
   author?: IPerson;
@@ -365,6 +373,9 @@ export interface INewHtml {
   file?: { name: string; text: string };
   thumb?: INewThumb;
   dropThumb?: boolean;
+  /** 새 프로필 (첨부 파일 icon.<ext>) */
+  icon?: INewThumb;
+  dropIcon?: boolean;
   shots?: INewShot[];
   dropShots?: number[];
 }

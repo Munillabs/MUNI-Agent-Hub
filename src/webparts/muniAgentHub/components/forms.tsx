@@ -59,7 +59,7 @@ function focusFirstError(root: HTMLElement | null): void {
     bad.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, 0);
 }
-function readAs(fl: File, how: 'text' | 'buffer'): Promise<string | ArrayBuffer> {
+function readAs(fl: Blob, how: 'text' | 'buffer'): Promise<string | ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result as string | ArrayBuffer);
@@ -223,42 +223,235 @@ function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea
 /* ---------- 썸네일 이미지 (선택): Marketplace 카드에 보이는 그림, 첨부 파일 thumb.<ext> ---------- */
 const THUMB_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 const THUMB_MAX_BYTES = 2 * 1024 * 1024;
-interface IThumbState { file?: { ext: string; data: ArrayBuffer; url: string; name: string; size: number }; drop: boolean }
+/** icon: 썸네일과 함께 고른 상세 화면 프로필 (정사각형, 첨부 파일 icon.*) */
+interface IThumbState { file?: { ext: string; data: ArrayBuffer; url: string; name: string; size: number }; icon?: { ext: string; data: ArrayBuffer; url: string; name: string; size: number }; drop: boolean }
 function useThumb(): [IThumbState, React.Dispatch<React.SetStateAction<IThumbState>>] {
   const [t, setT] = React.useState<IThumbState>({ drop: false });
   // 미리보기 주소 정리
-  React.useEffect(() => () => { if (t.file) { URL.revokeObjectURL(t.file.url); } }, [t.file]);
+  React.useEffect(() => () => { if (t.file) { URL.revokeObjectURL(t.file.url); } if (t.icon) { URL.revokeObjectURL(t.icon.url); } }, [t.file, t.icon]);
   return [t, setT];
 }
+/* ---------- 썸네일 자르기 (카톡 프로필처럼: 비율 고르기 → 상자를 끌어 위치 · 크기 맞추기 → 적용) ---------- */
+type CropRect = { x: number; y: number; w: number; h: number };
+type CropMode = 'move' | 'nw' | 'ne' | 'sw' | 'se';
+/** 카드 맞춤 = Marketplace 카드 그림 칸(가로가 긴 16:9) */
+const CROP_PRESETS: { k: string; label: string; r?: number }[] = [
+  { k: 'card', label: '카드 맞춤', r: 16 / 9 }, { k: 'free', label: '자유롭게' }, { k: 'sq', label: '1:1', r: 1 }, { k: '43', label: '4:3', r: 4 / 3 }, { k: 'all', label: '원본 그대로' }
+];
+const CROP_MIN = 28;
+const CROP_MAX_W = 1600;
+function fitRect(W: number, H: number, r?: number): CropRect {
+  if (!r) { return { x: 0, y: 0, w: W, h: H }; }
+  let w = W, h = W / r;
+  if (h > H) { h = H; w = H * r; }
+  return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
+interface ICropOut { ext: string; data: ArrayBuffer; url: string; name: string; size: number }
+/** 자르기 두 단계: ① 카드(썸네일 thumb.*) ② 상세 화면 프로필(정사각형 icon.*) */
+const ICON_MAX_W = 600;
+function ThumbCropper(props: { file: File; src: string; onCancel: () => void; onDone: (f: { thumb: ICropOut; icon: ICropOut }) => void; onError: (m: string) => void }): JSX.Element {
+  const img = React.useRef<HTMLImageElement>(null);
+  const [box, setBox] = React.useState<{ W: number; H: number } | undefined>(undefined);
+  const [stage, setStage] = React.useState<'card' | 'icon'>('card');
+  /** 프로필 단계의 비율 (카드 단계는 카드 맞춤 16:9 하나) */
+  const [preset, setPreset] = React.useState('sq');
+  const [rect, setRect] = React.useState<CropRect>({ x: 0, y: 0, w: 0, h: 0 });
+  const [cardRect, setCardRect] = React.useState<CropRect | undefined>(undefined);
+  const [busy, setBusy] = React.useState(false);
+  const ratioOf = (k: string): number | undefined => (CROP_PRESETS.filter(p => p.k === k)[0] || { r: undefined }).r;
+  const isIcon = stage === 'icon';
+  const all = isIcon && preset === 'all';
+  const ratioNow = isIcon ? ratioOf(preset) : ratioOf('card');
+  /** 카드 상자 가운데의 가장 큰 정사각형 (프로필 기본값 · 건너뛰기) */
+  const squareIn = (r: CropRect): CropRect => { const s = Math.min(r.w, r.h); return { x: r.x + (r.w - s) / 2, y: r.y + (r.h - s) / 2, w: s, h: s }; };
+  const full = (b: { W: number; H: number }): CropRect => ({ x: 0, y: 0, w: b.W, h: b.H });
+  const measure = (): void => {
+    const im = img.current;
+    if (!im || !im.clientWidth) { return; }
+    const b = { W: im.clientWidth, H: im.clientHeight };
+    // 창 크기가 바뀌면 이미 고른 상자도 같은 비율로 옮깁니다
+    if (box && box.W !== b.W) {
+      const k = b.W / box.W, sc = (r: CropRect): CropRect => ({ x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k });
+      setRect(sc(rect)); if (cardRect) { setCardRect(sc(cardRect)); }
+    } else if (!box) {
+      setRect(fitRect(b.W, b.H, ratioOf('card')));
+    }
+    setBox(b);
+  };
+  const measureRef = React.useRef(measure);
+  measureRef.current = measure;
+  React.useEffect(() => {
+    const on = (): void => measureRef.current();
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  // 상자 끌기: 누른 순간의 값으로 계산하고, 손을 떼면 끝
+  const start = (mode: CropMode) => (e: React.PointerEvent): void => {
+    if (!box || all) { return; }
+    e.preventDefault(); e.stopPropagation();
+    const { W, H } = box, r0 = rect, sx = e.clientX, sy = e.clientY, ratio = ratioNow;
+    const move = (ev: PointerEvent): void => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (mode === 'move') { setRect({ ...r0, x: clamp(r0.x + dx, 0, W - r0.w), y: clamp(r0.y + dy, 0, H - r0.h) }); return; }
+      const left = mode === 'nw' || mode === 'sw', top = mode === 'nw' || mode === 'ne';
+      // 반대쪽 모서리는 그대로 두고 크기를 바꿉니다
+      const ax = left ? r0.x + r0.w : r0.x, ay = top ? r0.y + r0.h : r0.y;
+      const px = clamp((left ? r0.x : r0.x + r0.w) + dx, 0, W), py = clamp((top ? r0.y : r0.y + r0.h) + dy, 0, H);
+      const maxW = left ? ax : W - ax, maxH = top ? ay : H - ay;
+      let w = clamp(Math.abs(px - ax), CROP_MIN, maxW), h = clamp(Math.abs(py - ay), CROP_MIN, maxH);
+      if (ratio) {
+        if (w / h > ratio) { w = h * ratio; } else { h = w / ratio; }
+        if (w > maxW) { w = maxW; h = w / ratio; }
+        if (h > maxH) { h = maxH; w = h * ratio; }
+      }
+      setRect({ x: left ? ax - w : ax, y: top ? ay - h : ay, w, h });
+    };
+    const end = (): void => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  };
+  // 키보드: 방향키로 옮기기, Shift+방향키로 크기
+  const key = (e: React.KeyboardEvent): void => {
+    if (!box || all) { return; }
+    const d = e.altKey ? 1 : 8, ratio = ratioNow;
+    const dx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0, dy = e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0;
+    if (!dx && !dy) { return; }
+    e.preventDefault();
+    if (!e.shiftKey) { setRect(r => ({ ...r, x: clamp(r.x + dx, 0, box.W - r.w), y: clamp(r.y + dy, 0, box.H - r.h) })); return; }
+    setRect(r => {
+      let w = clamp(r.w + (dx || dy), CROP_MIN, box.W - r.x), h = ratio ? w / ratio : clamp(r.h + dy, CROP_MIN, box.H - r.y);
+      if (ratio && r.y + h > box.H) { h = box.H - r.y; w = h * ratio; }
+      if (!ratio) { w = clamp(r.w + dx, CROP_MIN, box.W - r.x); }
+      return { ...r, w, h };
+    });
+  };
+  const srcExt = extOf(props.file.name);
+  /** 화면 좌표의 상자를 원본 해상도로 잘라 이미지 파일로 */
+  const render = (r: CropRect, maxW: number, base: string): Promise<ICropOut> => new Promise((resolve, reject) => {
+    const im = img.current;
+    if (!im || !box) { reject(new Error('이미지를 아직 읽는 중이에요.')); return; }
+    const s = im.naturalWidth / box.W;
+    const sw = r.w * s, sh = r.h * s, k = Math.min(1, maxW / sw);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(sw * k)); c.height = Math.max(1, Math.round(sh * k));
+    const g = c.getContext('2d');
+    if (!g) { reject(new Error('이 브라우저에서는 자르기를 할 수 없어요.')); return; }
+    const png = srcExt === 'png';
+    if (!png) { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+    g.drawImage(im, r.x * s, r.y * s, sw, sh, 0, 0, c.width, c.height);
+    const out = (type: string, ext: string): void => c.toBlob(b => {
+      if (!b) { reject(new Error('이미지를 만들지 못했어요. 다시 해 주세요.')); return; }
+      if (b.size > THUMB_MAX_BYTES && type === 'image/png') { out('image/jpeg', 'jpg'); return; }
+      if (b.size > THUMB_MAX_BYTES) { reject(new Error('자른 이미지가 2MB를 넘어요. 조금 더 작게 잘라 주세요.')); return; }
+      readAs(b, 'buffer').then(d => resolve({ ext, data: d as ArrayBuffer, url: URL.createObjectURL(b), name: `${base}.${ext}`, size: b.size }),
+        () => reject(new Error('이미지를 만들지 못했어요. 다시 해 주세요.')));
+    }, type, 0.9);
+    out(png ? 'image/png' : 'image/jpeg', png ? 'png' : 'jpg');
+  });
+  /** 카드 썸네일: '원본 그대로'이고 2MB 이하면 원본 파일 그대로 (화질 · 움직임 그대로) */
+  const cardOut = (cr: CropRect, wasAll: boolean): Promise<ICropOut> => {
+    if (wasAll && props.file.size <= THUMB_MAX_BYTES) {
+      return readAs(props.file, 'buffer').then(r => ({ ext: srcExt === 'jpeg' ? 'jpg' : srcExt, data: r as ArrayBuffer, url: URL.createObjectURL(props.file), name: props.file.name, size: props.file.size }));
+    }
+    return render(cr, CROP_MAX_W, props.file.name.replace(/\.[^.]+$/, ''));
+  };
+  const next = (): void => {
+    if (!box) { return; }
+    setCardRect(rect);
+    setStage('icon');
+    setPreset('sq');
+    setRect(squareIn(rect));
+  };
+  const back = (): void => { if (!cardRect) { return; } setStage('card'); setRect(cardRect); };
+  const finish = (iconRect: CropRect): void => {
+    if (!cardRect) { return; }
+    setBusy(true);
+    Promise.all([cardOut(cardRect, false), render(iconRect, ICON_MAX_W, 'icon')])
+      .then(([thumb, icon]) => props.onDone({ thumb, icon }), (e: Error) => { setBusy(false); props.onError(e.message); });
+  };
+  const H4: CropMode[] = ['nw', 'ne', 'sw', 'se'];
+  return (
+    <div className="tcrop" role="group" aria-label="썸네일 자르기">
+      <ol className="tcrop-steps" aria-label="단계"><li className={isIcon ? 'done' : 'on'}><b>1</b>카드에 보일 부분</li><li className={isIcon ? 'on' : ''}><b>2</b>프로필에 보일 부분</li></ol>
+      <p className="tcrop-h">{isIcon
+        ? <><b>상세 화면 프로필에 보일 부분을 맞춰 주세요</b><span>프로필 칸 모양(정사각형)으로 고정돼요. 상자를 끌어 옮기고 모서리로 크기를 바꿔, 글자나 캐릭터처럼 알아보기 쉬운 곳을 골라요.</span></>
+        : <><b>Marketplace 카드에 보일 부분을 맞춰 주세요</b><span>상자를 끌어 옮기고, 모서리를 끌어 크기를 바꿔요. 카드에는 상자 안만 보여요.</span></>}</p>
+      <div className="tcrop-stage" style={{ touchAction: 'none' }}>
+        <img ref={img} src={props.src} alt="" draggable={false} onLoad={measure} />
+        {box ? (
+          <div className={'tcrop-box' + (all ? ' all' : '')} style={all ? { left: 0, top: 0, width: box.W, height: box.H } : { left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+            tabIndex={all ? -1 : 0} role="slider" aria-label="자를 부분 (방향키로 옮기기, Shift+방향키로 크기)" aria-valuetext={`${Math.round(rect.w)} × ${Math.round(rect.h)}`}
+            onPointerDown={start('move')} onKeyDown={key}>
+            {all ? null : H4.map(m => <i key={m} className={'tcrop-hd ' + m} onPointerDown={start(m)} aria-hidden="true" />)}
+          </div>
+        ) : null}
+      </div>
+      {/* 크기 고정: 카드 단계는 카드 맞춤(16:9), 프로필 단계는 프로필 맞춤(1:1) */}
+      <div className="tcrop-opts" role="radiogroup" aria-label="자르는 비율">
+        {(isIcon ? [{ k: 'sq', label: '프로필 맞춤', r: 1 }] : CROP_PRESETS.filter(p => p.k === 'card')).map(p => (
+          <button key={p.k} type="button" role="radio" aria-checked={true} className="on">
+            <span className="tcrop-ic" aria-hidden="true" style={p.r ? { width: p.r >= 1 ? 22 : 22 * p.r, height: p.r >= 1 ? 22 / p.r : 22 } : undefined} data-k={p.k} />{p.label}
+          </button>
+        ))}
+      </div>
+      {isIcon ? (
+        <div className="tcrop-act"><button type="button" className="btn sm tcrop-skip" disabled={busy} onClick={() => { if (cardRect) { finish(squareIn(cardRect)); } }}>건너뛰기 (카드 가운데로)</button>
+          <button type="button" className="btn sm" onClick={back} disabled={busy}>이전</button><button type="button" className="btn sm pri" onClick={() => finish(all && box ? full(box) : rect)} disabled={busy || !box}>{busy ? '만드는 중…' : '적용'}</button></div>
+      ) : (
+        <div className="tcrop-act"><button type="button" className="btn sm" onClick={props.onCancel} disabled={busy}>취소</button><button type="button" className="btn sm pri" onClick={next} disabled={busy || !box}>다음: 프로필 맞추기</button></div>
+      )}
+    </div>
+  );
+}
+
 /** fallback: 아직 고른 썸네일이 없을 때 대신 보여 줄 그림 (Agent는 카드의 기본 그림, HTML은 예시 그림). fallbackLabel: 그 그림 위 표시 */
-function ThumbField(props: { id: string; current?: string; fallback?: React.ReactNode; fallbackLabel?: string; value: IThumbState; onChange: (v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>>; ratio: string }): JSX.Element {
+function ThumbField(props: { id: string; current?: string; currentIcon?: string; fallback?: React.ReactNode; fallbackLabel?: string; value: IThumbState; onChange: (v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>>; ratio: string }): JSX.Element {
   const v = props.value;
   const bad = (m: string): void => props.setErrors(e => ({ ...e, thumb: m }));
+  // 자르는 중인 원본, 마지막으로 고른 원본 (다시 자르기용)
+  const [crop, setCrop] = React.useState<{ file: File; src: string } | undefined>(undefined);
+  const orig = React.useRef<File | undefined>(undefined);
+  React.useEffect(() => () => { if (crop) { URL.revokeObjectURL(crop.src); } }, [crop]);
+  const openCrop = (fl: File): void => setCrop({ file: fl, src: URL.createObjectURL(fl) });
   const take = (fl: File): void => {
     const ext = extOf(fl.name);
     if (THUMB_EXTS.indexOf(ext) < 0) { bad('.png · .jpg · .gif · .webp 이미지만 올릴 수 있어요.'); return; }
-    if (fl.size > THUMB_MAX_BYTES) { bad('2MB 이하 이미지만 올릴 수 있어요.'); return; }
-    readAs(fl, 'buffer').then(r => {
-      props.setErrors(e => { const n = { ...e }; delete n.thumb; return n; });
-      props.onChange({ file: { ext: ext === 'jpeg' ? 'jpg' : ext, data: r as ArrayBuffer, url: URL.createObjectURL(fl), name: fl.name, size: fl.size }, drop: false });
-    }, () => bad('이미지를 읽지 못했어요. 다시 골라 주세요.'));
+    // 원본은 커도 돼요. 자른 뒤 2MB 이하가 되면 됩니다
+    if (fl.size > 15 * 1024 * 1024) { bad('15MB 이하 이미지만 고를 수 있어요.'); return; }
+    props.setErrors(e => { const n = { ...e }; delete n.thumb; return n; });
+    orig.current = fl;
+    openCrop(fl);
   };
   const shown = v.file ? v.file.url : (!v.drop && props.current) || '';
+  // 새로 고르면 새 프로필, 아니면 지금 프로필
+  const iconShown = v.file ? (v.icon ? v.icon.url : '') : (!v.drop && (props.currentIcon || '')) || '';
   return (
-    <Field k="thumb" label="썸네일 이미지 (선택)" hint={`Marketplace 카드에 보여요. 가로가 긴 이미지(${props.ratio})가 잘 맞아요. 없으면 기본 그림이 나와요.`} errors={props.errors}>
+    <Field k="thumb" label="썸네일 이미지 (선택)" hint={crop ? undefined : `Marketplace 카드와 상세 화면 프로필에 보여요. 가로가 긴 이미지(${props.ratio})가 잘 맞아요. 고르면 카드에 보일 부분과 프로필(정사각형)에 보일 부분을 차례로 맞춰요. 없으면 기본 그림이 나와요.`} errors={props.errors}>
+      {crop ? <ThumbCropper file={crop.file} src={crop.src} onCancel={() => setCrop(undefined)} onError={bad}
+        onDone={f => { props.setErrors(e => { const n = { ...e }; delete n.thumb; return n; }); props.onChange({ file: f.thumb, icon: f.icon, drop: false }); setCrop(undefined); }} /> : <>
       <div className="thumbpick">
-        {shown ? <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label="썸네일 미리보기" />
+        {shown ? <div className="thumbpair">
+          <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label="카드 썸네일 미리보기" />
+          {iconShown ? <div className="iconprev" style={{ backgroundImage: `url("${iconShown}")` }} role="img" aria-label="프로필 미리보기" title="상세 화면 프로필" /> : null}
+        </div>
           : props.fallback ? <div className="thumbprev" style={{ overflow: 'hidden', position: 'relative' }} role="img" aria-label={props.fallbackLabel || '기본 그림'}>{props.fallback}
             <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,.92)', color: '#40506a', borderRadius: 999, padding: '2px 8px', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>{props.fallbackLabel || '기본 그림'}</span></div> : null}
         <Drop id={props.id} accept=".png,.jpg,.jpeg,.gif,.webp" has={!!v.file} title={v.file ? v.file.name : shown ? '다른 이미지로 바꾸려면 누르세요' : '이미지를 끌어다 놓거나 눌러서 고르세요'}
           sub={v.file ? `${fileSize(v.file.size)} · 다른 이미지를 고르려면 누르세요` : '.png · .jpg · .gif · .webp · 2MB 이하'} onPick={take} />
       </div>
-      {shown ? <button type="button" className="btn sm thumbdel" onClick={() => props.onChange({ drop: !!props.current })}>썸네일 빼기</button> : null}
+      {shown ? <div className="thumbbtns">
+        {v.file && orig.current ? <button type="button" className="btn sm" onClick={() => { if (orig.current) { openCrop(orig.current); } }}>보여 줄 부분 다시 맞추기</button> : null}
+        <button type="button" className="btn sm thumbdel" onClick={() => props.onChange({ drop: !!props.current })}>썸네일 빼기</button></div> : null}
+      </>}
     </Field>
   );
 }
-function thumbOut(t: IThumbState): { thumb?: { ext: string; data: ArrayBuffer }; dropThumb?: boolean } {
-  return t.file ? { thumb: { ext: t.file.ext, data: t.file.data } } : t.drop ? { dropThumb: true } : {};
+function thumbOut(t: IThumbState): { thumb?: { ext: string; data: ArrayBuffer }; dropThumb?: boolean; icon?: { ext: string; data: ArrayBuffer }; dropIcon?: boolean } {
+  // 썸네일을 새로 고르면 프로필도 함께 바꾸고, 썸네일을 빼면 프로필도 함께 뺍니다
+  if (t.file) { return { thumb: { ext: t.file.ext, data: t.file.data }, ...(t.icon ? { icon: { ext: t.icon.ext, data: t.icon.data } } : { dropIcon: true }) }; }
+  return t.drop ? { dropThumb: true, dropIcon: true } : {};
 }
 
 /* ---------- '제작자는 이렇게 썼어요' 이미지 (선택, 최대 2장): 첨부 파일 result1.<ext> · result2.<ext> ---------- */
@@ -482,7 +675,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
             sub={file ? `${fileSize(file.size)} · 다른 파일을 고르려면 누르세요` : editing ? `지금 파일: ${cur!.fileName}` : '.html · 2MB 이하 · 파일 하나로 동작하는 도구'} onPick={take} />
         </Field>
         {/* 아직 썸네일이 없으면, 도구 화면 캡처를 올렸을 때 카드에 어떻게 꽉 차는지 예시 그림을 보여 줍니다 */}
-        <ThumbField id="hub-ht-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} value={thumb}
+        <ThumbField id="hub-ht-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} currentIcon={cur && cur.icon ? cur.icon.url : undefined} value={thumb}
           fallback={<div className="htex" style={{ backgroundImage: `url("${HTML_THUMB_EXAMPLE}")` }} />} fallbackLabel="예시 · 이렇게 꽉 차요" onChange={setThumb} errors={errors} setErrors={setErrors} ratio="도구 화면 캡처, 가로 2:1 정도" />
         <div className="row2">
           <Field id="hub-ht-name" k="name" label="이름" req={true} errors={errors}><input id="hub-ht-name" maxLength={24} placeholder="예: 견적 계산기" value={f.title} onChange={e => set('title', e.target.value)} {...inv(errors, 'name')} /></Field>
@@ -548,7 +741,7 @@ export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () 
     <div className="fgrid">
       <form ref={ref} noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
         {/* 썸네일을 첨부하지 않은 Agent는 카드에 이름으로 그린 기본 그림이 보여서, 그 그림을 같이 보여 줍니다 */}
-        <ThumbField id="hub-ag-thumb" current={cur.thumb ? cur.thumb.url : undefined} fallback={<AgentThumbSvg name={cur.title} seed={cur.id} />} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="2:1 정도" />
+        <ThumbField id="hub-ag-thumb" current={cur.thumb ? cur.thumb.url : undefined} currentIcon={cur.icon ? cur.icon.url : undefined} fallback={<AgentThumbSvg name={cur.title} seed={cur.id} />} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="2:1 정도" />
         <Field id="hub-ag-desc" k="desc" label="한 줄 소개" req={true} errors={errors}><input id="hub-ag-desc" maxLength={40} value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'desc')} /></Field>
         <Field id="hub-ag-does" k="does" label="이런 일을 해요" req={true} hint="한 줄에 하나씩" errors={errors}><textarea id="hub-ag-does" rows={4} value={f.does} onChange={e => set('does', e.target.value)} {...inv(errors, 'does')} /></Field>
         <Field id="hub-ag-pr" k="prompts" label="이렇게 말해 보세요" req={true} hint="예시 질문을 한 줄에 하나씩. 상세 화면에서 복사 버튼과 함께 보여요" errors={errors}><textarea id="hub-ag-pr" rows={4} value={f.prompts} onChange={e => set('prompts', e.target.value)} {...inv(errors, 'prompts')} /></Field>

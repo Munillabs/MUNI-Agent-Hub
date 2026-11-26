@@ -187,3 +187,53 @@ html{background:var(--bg,#fff)}
 
 /* 11/26 Idea Board ib3: 카테고리를 안 고르고 게시하면 카테고리 단추를 빨갛게 (시안은 숨은 select 의 aria-invalid 로 표시) */
 .ib3-ddb[aria-invalid=true]{border-color:#c0392b;box-shadow:0 0 0 2px rgba(192,57,43,.12)}
+
+/* 11/26 썸네일 자르기 (카톡 프로필처럼): 밖은 옅게 가리고, 상자 모서리를 끌어 크기 조절 */
+.thumbbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.thumbbtns .thumbdel{margin-top:0}
+.tcrop{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--fill)}
+.tcrop-h{margin:0;display:flex;flex-direction:column;gap:2px}
+.tcrop-h b{font-size:14px}
+.tcrop-h span{font-size:12.5px;color:var(--ink2)}
+.tcrop-stage{position:relative;align-self:center;max-width:100%;overflow:hidden;border-radius:6px;user-select:none;-webkit-user-select:none;background:#fff}
+.tcrop-stage img{display:block;max-width:100%;max-height:340px;width:auto;height:auto;pointer-events:none}
+.tcrop-box{position:absolute;box-sizing:border-box;border:1.5px solid rgba(255,255,255,.95);outline:1px solid rgba(0,0,0,.25);box-shadow:0 0 0 9999px rgba(255,255,255,.62);cursor:move;touch-action:none}
+.tcrop-box.all{cursor:default;box-shadow:none;border-color:transparent;outline:0}
+.tcrop-box:focus-visible{outline:2px solid #004772;outline-offset:2px}
+.tcrop-hd{position:absolute;width:22px;height:22px;border:0 solid #f5c400;touch-action:none}
+.tcrop-hd::after{content:'';position:absolute;inset:-10px}
+.tcrop-hd.nw{left:-3px;top:-3px;border-left-width:4px;border-top-width:4px;cursor:nwse-resize}
+.tcrop-hd.ne{right:-3px;top:-3px;border-right-width:4px;border-top-width:4px;cursor:nesw-resize}
+.tcrop-hd.sw{left:-3px;bottom:-3px;border-left-width:4px;border-bottom-width:4px;cursor:nesw-resize}
+.tcrop-hd.se{right:-3px;bottom:-3px;border-right-width:4px;border-bottom-width:4px;cursor:nwse-resize}
+.tcrop-opts{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.tcrop-opts button{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:64px;padding:8px 6px;border:0;border-radius:8px;background:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
+.tcrop-opts button:hover{background:rgba(0,0,0,.04)}
+.tcrop-opts button.on{color:#004772}
+.tcrop-opts button:focus-visible{outline:2px solid #004772;outline-offset:1px}
+.tcrop-ic{display:block;box-sizing:border-box;width:22px;height:22px;border:2px solid currentColor;border-radius:2px}
+.tcrop-ic[data-k=card]{width:24px;height:14px;margin:4px 0}
+.tcrop-ic[data-k=free]{border-style:dashed}
+.tcrop-ic[data-k=all]{border-width:0;background:linear-gradient(currentColor,currentColor) 0 0/7px 2px no-repeat,linear-gradient(currentColor,currentColor) 0 0/2px 7px no-repeat,linear-gradient(currentColor,currentColor) 100% 100%/7px 2px no-repeat,linear-gradient(currentColor,currentColor) 100% 100%/2px 7px no-repeat}
+.tcrop-opts button.on .tcrop-ic{border-color:#f5c400}
+.tcrop-act{display:flex;justify-content:flex-end;gap:8px}
+:root[data-theme=dark] .tcrop-stage{background:#1d2d3d}
+:root[data-theme=dark] .tcrop-box{box-shadow:0 0 0 9999px rgba(10,20,32,.62)}
+
+/* 11/26 HTML 상세 머리 썸네일: 가로 캡처가 네모 칸에서 너무 작아져서, 칸 높이에 맞춰 꽉 채우고 왼쪽 위부터 보이게 (오른쪽은 잘림) */
+:root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.hth.hcap{background-size:cover!important;background-position:left top!important}
+/* 11/26 Agent 상세 머리 썸네일: 네모 칸을 꽉 채우고 가운데 기준 (Agent 썸네일은 배너처럼 내용이 가운데에 있음, 양옆은 잘림) */
+:root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.hth.acap{background-size:cover!important;background-position:center!important}
+/* 11/26 상세 머리 프로필(icon.*, 정사각형): 칸을 그대로 꽉 채움 */
+:root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.hth.icn{background-size:cover!important;background-position:center!important}
+/* 썸네일 자르기 두 단계 표시 · 카드 + 프로필 미리보기 */
+.tcrop-steps{display:flex;gap:6px;flex-wrap:wrap;list-style:none;margin:0;padding:0}
+.tcrop-steps li{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--bg,#fff);box-shadow:0 0 0 1px var(--line);font-size:12.5px;font-weight:600;color:var(--ink2)}
+.tcrop-steps li b{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--ink);font-size:11px}
+.tcrop-steps li.on{color:#004772;box-shadow:0 0 0 1.5px #004772}
+.tcrop-steps li.on b{background:#004772;color:#fff}
+.tcrop-steps li.done b{background:#2f6b45;color:#fff}
+.tcrop-act .tcrop-skip{margin-right:auto}
+.thumbpair{display:flex;gap:10px;align-items:flex-end;flex:none}
+.thumbpair .thumbprev{width:160px}
+.iconprev{width:64px;height:64px;flex:none;border-radius:16px;box-shadow:0 0 0 1px var(--line);background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#fff}

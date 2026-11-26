@@ -321,7 +321,7 @@ export class HubService {
         version: str(r.Version), changeNote: releases.length ? releases[0].note : '', releases,
         installLink: str(r.OpenUrl && (r.OpenUrl.Url || r.OpenUrl)), env: str(r.Env), opsStatus: str(r.OpsStatus),
         views: HubService.viewsOf(r).views, lastUsed: str(r.LastUsedOn),
-        images: this.images(r.AttachmentFiles), thumb: this.thumbOf(r.AttachmentFiles),
+        images: this.images(r.AttachmentFiles), thumb: this.thumbOf(r.AttachmentFiles), icon: this.thumbOf(r.AttachmentFiles, 'icon'),
         owner: person(r.Owner), sponsor: person(r.Sponsor),
         // '새로 나온 Agent'는 처음 배포일 기준 (없으면 항목을 만든 날)
         created: str(r.FirstDeployedOn) || str(r.DeployedAt) || str(r.Created), modified: str(r.DeployedAt) || str(r.Modified)
@@ -356,9 +356,11 @@ export class HubService {
       // 날짜가 같거나 없으면 뒤에 붙은 것(최근)이 먼저
       .map((x, i) => ({ x, i })).sort((a, b) => b.x.date.localeCompare(a.x.date) || b.i - a.i).map(o => o.x);
   }
-  private thumbOf(files: any): IImage | undefined {
+  /** 첨부 파일 thumb.* (카드 썸네일) 또는 icon.* (상세 화면 프로필, 정사각형) */
+  private thumbOf(files: any, base: 'thumb' | 'icon' = 'thumb'): IImage | undefined {
     const list: any[] = Object.prototype.toString.call(files) === '[object Array]' ? files : ((files && files.results) || []);
-    const f = list.filter(x => /^thumb\./i.test(str(x.FileName)))[0];
+    const re = base === 'icon' ? /^icon\./i : /^thumb\./i;
+    const f = list.filter(x => re.test(str(x.FileName)))[0];
     return f ? { slot: 0, name: str(f.FileName), url: this.origin() + encodeURI(str(f.ServerRelativeUrl)) } : undefined;
   }
   /** 첨부 파일 중 result1.* / result-1.*, result2.* / result-2.* 를 결과 이미지로 */
@@ -377,6 +379,7 @@ export class HubService {
     const list = this.lists.agents;
     await this.staged('info', () => this.merge(list, a.id, { Summary: e.summary, Does: e.does.join('\n'), Prompts: e.prompts.join('\n'), MakerNote: e.makerNote }));
     await this.applyThumb(list, a.id, a.thumb, e.thumb, e.dropThumb);
+    await this.applyThumb(list, a.id, a.icon, e.icon, e.dropIcon, 'icon');
     await this.saveShots('Agent', a.id, a.images, e.shots || [], e.dropShots || []);
   }
   /** Agent를 Hub에서 내리기. AgentList 항목은 배포 · 승인 기록이라 지우지 않고, 운영 상태(OpsStatus)를 목록에 있는 '중단'(없으면 '폐기') 값으로 바꿉니다.
@@ -774,9 +777,9 @@ export class HubService {
   }
   /** 항목의 첨부 파일 (여럿이면 가장 최근에 올린 것: 이름 앞의 숫자가 올린 시각) */
   private fileOf(files: any): { stored: string; ref: string; url: string } {
-    // 썸네일(thumb.*)과 결과 이미지(result1.* · result2.*)는 본문 파일이 아니라서 뺍니다
+    // 썸네일(thumb.*) · 프로필(icon.*)과 결과 이미지(result1.* · result2.*)는 본문 파일이 아니라서 뺍니다
     const list: any[] = (Object.prototype.toString.call(files) === '[object Array]' ? files : ((files && files.results) || []))
-      .filter((a: any) => !/^(thumb|result-?[12])\./i.test(str(a.FileName)))
+      .filter((a: any) => !/^(thumb|icon|result-?[12])\./i.test(str(a.FileName)))
       .slice().sort((a: any, b: any) => str(b.FileName).localeCompare(str(a.FileName)));
     const f = list[0];
     const ref = f ? str(f.ServerRelativeUrl) : '';
@@ -791,11 +794,12 @@ export class HubService {
     return this.send(`${this.listUrl(list)}/items(${id})/AttachmentFiles('${encodeURIComponent(name.replace(/'/g, "''"))}')`, undefined, { 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }, list);
   }
   /** 새 항목: 정보를 먼저 저장하고 파일을 첨부합니다. 첨부가 실패하면 방금 만든 항목을 휴지통으로 보내 빈 항목이 남지 않게 합니다. */
-  private async createWithFile(list: string, fields: any, name: string, body: string | ArrayBuffer, thumb?: INewThumb, shots?: INewShot[]): Promise<number> {
+  private async createWithFile(list: string, fields: any, name: string, body: string | ArrayBuffer, thumb?: INewThumb, shots?: INewShot[], icon?: INewThumb): Promise<number> {
     const d = await this.staged('info', () => this.create(list, fields));
     try {
       await this.staged('file', () => this.addAttachment(list, d.Id, name, body));
       if (thumb) { await this.staged('file', () => this.addAttachment(list, d.Id, `thumb.${thumb.ext}`, thumb.data)); }
+      if (icon) { await this.staged('file', () => this.addAttachment(list, d.Id, `icon.${icon.ext}`, icon.data)); }
       for (const s of shots || []) { await this.staged('file', () => this.addAttachment(list, d.Id, `result${s.slot}.${s.ext}`, s.data)); }
     } catch (e) {
       await this.send(`${this.listUrl(list)}/items(${d.Id})/recycle()`, undefined, undefined, list).catch(() => undefined);
@@ -812,10 +816,10 @@ export class HubService {
     }
     await this.staged('info', () => this.merge(list, id, fields));
   }
-  /** 썸네일 바꾸기 · 지우기. 첨부 파일 thumb.<ext> 하나만 둡니다 (이름이 같으면 먼저 지워야 새로 붙일 수 있어요). */
-  private async applyThumb(list: string, id: number, old: IImage | undefined, thumb?: INewThumb, drop?: boolean): Promise<void> {
+  /** 썸네일(thumb) · 프로필(icon) 바꾸기 · 지우기. 첨부 파일 <base>.<ext> 하나만 둡니다 (이름이 같으면 먼저 지워야 새로 붙일 수 있어요). */
+  private async applyThumb(list: string, id: number, old: IImage | undefined, thumb?: INewThumb, drop?: boolean, base: 'thumb' | 'icon' = 'thumb'): Promise<void> {
     if (thumb) {
-      const name = `thumb.${thumb.ext}`;
+      const name = `${base}.${thumb.ext}`;
       const same = !!old && old.name.toLowerCase() === name.toLowerCase();
       if (old && same) { await this.staged('file', () => this.removeAttachment(list, id, old.name)); }
       await this.staged('file', () => this.addAttachment(list, id, name, thumb.data));
@@ -885,7 +889,7 @@ export class HubService {
         purpose: str(r.Does), usage: str(r.Usage), tools: choices(r.Tools),
         kind: str(r.Category), scope: scopes.join(' · '), scopes, area: areas.join(' · '), areas,
         version: rel.length ? rel[0].version : '1.0', changeNote: rel.length ? rel[0].note : '',
-        storedName: f.stored, fileName: originalSkillName(f.stored), ext: extOf(f.stored), fileRef: f.ref, fileUrl: f.url, thumb: this.thumbOf(r.AttachmentFiles), images: this.images(r.AttachmentFiles),
+        storedName: f.stored, fileName: originalSkillName(f.stored), ext: extOf(f.stored), fileRef: f.ref, fileUrl: f.url, thumb: this.thumbOf(r.AttachmentFiles), icon: this.thumbOf(r.AttachmentFiles, 'icon'), images: this.images(r.AttachmentFiles),
         author: person(r.Author), created: str(r.Created), modified: str(r.Modified), ...HubService.viewsOf(r)
       };
     });
@@ -941,7 +945,7 @@ export class HubService {
         makerNote: str(r.MakerNote), madeWith: tools.join(' · '), tools, scope: scopes.join(' · '), scopes,
         workType: str(r.Category), area: areas.join(' · '), areas, output: str(r.Output),
         version: rel.length ? rel[0].version : '1.0', changeNote: rel.length ? rel[0].note : '',
-        storedName: f.stored, fileName: originalSkillName(f.stored), fileRef: f.ref, fileUrl: f.url, thumb: this.thumbOf(r.AttachmentFiles), images: this.images(r.AttachmentFiles),
+        storedName: f.stored, fileName: originalSkillName(f.stored), fileRef: f.ref, fileUrl: f.url, thumb: this.thumbOf(r.AttachmentFiles), icon: this.thumbOf(r.AttachmentFiles, 'icon'), images: this.images(r.AttachmentFiles),
         author: person(r.Author), created: str(r.Created), modified: str(r.Modified), ...HubService.viewsOf(r)
       };
     });
@@ -955,12 +959,13 @@ export class HubService {
   /** HTML 올리기. 승인 없이 바로 보입니다. */
   public async createHtml(h: INewHtml): Promise<number> {
     if (!h.file) { throw new HubError('HTML 파일을 골라 주세요.', 400); }
-    return this.createWithFile(this.lists.contents, this.htmlFields(h, HubService.withRelease('', h.version, h.changeNote)), storedSkillName(h.file.name), h.file.text, h.thumb, h.shots);
+    return this.createWithFile(this.lists.contents, this.htmlFields(h, HubService.withRelease('', h.version, h.changeNote)), storedSkillName(h.file.name), h.file.text, h.thumb, h.shots, h.icon);
   }
   public async updateHtml(tool: IHtmlTool, h: INewHtml): Promise<void> {
     const rel = HubService.withRelease(await this.releasesOf(tool.id), h.version, h.changeNote);
     await this.updateWithFile(this.lists.contents, tool.id, tool.storedName, this.htmlFields(h, rel), h.file ? { name: h.file.name, body: h.file.text } : undefined);
     await this.applyThumb(this.lists.contents, tool.id, tool.thumb, h.thumb, h.dropThumb);
+    await this.applyThumb(this.lists.contents, tool.id, tool.icon, h.icon, h.dropIcon, 'icon');
     await this.saveShots('Html', tool.id, tool.images, h.shots || [], h.dropShots || []);
   }
 
