@@ -201,7 +201,7 @@ const HTML_COLS = ['Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 
 /** 제작 중 아이디어 연결 칸: 고르면 올린 뒤 그 아이디어가 '완성'이 되고 결과물로 이어집니다
     (내가 함께 만드는 제작 중 아이디어 전부. 앞에 [종류]를 붙이고, 올리는 것과 같은 종류를 위에) */
 function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea[]; value: string; onChange: (v: string) => void }): JSX.Element | null {
-  const list = props.ideas.slice().sort((a, b) => Number(b.type === props.kind) - Number(a.type === props.kind));
+  const list = props.ideas.slice();
   // 연결할 아이디어가 없어도 칸은 보여 주고, 왜 비었는지 알려 줍니다
   if (!list.length) {
     return (
@@ -214,7 +214,7 @@ function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea
     <Field id={props.id} label="이 아이디어로 만들었어요" hint={`고르면 올릴 때 Idea Board의 아이디어가 '완성'으로 바뀌고, 이 ${props.kind}이 결과물로 연결돼요`}>
       <select id={props.id} value={props.value} onChange={e => props.onChange(e.target.value)}>
         <option value="">연결하지 않음</option>
-        {list.map(i => <option key={i.id} value={String(i.id)}>[{i.category || i.type || '기타'}] {i.title}</option>)}
+        {list.map(i => <option key={i.id} value={String(i.id)}>[{i.category || '카테고리 없음'}] {i.title}</option>)}
       </select>
     </Field>
   );
@@ -727,7 +727,7 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
 }
 
 /* ================= 아이디어 고치기 (모달 본문, 시안 ideaedit) ================= */
-export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmit: (idea: INewIdea) => Promise<boolean> }): JSX.Element {
+export function IdeaEditForm(props: { idea: IIdea; cats?: string[]; onCancel: () => void; onSubmit: (idea: INewIdea) => Promise<boolean> }): JSX.Element {
   const [title, setTitle] = React.useState(props.idea.title);
   const [detail, setDetail] = React.useState(props.idea.detail);
   const [cat, setCat] = React.useState(props.idea.category);
@@ -744,7 +744,7 @@ export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmi
     setBusy(true);
     const l = link.trim();
     const source = scrap ? (l ? (/^https?:\/\//i.test(l) ? l : 'https://' + l) : IDEA_SCRAP) : '';
-    await props.onSubmit({ title: title.trim(), type: props.idea.type, category: cat, source, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined });
+    await props.onSubmit({ title: title.trim(), category: cat, source, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined });
     setBusy(false);
   };
   return (
@@ -752,7 +752,7 @@ export function IdeaEditForm(props: { idea: IIdea; onCancel: () => void; onSubmi
       <div className={'field' + (err ? ' bad' : '')}><label htmlFor="hub-ie-title">아이디어<Req /></label><input id="hub-ie-title" maxLength={60} value={title} onChange={e => { setTitle(e.target.value); setErr(''); }} aria-invalid={!!err} /><span className="err">{err}</span></div>
       <div className="field"><label htmlFor="hub-ie-desc">자세한 설명</label><textarea id="hub-ie-desc" rows={4} placeholder="어떤 일에서 불편한지, 있으면 무엇이 좋아지는지 적어 주세요." value={detail} onChange={e => setDetail(e.target.value)} /></div>
       <div className="field"><label htmlFor="hub-ie-cat">카테고리</label>
-        <select id="hub-ie-cat" value={cat} onChange={e => setCat(e.target.value)}>{cat ? null : <option value="">카테고리 선택</option>}{IDEA_CATS.map(x => <option key={x} value={x}>{x}</option>)}</select>
+        <select id="hub-ie-cat" value={cat} onChange={e => setCat(e.target.value)}>{cat ? null : <option value="">카테고리 선택</option>}{(props.cats && props.cats.length ? props.cats : IDEA_CATS).map(x => <option key={x} value={x}>{x}</option>)}</select>
         {cat && IDEA_CAT_DESC[cat] ? <span className="hint ib4-hint">{IDEA_CAT_DESC[cat]}</span> : null}</div>
       <div className="field"><label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}><input type="checkbox" checked={scrap} onChange={e => setScrap(e.target.checked)} /> 🔭 외부에서 스크랩했어요</label>
         {scrap ? <input id="hub-ie-link" type="url" inputMode="url" aria-label="원문 링크 (선택)" placeholder="원문 링크 붙여 넣기 (선택)" value={link} onChange={e => setLink(e.target.value)} /> : null}</div>

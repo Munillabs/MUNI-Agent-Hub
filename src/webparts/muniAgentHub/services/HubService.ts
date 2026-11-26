@@ -171,14 +171,15 @@ export class HubService {
     const soft = <T>(p: Promise<T[]>, what: string): Promise<{ list: T[]; error?: string }> => p.then(
       (list): { list: T[]; error?: string } => ({ list }),
       (e): { list: T[]; error?: string } => ({ list: [], error: e instanceof Error ? e.message : `${what} 목록을 불러오지 못했습니다.` }));
-    const [ag, id, cs, rx, sk, ht, av] = await Promise.all([
+    const [ag, id, cs, rx, sk, ht, av, ic] = await Promise.all([
       soft(this.getAgents(), 'Agent'), soft(this.getIdeas(), 'Idea'), soft(this.getCases(), 'Case'), this.getReactions(),
       soft(this.getSkills(), 'Skill'), soft(this.getHtmls(), 'HTML'),
       // 프로필 배지는 없어도 됩니다 (열이 없으면 모두 자동: 최근 배지)
-      this.getProfiles().then(v => v, () => ({ avatars: {}, visits: {} }))
+      this.getProfiles().then(v => v, () => ({ avatars: {}, visits: {} })),
+      this.ideaCategoryCol()
     ]);
     return {
-      avatars: av.avatars, visits: av.visits,
+      avatars: av.avatars, visits: av.visits, ideaCats: ic && ic.choices.length ? ic.choices : undefined,
       agents: ag.list, agentsError: ag.error, ideas: id.list, ideasError: id.error, cases: cs.list, casesError: cs.error,
       reactions: rx.list.concat(HubService.ideaReactions(id.list)), reactionsError: rx.error, skills: sk.list, skillsError: sk.error, htmls: ht.list, htmlsError: ht.error
     };
@@ -401,17 +402,32 @@ export class HubService {
      만들기 시작 = 시작일(StartedOn) + 상태 '제작 중'. 만들기 완료 = 상태 '완성' + 완성일(DoneAt) + 결과물(ResultRef).
      (함께 만드는 사람이 화면에서 누르거나, 운영 담당자가 목록에서 직접 넣습니다)
      댓글은 항목 댓글을 씁니다. */
+  /** HubIdeas 의 카테고리 열: 내부 이름 Category, 없으면 표시 이름 '카테고리'인 열. 선택 값도 함께 (한 번만 읽음) */
+  private ideaCatColP?: Promise<{ name: string; choices: string[]; multi: boolean } | undefined>;
+  public ideaCategoryCol(): Promise<{ name: string; choices: string[]; multi: boolean } | undefined> {
+    if (!this.ideaCatColP) {
+      const url = `${this.listUrl(this.lists.ideas)}/fields?$select=InternalName,Title,Choices,Hidden,TypeAsString&$filter=InternalName eq 'Category' or Title eq '${encodeURIComponent('카테고리')}'`;
+      this.ideaCatColP = this.getJson(url, this.lists.ideas).then((d: any) => {
+        const v: any[] = ((d && d.value) || []).filter((f: any) => !f.Hidden);
+        const f = v.filter(x => x.InternalName === 'Category')[0] || v[0];
+        return f ? { name: String(f.InternalName), choices: choices(f.Choices), multi: f.TypeAsString === 'MultiChoice' } : undefined;
+      }, () => undefined);
+    }
+    return this.ideaCatColP;
+  }
   public async getIdeas(): Promise<IIdea[]> {
+    const col = await this.ideaCategoryCol();
+    const catName = col ? col.name : 'Category';
     const ppl = (f: string): string[] => [`${f}/Id`, `${f}/Title`, `${f}/EMail`];
     // 공감은 목록 평점 설정(좋아요)의 '좋아요 표시한 사람(LikedBy)'. 평점 설정이 꺼져 있으면 그 열만 빼고 읽습니다.
     const rows = await this.itemsOpt(this.lists.ideas,
-      ['Id', 'Title', 'Type', 'Status', 'Detail', 'Pain', 'Frequency', 'MinutesPerRun', 'StartedOn', 'DoneAt', 'ResultRef', 'ArchivedOn', 'RevivedOn', 'Created', 'Modified']
+      ['Id', 'Title', 'Status', 'Detail', 'Pain', 'Frequency', 'MinutesPerRun', 'StartedOn', 'DoneAt', 'ResultRef', 'ArchivedOn', 'RevivedOn', 'Created', 'Modified']
         .concat(AUTHOR, ppl('Makers')), ['Author', 'Makers'],
       // 카테고리(Category) · 출처(ScrapSource) 열은 11/25 시안에서 더해져 아직 없을 수 있어 따로 읽어 봅니다
-      [{ select: ppl('LikedBy'), expand: ['LikedBy'] }, { select: ['Category', 'ScrapSource'] }], undefined, 5000);
+      [{ select: ppl('LikedBy'), expand: ['LikedBy'] }, { select: [catName] }, { select: ['ScrapSource'] }], undefined, 5000);
     const people = (v: any): IPerson[] => HubService.users(v).map(person).filter(p => !!p) as IPerson[];
     return rows.map((r: any): IIdea => ({
-      id: r.Id, title: str(r.Title), type: str(r.Type), category: str(r.Category), source: str(r.ScrapSource), detail: str(r.Detail), status: str(r.Status),
+      id: r.Id, title: str(r.Title), category: choices(r[catName])[0] || '', source: str(r.ScrapSource), detail: str(r.Detail), status: str(r.Status),
       likers: people(r.LikedBy), makers: people(r.Makers),
       startedOn: str(r.StartedOn), doneAt: str(r.DoneAt), resultRef: str(r.ResultRef), archivedOn: str(r.ArchivedOn), revivedOn: str(r.RevivedOn),
       pain: str(r.Pain), frequency: str(r.Frequency), minutes: num(r.MinutesPerRun),
@@ -431,7 +447,7 @@ export class HubService {
   }
   private ideaFields(idea: INewIdea): any {
     const f: any = {
-      Title: idea.title, Type: idea.type || null, Detail: idea.detail || '', Pain: idea.pain || '',
+      Title: idea.title, Detail: idea.detail || '', Pain: idea.pain || '',
       Frequency: idea.frequency || null, MinutesPerRun: typeof idea.minutes === 'number' && !isNaN(idea.minutes) ? idea.minutes : null
     };
     if (idea.category !== undefined) { f.Category = idea.category || null; }
@@ -441,11 +457,20 @@ export class HubService {
   /** Category · ScrapSource 열이 아직 없으면(400) 그 두 열만 빼고 다시 저장합니다. 화면은 다시 읽은 값으로 빠진 것을 알려 줍니다 */
   private async ideaSave<T>(idea: INewIdea, run: (fields: any) => Promise<T>): Promise<T> {
     const f = this.ideaFields(idea);
+    // 카테고리는 목록의 실제 카테고리 열(내부 이름이 Category 가 아닐 수도 있음)에 넣습니다
+    const col = await this.ideaCategoryCol();
+    let cat = 'Category';
+    if ('Category' in f && col) {
+      const v = f.Category;
+      delete f.Category;
+      cat = col.name;
+      f[cat] = col.multi ? (v ? [v] : []) : v;
+    }
     try {
       return await run(f);
     } catch (e) {
-      if (!(e instanceof HubError && e.status === 400) || !('Category' in f || 'ScrapSource' in f)) { throw e; }
-      delete f.Category; delete f.ScrapSource;
+      if (!(e instanceof HubError && e.status === 400) || !(cat in f || 'ScrapSource' in f)) { throw e; }
+      delete f[cat]; delete f.ScrapSource;
       return run(f);
     }
   }

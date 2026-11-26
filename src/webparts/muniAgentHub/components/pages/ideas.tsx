@@ -13,15 +13,25 @@ const THUMB = <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke
 const CMT = <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>;
 const Heart = (props: { on: boolean }): JSX.Element => <svg viewBox="0 0 24 24" width="15" height="15" fill={props.on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>;
 
-function tcls(t: string): string { return t === 'Agent' ? 'agent' : t === 'Skill' ? 'skill' : t === 'HTML' ? 'html' : 'etc'; }
 /* ---------- 시안 11/25 ib3: 카테고리 색 · 외부 스크랩 ---------- */
+/** 카테고리 선택 값: SharePoint HubIdeas 카테고리 열의 선택 값, 못 읽으면 시안의 6개 */
+export function ideaCats(api: IHubApi): string[] { return api.data.ideaCats && api.data.ideaCats.length ? api.data.ideaCats : IDEA_CATS; }
+const PALS = IDEA_CATS.map(k => IDEA_CAT_PAL[k]);
+/** 카테고리 색 [종이, 글자, 형광펜]. 시안 6개는 정해진 색, 목록에서 새로 더한 값은 순서대로 6색을 돌려 씁니다 */
+function palOf(cat: string, cats?: string[]): [string, string, string] | undefined {
+  if (!cat) { return undefined; }
+  if (IDEA_CAT_PAL[cat]) { return IDEA_CAT_PAL[cat]; }
+  let k = (cats || []).indexOf(cat);
+  if (k < 0) { k = 0; for (let j = 0; j < cat.length; j++) { k += cat.charCodeAt(j); } }
+  return PALS[k % PALS.length];
+}
 /** 카테고리 색 변수 (종이 · 글자 · 형광펜). 카테고리가 없으면 시안 기본색(노랑 종이, 남색 글자) */
-export function catVars(cat: string): React.CSSProperties {
-  const p = IDEA_CAT_PAL[cat];
+export function catVars(cat: string, cats?: string[]): React.CSSProperties {
+  const p = palOf(cat, cats);
   return (p ? { '--ib3-bg': p[0], '--ib3-fg': p[1], '--ib3-hl': p[2] } : {}) as React.CSSProperties;
 }
-/** 포스트잇 위 라벨: 카테고리, 예전 아이디어는 유형 */
-function catLabel(i: IIdea): string { return i.category || i.type || '기타'; }
+/** 포스트잇 위 라벨: SharePoint 카테고리 열 값 (예전 유형은 보여 주지 않음) */
+export function catLabel(i: IIdea): string { return i.category || '카테고리 없음'; }
 /** 원문 주소 (스크랩인데 주소가 없으면 빈 값) */
 function srcUrl(i: IIdea): string { return /^https?:\/\//i.test(i.source || '') ? i.source : ''; }
 const LINK = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1" /><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1" /></svg>;
@@ -81,12 +91,12 @@ function ResultLink(props: { api: IHubApi; r: Result; className: string; prefix?
 }
 
 /** 만들기 완료 확인: 결과물(Hub에 올린 Agent·Skill·HTML 또는 링크)을 고르고 완성으로 바꿉니다. 결과물은 비워도 돼요 */
-function FinishBox(props: { api: IHubApi; type: string; onCancel: () => void; onDone: (ref: string) => Promise<boolean> }): JSX.Element {
+function FinishBox(props: { api: IHubApi; onCancel: () => void; onDone: (ref: string) => Promise<boolean> }): JSX.Element {
   const { api } = props;
   const [pick, setPick] = React.useState('');
   const [url, setUrl] = React.useState('');
   const [busy, setBusy] = React.useState(false);
-  // 아이디어 종류와 같은 묶음을 먼저, 각 묶음 안에서는 내가 올린 것을 먼저
+  // 묶음(Agent · Skill · HTML) 안에서는 내가 올린 것을 먼저
   const mineFirst = <T extends { id: number; title: string; owner?: IPerson; author?: IPerson }>(list: T[]): T[] =>
     list.slice().sort((a, b) => Number(((b.owner || b.author) || { id: 0 }).id === api.me.id) - Number(((a.owner || a.author) || { id: 0 }).id === api.me.id) || a.title.localeCompare(b.title, 'ko'));
   // 값은 번호(skill:12)로 저장해서 이름이 바뀌어도 결과물 링크가 이어집니다
@@ -96,7 +106,6 @@ function FinishBox(props: { api: IHubApi; type: string; onCancel: () => void; on
     ['Skill', opts('skill', api.data.skills)],
     ['HTML', opts('html', api.data.htmls)]
   ];
-  groups.sort((a, b) => Number(b[0] === props.type) - Number(a[0] === props.type));
   const link = pick === '#link';
   const okUrl = /^https:\/\/\S+$/i.test(url.trim());
   const ref = link ? url.trim() : pick;
@@ -135,13 +144,13 @@ function Note(props: { api: IHubApi; idea: IIdea }): JSX.Element {
   const result = resultOf(api, i.resultRef);
   const scrap = !!i.source;
   return (
-    <div className="ib3-sh"><article style={catVars(i.category)} className={`pn ib3${scrap ? ' ib3-ext ib3-paper' : ''} t-${tcls(i.type)}${c ? ' hand' : ''}${soon ? ' soon' : ''}`}>
+    <div className="ib3-sh"><article style={catVars(i.category, ideaCats(api))} className={`pn ib3${scrap ? ' ib3-ext ib3-paper' : ''} t-etc${c ? ' hand' : ''}${soon ? ' soon' : ''}`}>
       {c ? <span className="pn-rib" aria-hidden="true"><span className="pn-tape">{HAND}{c}명과 함께해요</span></span> : null}
       <div className="pn-row"><span className="pn-ty">{catLabel(i)}</span>{soon ? <span className="pn-old" title="3개월 동안 만들 사람이 없으면 보관함으로 옮겨져요">{left}일 뒤 보관</span> : null}</div>
       <Go go={api.go} view="idea" id={i.id} className="open"><b><Spacers hand={!!c} scrap={scrap} />{i.title}</b></Go>
       <span className="who">{i.author ? i.author.name : ''}</span>
       {c ? <span className="pn-hl"><Avs people={makers} me={api.me.id} badgeOf={api.avatarOf} /><span className="sr">{c}명이 함께해요</span></span> : null}
-      {st === 'done' && result ? <ResultLink api={api} r={result} className="pn-done" prefix={`✓ ${i.type && i.type !== '기타' ? i.type + ' ' : ''}완성 · `} /> : null}
+      {st === 'done' && result ? <ResultLink api={api} r={result} className="pn-done" prefix={`✓ ${result.view === 'agent' ? 'Agent ' : result.view === 'skill' ? 'Skill ' : result.view === 'htool' ? 'HTML ' : ''}완성 · `} /> : null}
       <div className="acts">
         <button type="button" className={'pn-pill' + (liked ? ' on' : '')} aria-pressed={liked} aria-label={`공감 ${n}`} title="나도 필요해요 (공감)" onClick={() => api.toggleLike('Idea', i.id)}>{liked ? '♥' : '♡'} <span className="n">{n}</span></button>
         {st !== 'done' ? <button type="button" className={'pn-pill' + (joined ? ' on' : '')} aria-pressed={joined} aria-label={`함께해요, 누른 사람 ${c}명`} title="내가 만들어 볼게요. 여러 명이 함께할 수 있어요" onClick={() => api.toggleMake(i.id)}>{HAND}함께해요{c ? <> <span className="n">{c}</span></> : null}</button> : null}
@@ -153,15 +162,15 @@ function Note(props: { api: IHubApi; idea: IIdea }): JSX.Element {
 }
 
 /** 쓰기 칸의 카테고리 고르기 (시안 ib3-dd: 단추 + 설명이 있는 목록). 목록은 접힌 모서리(mask) 밖으로 나오도록 쓰기 칸 바깥에 둡니다 */
-function useCatPicker(value: string, onPick: (v: string) => void): { button: (invalid: boolean) => JSX.Element; list: JSX.Element } {
+function useCatPicker(cats: string[], value: string, onPick: (v: string) => void): { button: (invalid: boolean) => JSX.Element; list: JSX.Element } {
   const [open, setOpen] = React.useState(false);
   const [act, setAct] = React.useState(0);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const lbRef = React.useRef<HTMLUListElement>(null);
-  const n = IDEA_CATS.length;
+  const n = cats.length;
   const close = (focus: boolean): void => { setOpen(false); if (focus && btnRef.current) { btnRef.current.focus(); } };
-  const show = (): void => { const k = IDEA_CATS.indexOf(value); setAct(k < 0 ? 0 : k); setOpen(true); };
-  const pick = (k: number): void => { onPick(IDEA_CATS[k]); close(true); };
+  const show = (): void => { const k = cats.indexOf(value); setAct(k < 0 ? 0 : k); setOpen(true); };
+  const pick = (k: number): void => { onPick(cats[k]); close(true); };
   React.useEffect(() => { if (open && lbRef.current) { lbRef.current.focus(); } }, [open]);
   React.useEffect(() => {
     if (!open || !lbRef.current) { return; }
@@ -179,7 +188,7 @@ function useCatPicker(value: string, onPick: (v: string) => void): { button: (in
     document.addEventListener('click', out);
     return () => document.removeEventListener('click', out);
   }, [open]);
-  const p = IDEA_CAT_PAL[value];
+  const p = palOf(value, cats);
   const CH = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5b5b5b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>;
   const button = (invalid: boolean): JSX.Element => (
     <div className="ib3-dd">
@@ -198,10 +207,10 @@ function useCatPicker(value: string, onPick: (v: string) => void): { button: (in
         else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(act); }
         else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); close(true); }
       }}>
-      {IDEA_CATS.map((k, j) => (
+      {cats.map((k, j) => (
         <li key={k} id={'hub-ib3o' + j} role="option" aria-selected={k === value} className={j === act ? 'act' : undefined}
           onClick={() => pick(j)} onMouseMove={() => { if (act !== j) { setAct(j); } }}>
-          <span className="ib3-lt"><b style={{ color: IDEA_CAT_PAL[k][1], background: `linear-gradient(transparent 55%,${IDEA_CAT_PAL[k][2]} 55%)` }}>{k}</b><small>{IDEA_CAT_DESC[k]}</small></span>
+          <span className="ib3-lt"><b style={{ color: palOf(k, cats)![1], background: `linear-gradient(transparent 55%,${palOf(k, cats)![2]} 55%)` }}>{k}</b>{IDEA_CAT_DESC[k] ? <small>{IDEA_CAT_DESC[k]}</small> : null}</span>
         </li>
       ))}
     </ul>
@@ -223,7 +232,7 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   const [colW, setColW] = React.useState(0);
   const wallRef = React.useRef<HTMLDivElement>(null);
   const linkRef = React.useRef<HTMLInputElement>(null);
-  const picker = useCatPicker(cat, v => { setCat(v); if (err && /골라/.test(err)) { setErr(''); } });
+  const picker = useCatPicker(ideaCats(api), cat, v => { setCat(v); if (err && /골라/.test(err)) { setErr(''); } });
   // 시안 ib3: 쓰기 칸 가로 = 보드 포스트잇 한 칸 가로
   React.useEffect(() => {
     const w = wallRef.current;
@@ -251,11 +260,11 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
     const l = link.trim();
     const source = scrap ? (l ? (/^https?:\/\//i.test(l) ? l : 'https://' + l) : IDEA_SCRAP) : '';
     setBusy(true);
-    const ok = await api.addIdea({ title: t, type: '', category: cat, source, detail: '', pain: '', frequency: '', minutes: undefined });
+    const ok = await api.addIdea({ title: t, category: cat, source, detail: '', pain: '', frequency: '', minutes: undefined });
     setBusy(false);
     if (ok) { setText(''); setCat(''); setScrap(false); setLink(''); setErr(''); setView('live'); }
   };
-  const tint = IDEA_CAT_PAL[cat];
+  const tint = palOf(cat, ideaCats(api));
   const formStyle = { ...(tint ? { '--ib3-tint': tint[0] } : {}), ...(colW ? { '--ib3-colw': colW + 'px' } : {}) } as React.CSSProperties;
   const tab = (v: View, label: string, tip: string): JSX.Element => (
     <button type="button" role="tab" aria-selected={view === v} aria-controls="mv-wall" data-tip={tip} onClick={() => setView(v)}>{label} <span>{by[v].length}</span></button>
@@ -305,12 +314,12 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
             {tab('arch', '보관됨', `게시된 지 ${IDEA_ARCHIVE_DAYS / 30}개월이 지나 보관된 아이디어예요`)}
           </div>
           <div className="ib3-flt">
-            <select className="ib3-fsel" aria-label="카테고리로 거르기" value={fcat} onChange={e => setFcat(e.target.value)}><option value="">카테고리 전체</option>{IDEA_CATS.map(k => <option key={k} value={k}>{k}</option>)}</select>
+            <select className="ib3-fsel" aria-label="카테고리로 거르기" value={fcat} onChange={e => setFcat(e.target.value)}><option value="">카테고리 전체</option>{ideaCats(api).map(k => <option key={k} value={k}>{k}</option>)}</select>
           </div>
         </div>
         {api.data.ideasError ? <ListError what="Idea Board" message={api.data.ideasError} /> : <div className="wall" id="mv-wall" role="tabpanel" ref={wallRef}>
           {rows.length ? rows.map(i => view !== 'arch' ? <Note key={i.id} api={api} idea={i} /> : (
-            <div key={i.id} className="ib3-sh"><article style={catVars(i.category)} className={'pn ib3 t-etc archived' + (i.source ? ' ib3-ext ib3-paper' : '')}>
+            <div key={i.id} className="ib3-sh"><article style={catVars(i.category, ideaCats(api))} className={'pn ib3 t-etc archived' + (i.source ? ' ib3-ext ib3-paper' : '')}>
               <div className="pn-row"><span className="pn-ty">보관됨</span><span className="pn-old" style={{ color: 'var(--ink2)' }}>{mmdd(archivedOn(i))}</span></div>
               <Go go={api.go} view="idea" id={i.id} className="open"><b><Spacers hand={false} scrap={!!i.source} />{i.title}</b></Go>
               <div className="acts">{i.author && i.author.id === api.me.id ? <button type="button" className="pn-pill" onClick={() => { api.reviveIdea(i.id).catch(() => undefined); }}>보관 해제</button> : <span className="who">{i.author ? i.author.name : ''}</span>}</div>
@@ -395,7 +404,7 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
     const t = eTitle.replace(/\s+/g, ' ').trim();
     if (!t) { api.toast('아이디어를 한 줄 적어 주세요'); return; }
     setEBusy(true);
-    const ok = await api.updateIdea(i.id, { title: t, type: i.type, category: eCat, detail: i.detail, pain: i.pain, frequency: i.frequency, minutes: i.minutes });
+    const ok = await api.updateIdea(i.id, { title: t, category: eCat, detail: i.detail, pain: i.pain, frequency: i.frequency, minutes: i.minutes });
     setEBusy(false);
     if (ok) { setEditing(false); }
   };
@@ -422,10 +431,10 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
       <div className="idw"><div>
         <div className="idboard">
           {/* 시안 c31: 보드 포스트잇과 같은 모양. 수정은 포스트잇에서 바로 (c42). 시안 ib3: 카테고리 색, 스크랩은 줄 공책 + 도장 */}
-          <div className="ib3-sh c31-pn"><article style={catVars(editing ? eCat : i.category)} className={`pn ib3 ib3d t-${tcls(i.type)}${i.source ? ' ib3-ext ib3-paper' : ''}${editing ? ' c42-on' : ''}${makers.length ? ' hand' : ''}`}>
+          <div className="ib3-sh c31-pn"><article style={catVars(editing ? eCat : i.category, ideaCats(api))} className={`pn ib3 ib3d t-etc${i.source ? ' ib3-ext ib3-paper' : ''}${editing ? ' c42-on' : ''}${makers.length ? ' hand' : ''}`}>
             {makers.length ? <span className="pn-rib" aria-hidden="true"><span className="pn-tape">{HAND}{makers.length}명과 함께해요</span></span> : null}
             <div className="pn-row">
-              {editing ? <select className="c42-ty" aria-label="카테고리" value={eCat} onChange={e => setECat(e.target.value)}>{eCat ? null : <option value="">카테고리 선택</option>}{IDEA_CATS.map(x => <option key={x} value={x}>{x}</option>)}</select>
+              {editing ? <select className="c42-ty" aria-label="카테고리" value={eCat} onChange={e => setECat(e.target.value)}>{eCat ? null : <option value="">카테고리 선택</option>}{ideaCats(api).map(x => <option key={x} value={x}>{x}</option>)}</select>
                 : <span className="pn-ty ib3-k">{catLabel(i)}</span>}
               {st === 'live' && !makers.length ? <span className="pn-old" title="3개월 동안 만들 사람이 없으면 보관함으로 옮겨져요">{daysToArchive(i, api.now)}일 뒤 보관</span> : null}
               {mine && !editing ? <>
@@ -482,7 +491,7 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
             {st === 'done' ? <div className="imdone"><p>✓ 완성했어요{i.doneAt ? ` · ${mmdd(i.doneAt)}` : ''}</p>{result ? <ResultLink api={api} r={result.view || result.href ? { ...result, label: result.label + ' 보기' } : result} className="btn imteams" /> : null}</div> : null}
             {joined && !started && st !== 'done' ? <button type="button" className="btn pri imteams tipx" data-tip="만들기 시작했으면 눌러 주세요. 다음 단계로 넘어가요" onClick={() => api.toggleStart(i.id)}>만들기 시작하기</button> : null}
             {started && st !== 'done' ? (startedByMe && doneAsk
-              ? <FinishBox api={api} type={i.type} onCancel={() => setDoneAsk(false)} onDone={ref => api.finishIdea(i.id, ref).then(ok => { if (ok) { setDoneAsk(false); } return ok; })} />
+              ? <FinishBox api={api} onCancel={() => setDoneAsk(false)} onDone={ref => api.finishIdea(i.id, ref).then(ok => { if (ok) { setDoneAsk(false); } return ok; })} />
               : startedByMe && stopAsk
               ? <div className="imstop" role="group" aria-label="만들기 중지 확인"><p>만들기를 멈출까요?<br />&lsquo;제작자 모으기&rsquo; 단계로 돌아가요.</p><div><button type="button" className="btn sm pri" onClick={() => { setStopAsk(false); api.toggleStart(i.id); }}>중지</button><button type="button" className="btn sm" onClick={() => setStopAsk(false)}>취소</button></div></div>
               : <><p className="imstarted">{mmdd(started.date)}에 만들기 시작했어요</p>{startedByMe ? <>

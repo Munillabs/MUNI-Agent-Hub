@@ -763,7 +763,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const cur = first(data.ideas, x => x.id === modal.id);
       modalTitle = '아이디어 고치기';
       modalWidth = 560;
-      modalBody = cur ? <IdeaEditForm idea={cur} onCancel={closeModal} onSubmit={async idea => { const ok = await api.updateIdea(cur.id, idea); if (ok) { closeModal(); } return ok; }} /> : null;
+      modalBody = cur ? <IdeaEditForm idea={cur} cats={data.ideaCats} onCancel={closeModal} onSubmit={async idea => { const ok = await api.updateIdea(cur.id, idea); if (ok) { closeModal(); } return ok; }} /> : null;
     } else {
       const t = modal.target;
       modalTitle = '오류 신고';

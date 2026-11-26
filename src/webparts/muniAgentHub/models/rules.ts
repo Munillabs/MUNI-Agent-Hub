@@ -21,7 +21,6 @@ export const HTML_KINDS: string[] = ['계산기', '대시보드', '점검표', '
 /** Skill · HTML 카테고리 (HubContents WorkArea) */
 export const SKILL_AREAS: string[] = CATEGORIES;
 export const SKILL_EXTS: string[] = ['md', 'txt', 'docx'];
-export const IDEA_TYPES: string[] = ['Agent', 'Skill', 'HTML', '기타'];
 /** 아이디어 카테고리 (HubIdeas 의 Category 열). 시안 11/25 ib3: 6개, 색은 [종이, 글자, 형광펜] */
 export const IDEA_CATS: string[] = CATEGORIES;
 export const IDEA_CAT_PAL: { [cat: string]: [string, string, string] } = {

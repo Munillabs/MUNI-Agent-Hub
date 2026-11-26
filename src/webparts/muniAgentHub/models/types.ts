@@ -82,8 +82,6 @@ export interface IImage {
 export interface IIdea {
   id: number;
   title: string;
-  /** Agent / Skill / HTML / 기타 / 빈 값 */
-  type: string;
   /** 카테고리 (Category): IDEA_CATS 중 하나. 예전 아이디어는 비어 있을 수 있음 */
   category: string;
   /** 외부에서 스크랩한 아이디어면 원문 주소, 주소 없이 스크랩이면 '외부', 아니면 빈 값 (ScrapSource) */
@@ -119,7 +117,6 @@ export interface IIdea {
 
 export interface INewIdea {
   title: string;
-  type: string;
   category?: string;
   source?: string;
   detail?: string;
@@ -409,6 +406,8 @@ export interface IMe {
 export interface IHubData {
   agents: IAgent[];
   ideas: IIdea[];
+  /** HubIdeas 카테고리 열의 선택 값 (목록 순서). 열이 없거나 못 읽으면 비어 있고, 화면은 IDEA_CATS 를 씁니다 */
+  ideaCats?: string[];
   cases: ICase[];
   reactions: IReaction[];
   skills: ISkill[];
