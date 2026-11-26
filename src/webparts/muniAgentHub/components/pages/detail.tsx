@@ -38,8 +38,8 @@ const SHOT_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 const SHOT_MAX_BYTES = 3 * 1024 * 1024;
 const SHOT_SLOTS = [1, 2];
 /** '제작자는 이렇게 썼어요': 글 + 이미지 최대 2장 (첨부 파일 result1.* · result2.*).
-    edit 이 있으면(Skill · HTML 등록자) 이미지 칸마다 넣기 · 바꾸기 · 빼기를 보여 줍니다. Agent는 리스트 첨부 파일을 보여 주기만 합니다. */
-function MakerNote(props: { text: string; images?: IImage[]; stamp?: string; edit?: { api: IHubApi; t: 'Skill' | 'Html'; id: number } }): JSX.Element | null {
+    edit 이 있으면(Agent Owner · Skill · HTML 등록자) 이미지 칸마다 넣기 · 바꾸기 · 빼기를 보여 줍니다. */
+function MakerNote(props: { text: string; images?: IImage[]; stamp?: string; edit?: { api: IHubApi; t: 'Agent' | 'Skill' | 'Html'; id: number } }): JSX.Element | null {
   const { edit } = props;
   const images = props.images || [];
   const [busy, setBusy] = React.useState(0);
@@ -217,7 +217,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'Agent', view: 'agents' }, { label: a.title }]} />
       <header className="dp-head">
         {/* 썸네일: AgentList 항목 첨부 파일 thumb.png (없으면 이름 첫 글자) */}
-        {a.thumb ? <span className="ad-icon dthumb" aria-hidden="true" style={thumbBg(a.thumb.url, a.modified)} />
+        {a.thumb ? <span className="ad-icon dthumb hth" aria-hidden="true" style={thumbBg(a.thumb.url, a.modified)} />
           : <span className="ad-icon" aria-hidden="true">{a.title.trim().charAt(0)}</span>}
         <div className="dp-title">
           <h1>{a.title}</h1>
@@ -228,6 +228,8 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
           {isHttpsUrl(a.installLink)
             ? <a className="btn pri big" href={a.installLink} target="_blank" rel="noopener noreferrer">Teams에서 열기</a>
             : <button type="button" className="btn pri big" disabled={true} title="열기 링크가 아직 없어요">Teams에서 열기</button>}
+          {/* Owner: 썸네일 · 소개 · 결과 이미지 고치기 (나의 작업공간의 '수정'과 같은 창) */}
+          {mine ? <button type="button" className="btn big" onClick={() => api.openAgentForm(a.id)}>소개 · 이미지 수정</button> : null}
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Agent', title: a.title, owner: a.owner, id: a.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
@@ -243,8 +245,8 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid">
           <div>
             <section><h2 className="dph">이런 일을 해요</h2>{a.does.length ? <ul className="does">{a.does.map((x, k) => <li key={k}>{x}</li>)}</ul> : <p className="note">아직 소개가 없어요.</p>}</section>
-            {/* Agent 이미지는 Hub에서 넣지 않고 AgentList 항목 첨부 파일(result1.png · result2.png)을 그대로 보여 줍니다 */}
-            <MakerNote text={a.makerNote} images={a.images} stamp={a.modified} />
+            {/* 결과 이미지: AgentList 항목 첨부 파일 result1.* · result2.* (Owner는 여기서 넣기 · 바꾸기 · 빼기) */}
+            <MakerNote text={a.makerNote} images={a.images} stamp={a.modified} edit={mine ? { api, t: 'Agent', id: a.id } : undefined} />
             {a.prompts.length ? (
               <section className="dsec"><h2>이렇게 말해 보세요</h2>
                 <ul className="pex">{a.prompts.map((p, k) => <li key={k}>{a.workTypes[0] ? <span className="ptag">{a.workTypes[0]}</span> : null}<p>{p}</p><button className="btn sm" type="button" onClick={() => api.copy(p, '복사했어요')}>복사</button></li>)}</ul></section>

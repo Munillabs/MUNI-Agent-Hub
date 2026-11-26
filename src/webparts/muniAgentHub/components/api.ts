@@ -53,7 +53,9 @@ export interface IHubApi {
   deleteCase(caseId: number): Promise<boolean>;
   reviveIdea(ideaId: number): Promise<boolean>;
 
-  /* 입력 창 (Agent는 배포 흐름이 AgentList에 채우므로 Hub에 입력 창이 없습니다) */
+  /* 입력 창 (Agent 새로 올리기는 배포 흐름이 AgentList에 채우고, Hub에서는 Owner가 소개 · 이미지만 고칩니다) */
+  /** Agent 소개 · 썸네일 · 결과 이미지 고치기 창 */
+  openAgentForm(id: number): void;
   openSkillForm(id?: number): void;
   openHtmlForm(id?: number): void;
   /** id 가 있으면 그 사례 고치기 */
@@ -65,12 +67,14 @@ export interface IHubApi {
   openHtml(tool: IHtmlTool): void;
 
   /* 파일 */
+  /** Agent를 Hub에서 내리기 (AgentList 운영 상태를 중단으로. 항목과 배포 기록은 남음) */
+  deleteAgent(id: number): Promise<boolean>;
   deleteSkill(id: number): Promise<boolean>;
   deleteHtml(id: number): Promise<boolean>;
   loadFileText(fileRef: string): Promise<string>;
   loadVersions(t: 'Agent' | 'Skill' | 'Html', id: number): Promise<IVersion[]>;
   /** '제작자는 이렇게 썼어요' 이미지 넣기 · 바꾸기 · 빼기 (Owner · 등록자만). 성공하면 목록을 다시 읽습니다 */
-  saveShots(t: 'Skill' | 'Html', id: number, add: INewShot[], drop: number[]): Promise<boolean>;
+  saveShots(t: 'Agent' | 'Skill' | 'Html', id: number, add: INewShot[], drop: number[]): Promise<boolean>;
 
   /* 알림 */
   /** 그 사람의 프로필 배지 키 (고른 배지 → 없으면 최근 배지). 사진을 고른 사람·배지가 없는 사람은 undefined */

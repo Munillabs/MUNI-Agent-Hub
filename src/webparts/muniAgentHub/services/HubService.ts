@@ -4,7 +4,7 @@
    - 열 내부 이름은 README의 'SharePoint 목록'과 같습니다. */
 import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions } from '@microsoft/sp-http';
 import {
-  IAgent, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill, INewShot, INewThumb,
+  IAgent, IAgentEdit, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill, INewShot, INewThumb,
   IPerson, IReaction, ISkill, IVersion, TargetType
 } from '../models/types';
 import {
@@ -369,6 +369,26 @@ export class HubService {
       if (m) { out.push({ slot: Number(m[1]), name: str(f.FileName), url: this.origin() + encodeURI(str(f.ServerRelativeUrl)) }); }
     });
     return out.sort((a, b) => a.slot - b.slot);
+  }
+  /** Agent 소개 고치기 (Owner). 한 줄 소개 · 이런 일을 해요 · 이렇게 말해 보세요 · 제작자 글 + 썸네일 · 결과 이미지 2장.
+      이름 · 지침 · 구성 정보 · 버전은 배포 흐름이 관리해서 건드리지 않습니다. */
+  public async updateAgent(a: IAgent, e: IAgentEdit): Promise<void> {
+    const list = this.lists.agents;
+    await this.staged('info', () => this.merge(list, a.id, { Summary: e.summary, Does: e.does.join('\n'), Prompts: e.prompts.join('\n'), MakerNote: e.makerNote }));
+    await this.applyThumb(list, a.id, a.thumb, e.thumb, e.dropThumb);
+    await this.saveShots('Agent', a.id, a.images, e.shots || [], e.dropShots || []);
+  }
+  /** Agent를 Hub에서 내리기. AgentList 항목은 배포 · 승인 기록이라 지우지 않고, 운영 상태(OpsStatus)를 목록에 있는 '중단'(없으면 '폐기') 값으로 바꿉니다.
+      Hub는 중단 · 폐기 행을 보여 주지 않으므로 바로 사라지고, 운영 상태를 되돌리면 다시 보입니다. 바꾼 값을 돌려줍니다. */
+  public async retireAgent(id: number): Promise<string> {
+    const list = this.lists.agents;
+    const f = await this.getJson(`${this.listUrl(list)}/fields/getbyinternalnameortitle('OpsStatus')?$select=Choices,TypeAsString`, list);
+    const opts: string[] = (f && f.Choices) || [];
+    const to = opts.filter(c => /중단/.test(c))[0] || opts.filter(c => /폐기/.test(c))[0];
+    if (!to) { throw new HubError("AgentList 운영 상태(OpsStatus)에 '중단'이나 '폐기' 값이 없어 Hub에서 내릴 수 없어요. 목록 관리자에게 알려 주세요.", 400, list); }
+    // 선택(Choice)은 값 하나, 여러 개 선택(MultiChoice)은 배열로 저장합니다
+    await this.merge(list, id, { OpsStatus: f && f.TypeAsString === 'MultiChoice' ? [to] : to });
+    return to;
   }
   /** 업데이트 탭: AgentList 의 업데이트 기록(Releases)을 그대로 씁니다 */
   public async getAgentVersions(id: number): Promise<IVersion[]> {
@@ -765,9 +785,9 @@ export class HubService {
   }
 
   /** '제작자는 이렇게 썼어요' 이미지 바꾸기 · 빼기. 칸(slot) 1 · 2 마다 첨부 파일 result<slot>.<ext> 하나만 둡니다.
-      Skill · HTML은 HubContents 항목에 붙입니다. Agent는 Hub에서 넣지 않고 AgentList 첨부 파일을 읽기만 합니다. */
-  public async saveShots(t: 'Skill' | 'Html', id: number, old: IImage[], add: INewShot[], drop: number[]): Promise<void> {
-    const list = this.lists.contents;
+      Agent는 AgentList, Skill · HTML은 HubContents 항목에 붙입니다. */
+  public async saveShots(t: 'Agent' | 'Skill' | 'Html', id: number, old: IImage[], add: INewShot[], drop: number[]): Promise<void> {
+    const list = t === 'Agent' ? this.lists.agents : this.lists.contents;
     const at = (slot: number): IImage | undefined => old.filter(x => x.slot === slot)[0];
     for (const s of add) {
       await this.replaceAttachment(list, id, at(s.slot), `result${s.slot}.${s.ext}`, s.data);

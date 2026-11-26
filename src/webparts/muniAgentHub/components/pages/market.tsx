@@ -87,7 +87,8 @@ export function AgentCard(props: { api: IHubApi; agent: IAgent; q?: string }): J
   return (
     <article className="card bc bc-a cl">
       <div className="bcov"><KindTag className="btag" k="Agent"><IconAgent size={14} />Agent</KindTag>
-        {thumb ? <div className="bthumb" aria-hidden="true" style={{ backgroundImage: `url("${thumb.url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        {/* 썸네일을 바꾸면 이름이 같아 예전 그림이 남지 않게 수정 시각을 주소 끝에 붙입니다 */}
+        {thumb ? <div className="bthumb" aria-hidden="true" style={{ ...thumbBg(thumb.url, a.modified), backgroundSize: 'cover', backgroundPosition: 'center' }} />
           : <div className="bthumb c14-th" aria-hidden="true"><AgentThumbSvg name={a.title} seed={a.id} /></div>}</div>
       <div className="bbd">
         <h3><Go go={api.go} view="agent" id={a.id} className="stretch" style={{ textDecoration: 'none' }}><Highlight text={a.title} q={props.q || ''} /></Go></h3>

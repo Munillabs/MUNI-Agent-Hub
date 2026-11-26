@@ -151,6 +151,10 @@ html{background:var(--bg,#fff)}
 .thumbpick .drop{flex:1;min-height:96px}
 .thumbprev{width:160px;flex:none;aspect-ratio:16/10;border-radius:10px;box-shadow:0 0 0 1px var(--line);background-size:cover;background-position:top center;background-repeat:no-repeat;background-color:var(--fill)}
 .thumbdel{margin-top:8px}
+/* 썸네일 칸의 '기본 그림'(Agent 이름으로 그린 SVG)이 칸을 꽉 채우게 */
+.thumbprev svg{display:block;width:100%;height:100%}
+/* HTML 등록 폼 썸네일 칸의 예시 그림: 카드와 같이 그림 전체가 칸에 들어가게 (남는 위 · 아래는 흰 바탕) */
+.thumbprev .htex{position:absolute;inset:0;background-color:#fff;background-size:contain;background-position:center;background-repeat:no-repeat}
 @media (max-width:560px){.thumbpick{flex-direction:column}.thumbprev{width:100%}}
 /* 결과 이미지 2칸 (등록 폼) */
 .shotpick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -166,7 +170,17 @@ html{background:var(--bg,#fff)}
 :root:is(#_d,html):is(#_e,html) .card.skcard .bpaper.skthumb{background-position:top center!important}
 :root:is(#_d,html):is(#_e,html) .card.bc-h .bthumb.hthumb{background-image:var(--th)!important;background-color:#fff!important;background-size:contain!important;background-position:center!important;background-repeat:no-repeat!important;padding:0!important}
 :root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb{background-position:center!important}
-/* HTML 상세 머리 썸네일: 칸(정사각형)은 그대로 두고, 가로 2.2:1 그림을 줄여 전체가 들어가게 (남는 위 · 아래는 흰 바탕) */
+/* Agent · HTML 상세 머리 썸네일: 칸(정사각형)은 그대로 두고, 가로로 긴 그림을 줄여 전체가 들어가게 (남는 위 · 아래는 흰 바탕) */
 :root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.hth{background-size:contain!important;background-position:center!important;background-color:#fff!important}
 /* Skill 상세 머리 썸네일: Skill 썸네일은 오른쪽에 화면 예시가 있어 그쪽을 보여 줌 */
 :root:is(#_d,html):is(#_e,html) .dp-head .ad-icon.dthumb.skth{background-position:84% 30%!important}
+/* 헤더 메뉴: 화면 폭이 바뀌어도 늘 헤더 정가운데.
+   시안은 1000px 이상에서 메뉴를 절대 위치 + 오른쪽 59px 밀기, 그보다 좁으면 로고와 오른쪽 아이콘 사이 가운데라 폭마다 자리가 달랐어요.
+   [로고 | 메뉴 | 아이콘] 3칸 그리드로 바꿔 양옆 칸을 같은 폭(1fr)으로 두면, 메뉴는 폭과 상관없이 가운데에 있고 로고 · 아이콘과 겹치지도 않아요.
+   600px 이하(휴대폰)는 시안대로 메뉴를 왼쪽부터 놓고 옆으로 밉니다. */
+@media(min-width:601px){
+  header.hd>.wrap{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+  header.hd>.wrap>.logo{justify-self:start}
+  header.hd .gnav{position:static;left:auto;transform:none;flex:none;justify-self:center}
+  header.hd>.wrap>.util{justify-self:end;margin-left:0}
+}

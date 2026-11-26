@@ -286,6 +286,18 @@ export interface INewSkill {
   dropShots?: number[];
 }
 
+/** Hub에서 고치는 Agent 소개 (AgentList 항목). 이름 · 지침 · 구성 · 버전은 배포 흐름이 관리해서 여기서 고치지 않습니다 */
+export interface IAgentEdit {
+  summary: string;
+  does: string[];
+  prompts: string[];
+  makerNote: string;
+  thumb?: INewThumb;
+  dropThumb?: boolean;
+  shots?: INewShot[];
+  dropShots?: number[];
+}
+
 /** 등록 화면에서 고른 썸네일 이미지 */
 export interface INewThumb {
   /** png · jpg · jpeg · gif · webp */

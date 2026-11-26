@@ -1,12 +1,15 @@
 /* 입력 화면 (시안 마크업): Skill 올리기, HTML 올리기, 사례 올리기, 오류 신고 */
 import * as React from 'react';
-import { ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml, INewIdea, INewShot, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
+import { IAgent, IAgentEdit, ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml, INewIdea, INewShot, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
 import {
   CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_KINDS, HTML_MAX_BYTES, IDEA_FREQS, IDEA_TYPES, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
   SKILL_TOOLS, SOLUTION_KINDS,
   compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
   splitLines
 } from '../models/rules';
+
+import { AgentThumbSvg } from './mv';
+import { HTML_THUMB_EXAMPLE } from './thumbExample';
 
 type Errors = { [field: string]: string };
 
@@ -227,7 +230,8 @@ function useThumb(): [IThumbState, React.Dispatch<React.SetStateAction<IThumbSta
   React.useEffect(() => () => { if (t.file) { URL.revokeObjectURL(t.file.url); } }, [t.file]);
   return [t, setT];
 }
-function ThumbField(props: { id: string; current?: string; value: IThumbState; onChange: (v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>>; ratio: string }): JSX.Element {
+/** fallback: 아직 고른 썸네일이 없을 때 대신 보여 줄 그림 (Agent는 카드의 기본 그림, HTML은 예시 그림). fallbackLabel: 그 그림 위 표시 */
+function ThumbField(props: { id: string; current?: string; fallback?: React.ReactNode; fallbackLabel?: string; value: IThumbState; onChange: (v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>>; ratio: string }): JSX.Element {
   const v = props.value;
   const bad = (m: string): void => props.setErrors(e => ({ ...e, thumb: m }));
   const take = (fl: File): void => {
@@ -243,7 +247,9 @@ function ThumbField(props: { id: string; current?: string; value: IThumbState; o
   return (
     <Field k="thumb" label="썸네일 이미지 (선택)" hint={`Marketplace 카드에 보여요. 가로가 긴 이미지(${props.ratio})가 잘 맞아요. 없으면 기본 그림이 나와요.`} errors={props.errors}>
       <div className="thumbpick">
-        {shown ? <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label="썸네일 미리보기" /> : null}
+        {shown ? <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label="썸네일 미리보기" />
+          : props.fallback ? <div className="thumbprev" style={{ overflow: 'hidden', position: 'relative' }} role="img" aria-label={props.fallbackLabel || '기본 그림'}>{props.fallback}
+            <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,.92)', color: '#40506a', borderRadius: 999, padding: '2px 8px', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>{props.fallbackLabel || '기본 그림'}</span></div> : null}
         <Drop id={props.id} accept=".png,.jpg,.jpeg,.gif,.webp" has={!!v.file} title={v.file ? v.file.name : shown ? '다른 이미지로 바꾸려면 누르세요' : '이미지를 끌어다 놓거나 눌러서 고르세요'}
           sub={v.file ? `${fileSize(v.file.size)} · 다른 이미지를 고르려면 누르세요` : '.png · .jpg · .gif · .webp · 2MB 이하'} onPick={take} />
       </div>
@@ -476,7 +482,9 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
           <Drop id="hub-ht-file" accept=".html,.htm" has={!!file} title={file ? file.name : '파일을 끌어다 놓거나 눌러서 고르세요'}
             sub={file ? `${fileSize(file.size)} · 다른 파일을 고르려면 누르세요` : editing ? `지금 파일: ${cur!.fileName}` : '.html · 2MB 이하 · 파일 하나로 동작하는 도구'} onPick={take} />
         </Field>
-        <ThumbField id="hub-ht-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="도구 화면 캡처, 16:9 정도" />
+        {/* 아직 썸네일이 없으면, 도구 화면 캡처를 올렸을 때 카드에 어떻게 꽉 차는지 예시 그림을 보여 줍니다 */}
+        <ThumbField id="hub-ht-thumb" current={cur && cur.thumb ? cur.thumb.url : undefined} value={thumb}
+          fallback={<div className="htex" style={{ backgroundImage: `url("${HTML_THUMB_EXAMPLE}")` }} />} fallbackLabel="예시 · 이렇게 꽉 차요" onChange={setThumb} errors={errors} setErrors={setErrors} ratio="도구 화면 캡처, 가로 2:1 정도" />
         <div className="row2">
           <Field id="hub-ht-name" k="name" label="이름" req={true} errors={errors}><input id="hub-ht-name" maxLength={24} placeholder="예: 견적 계산기" value={f.title} onChange={e => set('title', e.target.value)} {...inv(errors, 'name')} /></Field>
           <Field id="hub-ht-made" label="만든 도구"><select id="hub-ht-made" value={f.madeWith} onChange={e => set('madeWith', e.target.value)}>{MADE_WITH.map(x => <option key={x}>{x}</option>)}</select></Field>
@@ -502,6 +510,56 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
         <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>
       <aside className="sticky-side"><p className="note" style={{ marginTop: 0 }}>올린 도구는 격리된 창에서 열려 Hub와 SharePoint 정보에 접근할 수 없어요. 외부 서버로 데이터를 보내는 도구는 올리지 마세요.</p></aside>
+    </div>
+  );
+}
+
+/* ================= Agent 소개 고치기 (모달 본문) =================
+   Agent는 배포 흐름이 AgentList에 만들고, Hub에서는 Owner가 카드 · 상세에 보이는 소개와 이미지만 고칩니다.
+   이름 · 지침 · 구성 정보 · 버전은 배포 흐름이 관리해서 여기서 고치지 않습니다. */
+const AGENT_COLS = ['Summary', 'Does', 'Prompts', 'MakerNote'];
+export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () => void; onSubmit: (e: IAgentEdit) => Promise<void> }): JSX.Element {
+  const cur = props.agent;
+  const ref = React.useRef<HTMLFormElement>(null);
+  const [f, set, errors, setErrors] = useForm({ summary: cur.summary, does: cur.does.join('\n'), prompts: cur.prompts.join('\n'), makerNote: cur.makerNote });
+  const [thumb, setThumb] = useThumb();
+  const [shots, setShot] = useShots();
+  const [busy, setBusy] = React.useState(false);
+  const [failure, setFailure] = React.useState<IUploadFailure | undefined>(undefined);
+  const submit = async (ev: React.FormEvent): Promise<void> => {
+    ev.preventDefault();
+    const e: Errors = {};
+    if (!f.summary.trim()) { e.desc = '한 줄 소개를 적어 주세요.'; }
+    if (!splitLines(f.does).length) { e.does = '이 Agent가 하는 일을 한 줄 이상 적어 주세요.'; }
+    if (!splitLines(f.prompts).length) { e.prompts = '예시 질문을 한 줄 이상 적어 주세요.'; }
+    if (errors.thumb) { e.thumb = errors.thumb; }
+    if (errors.shots) { e.shots = errors.shots; }
+    setErrors(e);
+    if (Object.keys(e).length) { focusFirstError(ref.current); return; }
+    setBusy(true);
+    setFailure(undefined);
+    try {
+      await props.onSubmit({ summary: f.summary.trim(), does: splitLines(f.does), prompts: splitLines(f.prompts), makerNote: f.makerNote.trim(), ...thumbOut(thumb), ...shotsOut(shots) });
+    } catch (err) {
+      setFailure(uploadFailure(err, props.libName, AGENT_COLS));
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="fgrid">
+      <form ref={ref} noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
+        {/* 썸네일을 첨부하지 않은 Agent는 카드에 이름으로 그린 기본 그림이 보여서, 그 그림을 같이 보여 줍니다 */}
+        <ThumbField id="hub-ag-thumb" current={cur.thumb ? cur.thumb.url : undefined} fallback={<AgentThumbSvg name={cur.title} seed={cur.id} />} value={thumb} onChange={setThumb} errors={errors} setErrors={setErrors} ratio="2:1 정도" />
+        <Field id="hub-ag-desc" k="desc" label="한 줄 소개" req={true} errors={errors}><input id="hub-ag-desc" maxLength={40} value={f.summary} onChange={e => set('summary', e.target.value)} {...inv(errors, 'desc')} /></Field>
+        <Field id="hub-ag-does" k="does" label="이런 일을 해요" req={true} hint="한 줄에 하나씩" errors={errors}><textarea id="hub-ag-does" rows={4} value={f.does} onChange={e => set('does', e.target.value)} {...inv(errors, 'does')} /></Field>
+        <Field id="hub-ag-pr" k="prompts" label="이렇게 말해 보세요" req={true} hint="예시 질문을 한 줄에 하나씩. 상세 화면에서 복사 버튼과 함께 보여요" errors={errors}><textarea id="hub-ag-pr" rows={4} value={f.prompts} onChange={e => set('prompts', e.target.value)} {...inv(errors, 'prompts')} /></Field>
+        <Field id="hub-ag-note" k="makerNote" label="제작자는 이렇게 썼어요" errors={errors}><textarea id="hub-ag-note" rows={4} placeholder="예: 매주 월요일 팀 회의 전에 지난주 메일을 넣고 이슈 목록을 뽑아 봐요." value={f.makerNote} onChange={e => set('makerNote', e.target.value)} /></Field>
+        <ShotsField id="hub-ag-shot" current={cur.images} value={shots} onChange={setShot} errors={errors} setErrors={setErrors} />
+        <UploadError f={failure} />
+        <Act busy={busy} label="저장" onCancel={props.onCancel} errors={errors} />
+      </form>
+      <aside className="sticky-side"><p className="note" style={{ marginTop: 0 }}>여기서 고친 내용은 Agent 카드와 상세 화면에 바로 보여요.</p>
+        <p className="note">이름 · 지침 · 구성 정보 · 버전은 배포 흐름(AgentList)에서 관리해요.</p></aside>
     </div>
   );
 }

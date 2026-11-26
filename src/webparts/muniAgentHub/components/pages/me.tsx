@@ -54,15 +54,15 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
   const shown = list.slice((page - 1) * PER, page * PER);
   const choose = (k: 'all' | K): void => { setTab(k); setPg(1); setDel(''); };
   const edit = (r: IRow): void => {
-    if (r.k === 's') { api.openSkillForm(r.id); } else if (r.k === 'h') { api.openHtmlForm(r.id); } else if (r.k === 'c') { api.openCaseForm(r.id); } else if (r.k === 'i') { api.openIdeaForm(r.id); }
+    if (r.k === 'a') { api.openAgentForm(r.id); } else if (r.k === 's') { api.openSkillForm(r.id); } else if (r.k === 'h') { api.openHtmlForm(r.id); } else if (r.k === 'c') { api.openCaseForm(r.id); } else if (r.k === 'i') { api.openIdeaForm(r.id); }
   };
   const remove = async (r: IRow): Promise<void> => {
     setBusy(true);
-    const ok = r.k === 's' ? await api.deleteSkill(r.id) : r.k === 'h' ? await api.deleteHtml(r.id) : r.k === 'c' ? await api.deleteCase(r.id) : await api.deleteIdea(r.id);
+    const ok = r.k === 'a' ? await api.deleteAgent(r.id) : r.k === 's' ? await api.deleteSkill(r.id) : r.k === 'h' ? await api.deleteHtml(r.id) : r.k === 'c' ? await api.deleteCase(r.id) : await api.deleteIdea(r.id);
     setBusy(false);
     setDel('');
     // 삭제 후 목록 화면으로 넘어가는 동작이 있어 작업공간으로 돌아옵니다
-    if (ok && (r.k === 's' || r.k === 'h')) { api.go('me'); }
+    if (ok && (r.k === 'a' || r.k === 's' || r.k === 'h')) { api.go('me'); }
   };
   const emptyMsg = (): JSX.Element => {
     if (q.trim()) { return <><b>&lsquo;{q.trim()}&rsquo;에 맞는 콘텐츠가 없어요</b><span>이름의 다른 단어로 찾아 보세요.</span></>; }
@@ -114,7 +114,9 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
           <tbody>{shown.map(r => {
             const key = r.k + r.id;
             if (del === key) {
-              return <tr key={key} className="mdelrow"><td colSpan={4}><div className="mdconf" role="group" aria-label="삭제 확인"><span>&lsquo;{r.title}&rsquo;을 지울까요? {r.k === 'i' ? 'Idea Board' : r.k === 'c' ? 'Case Library' : 'Marketplace'}와 검색에서도 사라져요.</span>
+              return <tr key={key} className="mdelrow"><td colSpan={4}><div className="mdconf" role="group" aria-label="삭제 확인"><span>{r.k === 'a'
+                ? <>&lsquo;{r.title}&rsquo;을 Hub에서 내릴까요? Marketplace와 검색에서 사라져요. AgentList 항목과 배포 기록은 남고 운영 상태만 &lsquo;중단&rsquo;으로 바뀌어요.</>
+                : <>&lsquo;{r.title}&rsquo;을 지울까요? {r.k === 'i' ? 'Idea Board' : r.k === 'c' ? 'Case Library' : 'Marketplace'}와 검색에서도 사라져요.</>}</span>
                 <span className="mcb"><button type="button" className="btn sm pri" disabled={busy} onClick={() => { remove(r).catch(() => undefined); }}>삭제</button><button type="button" className="btn sm" onClick={() => setDel('')}>취소</button></span></div></td></tr>;
             }
             return (
@@ -122,8 +124,8 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
                 <td className="c-n"><Go go={api.go} view={r.view} id={r.id}>{r.title}</Go></td>
                 <td className="c-d">{mmdd(r.date)}</td>
                 <td className="c-b"><span className="mcb">
-                  {r.k !== 'a' ? <button type="button" className="btn sm" onClick={() => edit(r)}>수정</button> : null}
-                  {r.k !== 'a' ? <button type="button" className="btn sm mdel" onClick={() => setDel(key)}>삭제</button> : null}
+                  <button type="button" className="btn sm" onClick={() => edit(r)}>수정</button>
+                  <button type="button" className="btn sm mdel" onClick={() => setDel(key)}>삭제</button>
                   <Go go={api.go} view={r.view} id={r.id} className="btn sm">자세히</Go></span></td></tr>
             );
           })}</tbody></table>

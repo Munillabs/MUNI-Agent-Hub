@@ -5,12 +5,12 @@ import * as React from 'react';
 import styles from './MuniAgentHub.module.scss';
 import { HubService, HubError, reviewText } from '../services/HubService';
 import {
-  HubView, IAgent, IHtmlTool, IHubData, IIdea, IMe, INewCase, INewHtml, INewSkill, IPerson, IReaction, IReportTarget, ISkill, IVersion, ReactionKind, TargetType
+  HubView, IAgent, IAgentEdit, IHtmlTool, IHubData, IIdea, IMe, INewCase, INewHtml, INewSkill, IPerson, IReaction, IReportTarget, ISkill, IVersion, ReactionKind, TargetType
 } from '../models/types';
 import { first, ideaStage, isHttpsUrl, mmdd, ratingOf } from '../models/rules';
 import { INotice, notices } from '../models/activity';
 import { IHubApi } from './api';
-import { CaseForm, HtmlForm, IdeaEditForm, ReportForm, SkillForm } from './forms';
+import { AgentForm, CaseForm, HtmlForm, IdeaEditForm, ReportForm, SkillForm } from './forms';
 import { Go, IconAgent, IconBell, IconGrid, IconCases, IconHtml, IconIdeas, IconMaker, IconMarket, IconSearch, IconSkill, Modal, Toast } from './ui';
 import { BadgeMedal } from './badge';
 import { BadgeArt } from './badgeArt';
@@ -38,12 +38,11 @@ function ensureDesignCss(): void {
 }
 const XICON = <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>;
 type Theme = 'light' | 'dark';
-/** 저장한 선택 → 없으면 기기 설정 (시안과 같은 키 muni-theme) */
+/** 저장한 선택 → 없으면 라이트 (기기 설정이 다크여도 처음에는 라이트로 엽니다. 시안과 같은 키 muni-theme) */
 function initialTheme(): Theme {
   let t: string | null = null;
   try { t = window.localStorage.getItem('muni-theme'); } catch (e) { /* 없음 */ }
-  if (t === 'dark' || t === 'light') { return t; }
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return t === 'dark' ? 'dark' : 'light';
 }
 
 export interface IMuniAgentHubProps {
@@ -61,6 +60,7 @@ export interface IMuniAgentHubProps {
 }
 
 type ModalState =
+  | { kind: 'agent'; id: number }
   | { kind: 'skill'; id?: number }
   | { kind: 'html'; id?: number }
   | { kind: 'case'; id?: number }
@@ -112,14 +112,6 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   ensureDesignCss();
   const [theme, setThemeState] = React.useState<Theme>(initialTheme);
   const setTheme = (t: Theme): void => { setThemeState(t); try { window.localStorage.setItem('muni-theme', t); } catch (e) { /* 저장 못 해도 동작 */ } };
-  React.useEffect(() => {
-    // 직접 고른 적이 없으면 기기 설정이 바뀔 때 따라갑니다
-    if (!window.matchMedia) { return undefined; }
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const on = (e: MediaQueryListEvent): void => { let s: string | null = null; try { s = window.localStorage.getItem('muni-theme'); } catch (x) { /* 없음 */ } if (!s) { setThemeState(e.matches ? 'dark' : 'light'); } };
-    if (mq.addEventListener) { mq.addEventListener('change', on); return () => mq.removeEventListener('change', on); }
-    return undefined;
-  }, []);
   const [route, setRoute] = React.useState<IRoute>(readHash);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [modal, setModal] = React.useState<ModalState>(undefined);
@@ -450,6 +442,15 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     go('skill', id);
     toast((cur ? `저장했어요. 지금 버전은 v${s.version}이에요.` : 'Skill을 올렸어요.') + idea);
   };
+  const submitAgent = async (a: IAgent, e: IAgentEdit): Promise<void> => {
+    await service.updateAgent(a, e);
+    // 저장은 끝났으니, 목록 새로 읽기가 실패해도 성공으로 봅니다
+    const agents = await service.getAgents().catch(() => undefined);
+    if (agents) { setData(d => ({ ...d, agents, agentsError: undefined })); }
+    setModal(undefined);
+    go('agent', a.id);
+    toast('Agent 소개를 고쳤어요.');
+  };
   const submitHtml = async (h: INewHtml, editId?: number, ideaId?: number): Promise<void> => {
     const cur = editId ? first(data.htmls, x => x.id === editId) : undefined;
     const id = cur ? (await service.updateHtml(cur, h), cur.id) : await service.createHtml(h);
@@ -599,12 +600,22 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     reviveIdea: async id => {
       try { const at = await service.reviveIdea(id); patchIdea(id, i => ({ ...i, revivedOn: at, archivedOn: '', status: '모집 중' })); toast('보관을 해제했어요'); return true; } catch (e) { fail(e); return false; }
     },
+    openAgentForm: id => setModal({ kind: 'agent', id }),
     openSkillForm: id => setModal({ kind: 'skill', id }),
     openHtmlForm: id => setModal({ kind: 'html', id }),
     openCaseForm: id => setModal({ kind: 'case', id }),
     openIdeaForm: id => setModal({ kind: 'idea', id }),
     openReport: target => setModal({ kind: 'report', target }),
     openHtml,
+    deleteAgent: async id => {
+      try {
+        const to = await service.retireAgent(id);
+        setData(d => ({ ...d, agents: d.agents.filter(x => x.id !== id) }));
+        go('agents');
+        toast(`Hub에서 내렸어요. AgentList 운영 상태가 '${to}'(으)로 바뀌었고, 되돌리면 다시 보여요`);
+        return true;
+      } catch (e) { fail(e); return false; }
+    },
     deleteSkill: async id => {
       try { await service.deleteSkill(id); setData(d => ({ ...d, skills: d.skills.filter(x => x.id !== id) })); go('skills'); toast('삭제했어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
     },
@@ -614,13 +625,13 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     loadFileText: ref => service.getFileText(ref),
     loadVersions: (t, id): Promise<IVersion[]> => t === 'Agent' ? service.getAgentVersions(id) : t === 'Skill' ? service.getSkillVersions(id) : service.getHtmlVersions(id),
     saveShots: async (t, id, add, drop) => {
-      // Agent 이미지는 Hub에서 넣지 않습니다 (AgentList 첨부 파일 thumb.png · result1.png · result2.png)
-      const item = t === 'Skill' ? first(data.skills, x => x.id === id) : first(data.htmls, x => x.id === id);
+      const item = t === 'Agent' ? first(data.agents, x => x.id === id) : t === 'Skill' ? first(data.skills, x => x.id === id) : first(data.htmls, x => x.id === id);
       if (!item) { return false; }
       try {
         await service.saveShots(t, id, item.images, add, drop);
         // 저장은 끝났으니, 목록 새로 읽기가 실패해도 성공으로 봅니다
-        if (t === 'Skill') { const skills = await service.getSkills().catch(() => undefined); if (skills) { setData(d => ({ ...d, skills })); } }
+        if (t === 'Agent') { const agents = await service.getAgents().catch(() => undefined); if (agents) { setData(d => ({ ...d, agents })); } }
+        else if (t === 'Skill') { const skills = await service.getSkills().catch(() => undefined); if (skills) { setData(d => ({ ...d, skills })); } }
         else { const htmls = await service.getHtmls().catch(() => undefined); if (htmls) { setData(d => ({ ...d, htmls })); } }
         toast(add.length ? '이미지를 넣었어요' : '이미지를 뺐어요');
         return true;
@@ -719,7 +730,12 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   let modalWidth: number | undefined;
   const closeModal = (): void => setModal(undefined);
   if (api && modal) {
-    if (modal.kind === 'skill') {
+    if (modal.kind === 'agent') {
+      const cur = first(data.agents, x => x.id === modal.id);
+      modalTitle = 'Agent 소개 고치기';
+      modalSub = cur ? cur.title : undefined;
+      modalBody = cur ? <AgentForm key={cur.id} agent={cur} libName={service.listName('agents')} onCancel={closeModal} onSubmit={e => submitAgent(cur, e)} /> : null;
+    } else if (modal.kind === 'skill') {
       const cur = modal.id ? first(data.skills, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'Skill 새 버전 올리기' : 'Skill 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
