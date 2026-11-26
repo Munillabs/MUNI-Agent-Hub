@@ -395,7 +395,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
           <Field id="hub-sk-kind" label="종류"><select id="hub-sk-kind" value={f.kind} onChange={e => set('kind', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_KINDS.map(x => <option key={x}>{x}</option>)}</select></Field>
           <Field id="hub-sk-scope" label="사용 범위"><select id="hub-sk-scope" value={f.scope} onChange={e => set('scope', e.target.value)}><option value="">선택 (선택 사항)</option>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
         </div>
-        <Field id="hub-sk-area" label="업무 분야"><select id="hub-sk-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
+        <Field id="hub-sk-area" label="카테고리" hint={f.area ? IDEA_CAT_DESC[f.area] : '하는 일에 가장 가까운 카테고리를 골라 주세요'}><select id="hub-sk-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
         <Field id="hub-sk-when" k="purpose" label="이럴 때 써요" hint="여러 개는 Enter로 줄을 바꿔 한 줄에 하나씩 적어 주세요" req={true} errors={errors}><textarea id="hub-sk-when" rows={4} placeholder={'예: 규정 답변에 근거를 꼭 보여줘야 할 때\n고객사 미팅 자료를 준비할 때'} value={f.purpose} onChange={e => set('purpose', e.target.value)} {...inv(errors, 'purpose')} /></Field>
         <Field id="hub-sk-usage" k="usage" label="활용 방법" req={true} hint="상세 화면의 '제작자는 이렇게 썼어요'에 보여요" errors={errors}><textarea id="hub-sk-usage" placeholder="예: 지침 맨 아래에 붙여 두면 어떤 Agent든 같은 규칙으로 답해요. 처음에는 Cowork 대화에 파일만 첨부해서 확인해 보세요." value={f.usage} onChange={e => set('usage', e.target.value)} {...inv(errors, 'usage')} /></Field>
         <ShotsField id="hub-sk-shot" current={cur ? cur.images : undefined} value={shots} onChange={setShot} errors={errors} setErrors={setErrors} />
@@ -449,7 +449,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
     if (!splitLines(f.does).length) { e.does = '이 도구가 하는 일을 한 줄 이상 적어 주세요.'; }
     if (!f.workType) { e.workType = '종류를 골라 주세요.'; }
     if (!f.output.trim()) { e.output = '결과물을 적어 주세요.'; }
-    if (!f.area) { e.area = '업무 분야를 골라 주세요.'; }
+    if (!f.area) { e.area = '카테고리를 골라 주세요.'; }
     if (!f.scope) { e.scope = '사용 범위를 골라 주세요.'; }
     if (!f.makerNote.trim()) { e.makerNote = '어떻게 썼는지 적어 주세요.'; }
     const v = f.version.trim();
@@ -495,7 +495,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
           <Field id="hub-ht-out" k="output" label="결과물" req={true} hint="예: 견적표, 추천 결과, 보고서 초안, 일정표, 차트" errors={errors}><input id="hub-ht-out" maxLength={20} placeholder="이 도구를 쓰면 무엇이 나오나요?" value={f.output} onChange={e => set('output', e.target.value)} {...inv(errors, 'output')} /></Field>
         </div>
         <div className="row2">
-          <Field id="hub-ht-area" k="area" label="업무 분야" req={true} errors={errors}><select id="hub-ht-area" value={f.area} onChange={e => set('area', e.target.value)} {...inv(errors, 'area')}><option value="">선택해 주세요</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
+          <Field id="hub-ht-area" k="area" label="카테고리" hint={f.area ? IDEA_CAT_DESC[f.area] : '하는 일에 가장 가까운 카테고리를 골라 주세요'} req={true} errors={errors}><select id="hub-ht-area" value={f.area} onChange={e => set('area', e.target.value)} {...inv(errors, 'area')}><option value="">선택해 주세요</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
           <Field id="hub-ht-scope" k="scope" label="사용 범위" req={true} errors={errors}><select id="hub-ht-scope" value={f.scope} onChange={e => set('scope', e.target.value)} {...inv(errors, 'scope')}>{SCOPES.map(x => <option key={x}>{x}</option>)}</select></Field>
         </div>
         <Field id="hub-ht-note" k="makerNote" label="제작자는 이렇게 썼어요" req={true} errors={errors}><textarea id="hub-ht-note" rows={4} placeholder="예: 매주 월요일 고객 견적 요청이 오면 품목만 붙여 넣고 바로 견적표를 만들어 보내요." value={f.makerNote} onChange={e => set('makerNote', e.target.value)} {...inv(errors, 'makerNote')} /></Field>

@@ -235,7 +235,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
       </header>
       <dl className="dp-meta">
         <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>업무 분야</dt><dd>{a.workType || '—'}</dd></div>
+        <div><dt>카테고리</dt><dd>{a.workType || '—'}</dd></div>
         <div><dt>결과물</dt><dd>{a.output || '—'}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(a.modified)}</dd></div>
       </dl>
@@ -309,7 +309,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
       </header>
       <dl className="dp-meta">
         <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>업무 분야</dt><dd>{k.area || '—'}</dd></div>
+        <div><dt>카테고리</dt><dd>{k.area || '—'}</dd></div>
         <div><dt>공유 형식</dt><dd>{extLabel(k.ext)}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(k.modified)}</dd></div>
       </dl>
@@ -373,7 +373,7 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
         </div>
         <aside className="dp-side"><div className="box"><h3>정보</h3>
           <table className="kv"><tbody>
-            <tr><th>업무 분야</th><td>{h.area || '—'}</td></tr>
+            <tr><th>카테고리</th><td>{h.area || '—'}</td></tr>
             <tr><th>사용 범위</th><td>{h.scopes.length ? h.scopes.map(s => s.replace(/\s*(업무용|용)$/, '')).join(' · ') : '—'}</td></tr>
             <tr><th>제작 도구</th><td>{h.madeWith || '—'}</td></tr>
             <tr><th>등록자</th><td><Person p={h.author} /></td></tr>

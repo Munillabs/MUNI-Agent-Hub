@@ -4,8 +4,11 @@ import { IAgent, ICasePrompt, IIdea, IdeaStage, IReaction, ISolution, SolutionKi
 
 /* ---------- 선택지 (바꾸면 이미 저장된 값은 그대로 남습니다. 목록 열은 한 줄 텍스트) ---------- */
 export const AGENT_TOOLS: string[] = ['Copilot Studio', 'Agent Builder'];
-/** AgentList 업무 분야(TaskArea) 선택 값과 같아야 필터가 맞습니다 */
-export const WORK_TYPES: string[] = ['회의 정리', '문서 작성', '요약', '검색 및 답변', '고객 응대', '규정 확인', '데이터 정리', '분류', '번역', '자동 실행', '개발 지원'];
+/** 카테고리 (11/25 시안 확정 6개): Agent · Skill · HTML · 아이디어가 함께 씁니다.
+    AgentList 카테고리(TaskArea), HubContents 카테고리(WorkArea), HubIdeas 카테고리(Category) 선택 값과 같아야 필터가 맞습니다 */
+export const CATEGORIES: string[] = ['제안과 전략 세우기', '데이터로 인사이트 찾기', '고객 업무 이해하고 설계하기', '산출물 만들고 다듬기', '교육·확산 프로그램 운영하기', '프로젝트·사내 업무 하기'];
+/** Agent 카테고리 (AgentList TaskArea) */
+export const WORK_TYPES: string[] = CATEGORIES;
 /** AgentList 결과물 형태(Output) 선택 값 */
 export const OUTPUTS: string[] = ['답변', '문서 초안', '메일 초안', '표', '체크리스트'];
 export const SCOPES: string[] = ['사내 업무용', '고객 프로젝트용'];
@@ -15,12 +18,12 @@ export const SKILL_TOOLS: string[] = ['Cowork', 'Copilot', 'Copilot Studio', 'Ag
 export const SKILL_KINDS: string[] = ['규칙', '양식', '참조 자료', '체크리스트', '업무 절차'];
 /** 종류(Category) 중 HTML 용 */
 export const HTML_KINDS: string[] = ['계산기', '대시보드', '점검표', '투표 및 설문', '판단 도우미'];
-/** 업무 분야(WorkArea) */
-export const SKILL_AREAS: string[] = ['회의 정리', '문서 작성', '고객 응대', '규정 확인', '데이터 정리', '개발 지원'];
+/** Skill · HTML 카테고리 (HubContents WorkArea) */
+export const SKILL_AREAS: string[] = CATEGORIES;
 export const SKILL_EXTS: string[] = ['md', 'txt', 'docx'];
 export const IDEA_TYPES: string[] = ['Agent', 'Skill', 'HTML', '기타'];
 /** 아이디어 카테고리 (HubIdeas 의 Category 열). 시안 11/25 ib3: 6개, 색은 [종이, 글자, 형광펜] */
-export const IDEA_CATS: string[] = ['제안과 전략 세우기', '데이터로 인사이트 찾기', '고객 업무 이해하고 설계하기', '산출물 만들고 다듬기', '교육·확산 프로그램 운영하기', '프로젝트·사내 업무 하기'];
+export const IDEA_CATS: string[] = CATEGORIES;
 export const IDEA_CAT_PAL: { [cat: string]: [string, string, string] } = {
   '제안과 전략 세우기': ['#f8e1e7', '#8b3a52', 'rgba(190,80,110,.20)'],
   '데이터로 인사이트 찾기': ['#e1edf5', '#1f5f8b', 'rgba(31,116,168,.20)'],
@@ -29,6 +32,7 @@ export const IDEA_CAT_PAL: { [cat: string]: [string, string, string] } = {
   '교육·확산 프로그램 운영하기': ['#e1f2e6', '#2f6b45', 'rgba(60,140,90,.22)'],
   '프로젝트·사내 업무 하기': ['#fcf1c8', '#7a5c00', 'rgba(200,150,0,.25)']
 };
+/** 카테고리 설명 (아이디어 쓰기 칸 · Skill · HTML 등록 폼 안내) */
 export const IDEA_CAT_DESC: { [cat: string]: string } = {
   '제안과 전략 세우기': '제안서, RFP 분석, 견적, 도입 전략과 로드맵',
   '데이터로 인사이트 찾기': '자료 조사, 데이터 분석, 성과(KPI) 측정',

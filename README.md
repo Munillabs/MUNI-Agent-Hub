@@ -42,7 +42,7 @@
 | Marketplace | `#market` | 지금 인기, 새로 올라온 것. Marketplace 아래 화면에는 머리글 밑에 전체 · Agent · Skill · HTML 탭 |
 | Agent 목록 | `#agents` | 필터(만든 도구 · 업무 유형 · 결과물 · 사용 범위 · Skill 사용 · 별점), 정렬(인기 · 최신 · 별점) |
 | Agent 상세 | `#agent-12` | Teams에서 열기, 즐겨찾기, 오류 신고 / 탭: 개요 · 상세 정보 · 리뷰 · 업데이트 기록 |
-| Skill 목록 | `#skills` | 필터(활용 도구 · 업무 분야 · 종류 · 파일 형식 · 사용 범위 · 별점), Skill 올리기 |
+| Skill 목록 | `#skills` | 필터(활용 도구 · 카테고리 · 종류 · 파일 형식 · 사용 범위 · 별점), Skill 올리기 |
 | Skill 상세 | `#skill-3` | 파일 받기, 내용 복사, 등록자의 편집·새 버전·삭제 / 탭: 개요 · 리뷰 · 업데이트 기록 |
 | HTML 목록 | `#htools` | 브라우저에서 바로 여는 도구, HTML 올리기 |
 | HTML 상세 | `#htool-2` | 열기(격리된 창), 오류 신고 / 탭: 개요 · 리뷰 · 업데이트 기록 |
@@ -156,7 +156,7 @@ Hub가 읽는 열 (배포·심사용 나머지 열은 읽지 않습니다):
 | `BuildTool` | 선택 | 만든 도구 (필터) |
 | `Env` | 선택 | 환경 |
 | `OpsStatus` | 선택 | 운영 상태 (Hub에 보일지 여부) |
-| `TaskArea` | 선택 여러 개 | 업무 분야 (필터). 값이 rules.ts의 `WORK_TYPES`와 같아야 함 |
+| `TaskArea` | 선택 여러 개 | 카테고리 (필터): 제안과 전략 세우기 / 데이터로 인사이트 찾기 / 고객 업무 이해하고 설계하기 / 산출물 만들고 다듬기 / 교육·확산 프로그램 운영하기 / 프로젝트·사내 업무 하기. 값이 rules.ts의 `CATEGORIES`와 같아야 함. 예전 업무 분야 값은 [scripts/update-category-choices.js](scripts/update-category-choices.js)로 바꿈 |
 | `Output` | 선택 여러 개 | 결과물 형태 (필터). 값이 `OUTPUTS`와 같아야 함 |
 | `OutputNote` | 한 줄 텍스트 | 결과물 설명 |
 | `Scope` | 선택 여러 개 | 사용 범위 (필터) |
@@ -183,7 +183,7 @@ Skill과 HTML 도구를 한 목록에 담고 **구분** 열로 나눕니다. 항
 | `Kind` | 선택 | 구분: **Skill / HTML** |
 | `Summary` | 한 줄 텍스트 | 한 줄 소개 (40자) |
 | `Category` | 선택 | 종류. Skill: 규칙 / 양식 / 참조 자료 / 체크리스트 / 업무 절차, HTML: 계산기 / 대시보드 / 점검표 / 투표 및 설문 / 판단 도우미 |
-| `WorkArea` | 선택 여러 개 | 업무 분야 |
+| `WorkArea` | 선택 여러 개 | 카테고리 (Agent와 같은 6개, `CATEGORIES`) |
 | `Tools` | 선택 여러 개 | Skill은 활용 도구(Cowork, Copilot, Copilot Studio, Agent Builder), HTML은 만든 도구(Claude, ChatGPT, Copilot, Cowork) |
 | `Scope` | 선택 여러 개 | 사용 범위 |
 | `Does` | 여러 줄 텍스트 | Skill은 '이럴 때 써요', HTML은 '이런 일을 해요'(한 줄에 하나) |

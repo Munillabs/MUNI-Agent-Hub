@@ -91,7 +91,7 @@
     ['CheckDue', '조치 기한', 'Date', {}],
     // Hub 소개 (Profile Card)
     ['Summary', '한 줄 소개', 'Text', { req: true, max: 40 }],
-    ['TaskArea', '업무 분야', 'MultiChoice', { req: true, choices: ['회의 정리', '문서 작성', '요약', '검색 및 답변', '고객 응대', '규정 확인', '데이터 정리', '분류', '번역', '자동 실행', '개발 지원'] }],
+    ['TaskArea', '카테고리', 'MultiChoice', { req: true, choices: ['제안과 전략 세우기', '데이터로 인사이트 찾기', '고객 업무 이해하고 설계하기', '산출물 만들고 다듬기', '교육·확산 프로그램 운영하기', '프로젝트·사내 업무 하기'] }],
     ['Output', '결과물 형태', 'MultiChoice', { choices: ['답변', '문서 초안', '메일 초안', '표', '체크리스트'] }],
     ['OutputNote', '결과물 설명', 'Text', { max: 255 }],
     ['Scope', '사용 범위', 'MultiChoice', { choices: ['사내 업무용', '고객 프로젝트용'] }],

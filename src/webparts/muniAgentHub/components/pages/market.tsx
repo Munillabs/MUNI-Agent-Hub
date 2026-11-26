@@ -101,7 +101,7 @@ export function AgentCard(props: { api: IHubApi; agent: IAgent; q?: string }): J
 }
 const AGENT_FILTERS: IFilterGroup[] = [
   { k: 'tool', label: '만든 도구', items: AGENT_TOOLS, single: true, open: true },
-  { k: 'work', label: '업무 분야', items: WORK_TYPES, open: true },
+  { k: 'work', label: '카테고리', items: WORK_TYPES, open: true },
   { k: 'out', label: '결과물 형태', items: OUTPUTS },
   { k: 'scope', label: '사용 범위', items: SCOPES },
   { k: 'skill', label: 'Skill 사용 여부', items: ['사용함', '사용 안 함'], single: true },
@@ -184,7 +184,7 @@ export function SkillCard(props: { api: IHubApi; skill: ISkill; q?: string }): J
 }
 const SKILL_FILTERS: IFilterGroup[] = [
   { k: 'tool', label: '활용 도구', items: SKILL_TOOLS, open: true },
-  { k: 'area', label: '업무 분야', items: SKILL_AREAS, open: true },
+  { k: 'area', label: '카테고리', items: SKILL_AREAS, open: true },
   { k: 'kind', label: '종류', items: SKILL_KINDS },
   { k: 'ext', label: '파일 형식', items: SKILL_EXTS.map(x => '.' + x) },
   { k: 'scope', label: '사용 범위', items: SCOPES },
@@ -242,7 +242,7 @@ export function HtmlCard(props: { api: IHubApi; tool: IHtmlTool; q?: string }): 
 }
 const HTML_FILTERS: IFilterGroup[] = [
   { k: 'made', label: '제작 도구', items: MADE_WITH, open: true },
-  { k: 'area', label: '업무 분야', items: SKILL_AREAS, open: true },
+  { k: 'area', label: '카테고리', items: SKILL_AREAS, open: true },
   { k: 'kind', label: '종류', items: HTML_KINDS },
   { k: 'scope', label: '사용 범위', items: SCOPES },
   STAR_GROUP

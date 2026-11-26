@@ -1,10 +1,9 @@
 /* Idea Board (시안 그대로): 포스트잇 붙이기(한 줄 + 자세한 내용), 모집 중 · 제작 중 · 완성 · 보관함 / 아이디어 상세 */
 import * as React from 'react';
 import { IIdea, IPerson, IReaction } from '../../models/types';
-import { IDEA_ARCHIVE_DAYS, IDEA_CATS, IDEA_CAT_DESC, IDEA_CAT_PAL, IDEA_LIKE_GOAL, IDEA_SCRAP, contains, daysSince, daysToArchive, first, ideaStart, isEmail, mmdd } from '../../models/rules';
+import { IDEA_ARCHIVE_DAYS, IDEA_CATS, IDEA_CAT_DESC, IDEA_CAT_PAL, IDEA_LIKE_GOAL, IDEA_SCRAP, daysSince, daysToArchive, first, ideaStart, isEmail, mmdd } from '../../models/rules';
 import { IHubApi } from '../api';
 import { Avatar, Crumb, Empty, Go, ListError } from '../ui';
-import { Mag } from '../mv';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
 
@@ -220,7 +219,6 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   const [err, setErr] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [view, setView] = React.useState<View>('live');
-  const [q, setQ] = React.useState('');
   const [fcat, setFcat] = React.useState('');
   const [colW, setColW] = React.useState(0);
   const wallRef = React.useRef<HTMLDivElement>(null);
@@ -240,7 +238,7 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   }, [!!api.data.ideasError]);
   const by: { [v: string]: IIdea[] } = { live: [], make: [], done: [], arch: [] };
   api.data.ideas.forEach(i => { const st = api.stageOf(i); by[st === 'making' ? 'make' : st === 'archived' ? 'arch' : st].push(i); });
-  const match = (i: IIdea): boolean => (!fcat || i.category === fcat) && (!q.trim() || contains(i.title + ' ' + i.detail + ' ' + catLabel(i) + ' ' + (i.author ? i.author.name : ''), q.trim()));
+  const match = (i: IIdea): boolean => !fcat || i.category === fcat;
   // 시안 순서: 손 든 사람이 많은 순, 그다음 공감 많은 순
   const order = (x: IIdea, y: IIdea): number => api.makers(y.id).length - api.makers(x.id).length || api.likeCount('Idea', y.id) - api.likeCount('Idea', x.id);
   const rows = (view === 'arch' ? by.arch.slice().sort((x, y) => archivedOn(y).localeCompare(archivedOn(x))) : by[view].slice().sort(order)).filter(match);
@@ -263,7 +261,7 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
     <button type="button" role="tab" aria-selected={view === v} aria-controls="mv-wall" data-tip={tip} onClick={() => setView(v)}>{label} <span>{by[v].length}</span></button>
   );
   // 시안 문구 그대로
-  const empty = fcat && !q.trim() ? '이 카테고리의 아이디어가 아직 없어요.' : q.trim() ?`'${q.trim()}'에 맞는 ${view === 'arch' ? '보관된 ' : ''}아이디어가 없어요.${view === 'arch' ? '' : ' 위에서 새로 올려 보세요.'}`
+  const empty = fcat ? '이 카테고리의 아이디어가 아직 없어요.'
     : view === 'make' ? '아직 만들고 있는 아이디어가 없어요.' : view === 'done' ? '아직 완성된 아이디어가 없어요.' : view === 'arch' ? '보관된 아이디어가 없어요.' : '모으는 중인 아이디어가 없어요. 위에서 새로 올려 보세요.';
   return (
     <div className="wrap">
@@ -308,7 +306,6 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
           </div>
           <div className="ib3-flt">
             <select className="ib3-fsel" aria-label="카테고리로 거르기" value={fcat} onChange={e => setFcat(e.target.value)}><option value="">카테고리 전체</option>{IDEA_CATS.map(k => <option key={k} value={k}>{k}</option>)}</select>
-            <label className="psearch b4-f"><span className="sr">아이디어 검색</span><input type="search" id="hub-n-q" placeholder="아이디어 검색" value={q} onChange={e => setQ(e.target.value)} /><button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { const el = document.getElementById('hub-n-q'); if (el) { el.focus(); } }}><Mag /></button></label>
           </div>
         </div>
         {api.data.ideasError ? <ListError what="Idea Board" message={api.data.ideasError} /> : <div className="wall" id="mv-wall" role="tabpanel" ref={wallRef}>
