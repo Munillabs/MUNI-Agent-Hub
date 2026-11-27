@@ -77,6 +77,7 @@
       '- 존댓말, 짧은 문장. 전문 용어는 쉬운 말로 풀어서.'
     ].join('\n'),
     Config: {
+      audience: ['사내 구성원'], model: ['GPT-4.1'], run: ['대화형', '사용자 요청 시'],
       knowledge: [
         { name: '취업규칙 (2026년 개정판)', where: 'SharePoint 인사 사이트 > 규정 문서함', type: '문서' },
         { name: '복리후생 안내서', where: 'SharePoint 인사 사이트 > 안내서', type: '문서' },
@@ -89,7 +90,7 @@
       ]
     },
     OutputNote: '결론 · 조건과 절차 · 근거 조항이 붙은 짧은 답변 (필요하면 표)',
-    TaskArea: ['규정 확인', '검색 및 답변'], Output: ['답변'], Scope: ['사내 업무용'],
+    TaskArea: ['프로젝트·사내 업무 하기'], Output: ['답변'], Scope: ['사내 업무용'],
     // 업데이트 기록: [버전, 변경 내용, 며칠 전]
     releases: [
       ['1.0', '처음 배포 · 취업규칙 연결', 64],
@@ -252,7 +253,7 @@ description: 부서·직무의 업무 목록을 받아 Microsoft 365 Copilot 활
       let cfg = {};
       try { cfg = row.Config ? JSON.parse(row.Config) : {}; } catch (e) { cfg = {}; }
       const fields = { __metadata: { type }, Summary: AGENT.Summary, Does: AGENT.Does.join('\n'), Prompts: AGENT.Prompts.join('\n'), MakerNote: AGENT.MakerNote,
-        Instructions: AGENT.Instructions, Config: JSON.stringify({ ...cfg, knowledge: AGENT.Config.knowledge, tools: AGENT.Config.tools }), OutputNote: AGENT.OutputNote,
+        Instructions: AGENT.Instructions, Config: JSON.stringify({ ...cfg, ...AGENT.Config }), OutputNote: AGENT.OutputNote,
         Releases: JSON.stringify(rel), Version: rel[rel.length - 1].v };
       // 선택 열은 목록에 있는 값만
       const skipped = [];

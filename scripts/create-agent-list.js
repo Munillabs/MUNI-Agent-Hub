@@ -104,7 +104,11 @@
     // 구성 정보
     ['Instructions', '지침', 'Note', {}],
     ['Config', '구성 정보', 'Note', {}],
-    ['Releases', '업데이트 기록', 'Note', {}]
+    ['Releases', '업데이트 기록', 'Note', {}],
+    ['TargetUsers', '사용 대상', 'Text', { max: 255 }],
+    ['AIModel', '사용 모델', 'Text', { max: 255 }],
+    ['RunMode', '실행 방식', 'Choice', { choices: ['대화형', '자동 실행'] }],
+    ['RunSchedule', '실행 일시', 'Text', { max: 255 }]
   ];
   const SP_TYPE = { Date: 'DateTime', LookupMulti: 'LookupMulti', URL: 'URL' };
 

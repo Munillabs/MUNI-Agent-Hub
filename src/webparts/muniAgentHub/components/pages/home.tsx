@@ -105,7 +105,10 @@ export function HomeView(props: { api: IHubApi; dark?: boolean; rootRef?: React.
   const market = d.agents.length + d.skills.length + d.htmls.length;
   const gathering = d.ideas.filter(i => api.stageOf(i) === 'live').length;
   const cases = d.cases.filter(c => !c.pending);
-  const recentCases = cases.slice().sort((a, b) => newestFirst(a.created, b.created)).slice(0, 3);
+  // Case Library는 솔루션 단위: 최근 사례의 솔루션 3개
+  const recentSols: { c: typeof cases[0]; k: number }[] = [];
+  cases.slice().sort((a, b) => newestFirst(a.created, b.created)).forEach(c => c.solutions.forEach((_, k) => { if (recentSols.length < 3) { recentSols.push({ c, k }); } }));
+  const SOL_LABEL: { [k: string]: string } = { agent: 'Agent', skill: 'Skill', html: 'HTML' };
   const fresh = ([] as { k: 'a' | 's' | 'h'; view: HubView; id: number; title: string; created: string }[])
     .concat(d.agents.map(a => ({ k: 'a' as const, view: 'agent' as HubView, id: a.id, title: a.title, created: a.created })))
     .concat(d.skills.map(s => ({ k: 's' as const, view: 'skill' as HubView, id: s.id, title: s.title, created: s.created })))
@@ -176,7 +179,7 @@ export function HomeView(props: { api: IHubApi; dark?: boolean; rootRef?: React.
           <nav className="hero-links" aria-label="Hub 메뉴">
             <Go go={api.go} view="market"><b>Marketplace</b><span>{market}개</span></Go>
             <Go go={api.go} view="ideas"><b>Idea Board</b><span>공감 모으는 중 {gathering}개</span></Go>
-            <Go go={api.go} view="cases"><b>Case Library</b><span>사례 {cases.length}개</span></Go>
+            <Go go={api.go} view="cases"><b>Case Library</b><span>솔루션 {cases.reduce((n, c) => n + c.solutions.length, 0)}개</span></Go>
             <Go go={api.go} view="maker"><b>Maker Lab</b><span>만들러 가기</span></Go>
           </nav>
         </div>
@@ -224,16 +227,16 @@ export function HomeView(props: { api: IHubApi; dark?: boolean; rootRef?: React.
             <div className="zbox rv"><span className="zn">03</span><h3>고객 사례 살펴보기</h3><p>과거 프로젝트 사례를 살펴보고,<br />업무에 참고할 만한 내용을 찾아보세요.</p>
               <Go go={api.go} view="cases" className="btn pri b6-more b6-home">Case Library 가기<ArrowMore /></Go></div>
             <div className="zside rv" style={{ '--d': '140ms' } as React.CSSProperties}><p className="zlead rv">최근 고객 사례</p>
-              {recentCases.length ? (
+              {recentSols.length ? (
                 <div className="zcases c18-cases" role="table" aria-label="최근 고객 사례">
-                  <div className="cb-row cb-head" role="row"><span role="columnheader">업종</span><span role="columnheader">사례</span><span role="columnheader">대표 효과</span></div>
-                  {recentCases.map(c => (
-                    <Go key={c.id} go={api.go} view="case" id={c.id} className="cb-row">
+                  <div className="cb-row cb-head" role="row"><span role="columnheader">업종</span><span role="columnheader">솔루션</span><span role="columnheader">종류</span></div>
+                  {recentSols.map(({ c, k }) => { const s = c.solutions[k]; return (
+                    <Go key={c.id + ':' + k} go={api.go} view="case" id={c.id} sub={k || undefined} className="cb-row">
                       <span className="cb-c1" role="cell"><span className="cc-dept ct-ind">{c.industry || '기타'}</span></span>
-                      <span className="cb-c2" role="cell"><b className="cb-ttl">{c.title}</b></span>
-                      <span className="cb-c4" role="cell"><div className="cb-eff"><b>{c.keyValue || '-'}</b>{c.keyNote ? <small>{c.keyNote}</small> : null}</div></span>
+                      <span className="cb-c2" role="cell"><b className="cb-ttl">{s.name}</b>{s.does ? <small className="cb-chg">{s.does}</small> : null}</span>
+                      <span className="cb-c4" role="cell"><span className={'cb-hash h-' + s.kind}>#{SOL_LABEL[s.kind]}</span></span>
                     </Go>
-                  ))}
+                  ); })}
                 </div>
               ) : <p className="note">아직 올라온 사례가 없어요.</p>}
             </div>

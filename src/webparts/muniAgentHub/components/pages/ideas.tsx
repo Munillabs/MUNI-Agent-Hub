@@ -18,7 +18,7 @@ const Heart = (props: { on: boolean }): JSX.Element => <svg viewBox="0 0 24 24" 
 export function ideaCats(api: IHubApi): string[] { return api.data.ideaCats && api.data.ideaCats.length ? api.data.ideaCats : IDEA_CATS; }
 const PALS = IDEA_CATS.map(k => IDEA_CAT_PAL[k]);
 /** 카테고리 색 [종이, 글자, 형광펜]. 시안 6개는 정해진 색, 목록에서 새로 더한 값은 순서대로 6색을 돌려 씁니다 */
-function palOf(cat: string, cats?: string[]): [string, string, string] | undefined {
+export function palOf(cat: string, cats?: string[]): [string, string, string] | undefined {
   if (!cat) { return undefined; }
   if (IDEA_CAT_PAL[cat]) { return IDEA_CAT_PAL[cat]; }
   let k = (cats || []).indexOf(cat);
@@ -162,7 +162,7 @@ function Note(props: { api: IHubApi; idea: IIdea }): JSX.Element {
 }
 
 /** 쓰기 칸의 카테고리 고르기 (시안 ib3-dd: 단추 + 설명이 있는 목록). 목록은 접힌 모서리(mask) 밖으로 나오도록 쓰기 칸 바깥에 둡니다 */
-function useCatPicker(cats: string[], value: string, onPick: (v: string) => void): { button: (invalid: boolean) => JSX.Element; list: JSX.Element } {
+export function useCatPicker(cats: string[], value: string, onPick: (v: string) => void): { button: (invalid: boolean) => JSX.Element; list: JSX.Element } {
   const [open, setOpen] = React.useState(false);
   const [act, setAct] = React.useState(0);
   const btnRef = React.useRef<HTMLButtonElement>(null);
@@ -228,7 +228,11 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   const [err, setErr] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [view, setView] = React.useState<View>('live');
-  const [fcat, setFcat] = React.useState('');
+  // Marketplace 빈 화면 · 사례에서 넘어오면 미리 걸러 둔 조건으로 시작합니다 (한 번 쓰면 비움)
+  const preset = api.ideaPreset;
+  const [fcat, setFcat] = React.useState(preset && preset.cat ? preset.cat : '');
+  const [fcase, setFcase] = React.useState(preset ? preset.caseRef : undefined);
+  React.useEffect(() => { if (api.ideaPreset) { api.clearIdeaPreset(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [colW, setColW] = React.useState(0);
   const wallRef = React.useRef<HTMLDivElement>(null);
   const linkRef = React.useRef<HTMLInputElement>(null);
@@ -247,7 +251,7 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
   }, [!!api.data.ideasError]);
   const by: { [v: string]: IIdea[] } = { live: [], make: [], done: [], arch: [] };
   api.data.ideas.forEach(i => { const st = api.stageOf(i); by[st === 'making' ? 'make' : st === 'archived' ? 'arch' : st].push(i); });
-  const match = (i: IIdea): boolean => !fcat || i.category === fcat;
+  const match = (i: IIdea): boolean => fcase ? !!i.caseRef && i.caseRef.caseId === fcase.caseId && i.caseRef.sol === fcase.sol : !fcat || i.category === fcat;
   // 시안 순서: 손 든 사람이 많은 순, 그다음 공감 많은 순
   const order = (x: IIdea, y: IIdea): number => api.makers(y.id).length - api.makers(x.id).length || api.likeCount('Idea', y.id) - api.likeCount('Idea', x.id);
   const rows = (view === 'arch' ? by.arch.slice().sort((x, y) => archivedOn(y).localeCompare(archivedOn(x))) : by[view].slice().sort(order)).filter(match);
@@ -270,7 +274,7 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
     <button type="button" role="tab" aria-selected={view === v} aria-controls="mv-wall" data-tip={tip} onClick={() => setView(v)}>{label} <span>{by[v].length}</span></button>
   );
   // 시안 문구 그대로
-  const empty = fcat ? '이 카테고리의 아이디어가 아직 없어요.'
+  const empty = fcase ? '이 사례에서 나온 아이디어가 이 탭에는 없어요.' : fcat ? '이 카테고리의 아이디어가 아직 없어요.'
     : view === 'make' ? '아직 만들고 있는 아이디어가 없어요.' : view === 'done' ? '아직 완성된 아이디어가 없어요.' : view === 'arch' ? '보관된 아이디어가 없어요.' : '모으는 중인 아이디어가 없어요. 위에서 새로 올려 보세요.';
   return (
     <div className="wrap">
@@ -314,7 +318,11 @@ export function IdeaBoard(props: { api: IHubApi }): JSX.Element {
             {tab('arch', '보관됨', `게시된 지 ${IDEA_ARCHIVE_DAYS / 30}개월이 지나 보관된 아이디어예요`)}
           </div>
           <div className="ib3-flt">
-            <select className="ib3-fsel" aria-label="카테고리로 거르기" value={fcat} onChange={e => setFcat(e.target.value)}><option value="">카테고리 전체</option>{ideaCats(api).map(k => <option key={k} value={k}>{k}</option>)}</select>
+            {/* 사례의 '관련 아이디어 n개 보기'로 오면 '📚 ○○ 사례' 항목을 잠깐 넣어 골라 둡니다. 다른 카테고리를 고르면 풀려요 */}
+            <select className="ib3-fsel" aria-label="카테고리로 거르기" value={fcase ? '__case' : fcat} onChange={e => { if (e.target.value === '__case') { return; } setFcase(undefined); setFcat(e.target.value); }}>
+              <option value="">카테고리 전체</option>
+              {fcase ? <option value="__case">📚 {fcase.sol} 사례</option> : null}
+              {ideaCats(api).map(k => <option key={k} value={k}>{k}</option>)}</select>
           </div>
         </div>
         {api.data.ideasError ? <ListError what="Idea Board" message={api.data.ideasError} /> : <div className="wall" id="mv-wall" role="tabpanel" ref={wallRef}>
@@ -448,6 +456,8 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
                 onKeyDown={e => { if (e.key === 'Enter' && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); saveEdit().catch(() => undefined); } else if (e.key === 'Escape') { setEditing(false); } }} />
             ) : <h1 className="c31-t"><b>{i.title}</b></h1>}
             {!editing ? <span className="who"><Av p={i.author} me={api.me.id} badge={api.avatarOf(i.author)} /><b><Person p={i.author} fallback="" /></b><span>{days ? `${days}일 전 올림` : '오늘 올림'}</span></span> : null}
+            {!editing && i.caseRef ? <span className="ib3-srcw ci-srcw">📚 Case Library · {(() => { const ref = i.caseRef!; const c = first(api.data.cases, x => x.id === ref.caseId); const k = c ? c.solutions.map(x => x.name).indexOf(ref.sol) : -1;
+              return c ? <Go go={api.go} view="case" id={c.id} sub={k > 0 ? k : undefined}>{ref.sol} →</Go> : <span>{ref.sol}</span>; })()}</span> : null}
             {!editing && i.source ? <span className="ib3-srcw">{srcUrl(i) ? <a className="ib3-src" href={srcUrl(i)} target="_blank" rel="noopener noreferrer">{LINK}원문 보기</a> : '🔭 외부에서 스크랩한 아이디어'}</span> : null}
             {editing ? (
               <div className="c42-bar"><button type="button" className="c42-x" onClick={() => setEditing(false)}>취소</button><button type="button" className="c42-ok" disabled={eBusy} onClick={() => { saveEdit().catch(() => undefined); }}>{eBusy ? '저장 중…' : '저장'}</button></div>

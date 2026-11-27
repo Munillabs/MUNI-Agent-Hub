@@ -1,9 +1,9 @@
 /* 상세 화면 (시안 그대로): Agent · Skill · HTML — 머리말, 요약 지표, 탭(개요 · 상세 정보 · 리뷰 · 업데이트 기록) */
 import * as React from 'react';
-import { IAgent, IHtmlTool, IImage, INewShot, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
+import { IAgent, IHtmlTool, IImage, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
 import { extLabel, first, isEmail, isHttpsUrl, mmdd, splitLines, ymd } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Clamp, Crumb, DetailTabs, Empty, Go, Pill, RatingSummary } from '../ui';
+import { Clamp, Crumb, DetailTabs, Empty, Go, RatingSummary } from '../ui';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
 import { thumbBg } from './market';
@@ -13,11 +13,8 @@ function whenList(v: string): string[] {
   return splitLines(v).map(x => x.replace(/^([-*•·]|\d+[.)])\s*/, '')).filter(x => !!x);
 }
 
-function teamsChat(p?: IPerson): string {
-  return p && isEmail(p.email) ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(p.email)}` : '';
-}
 /** 정보 상자 아래 'Teams로 묻기' (시안 askbtn): Owner·Sponsor·등록자에게 Teams 채팅 */
-function AskBtn(props: { api: IHubApi; who: (IPerson | undefined)[]; tip: string; label?: string }): JSX.Element {
+export function AskBtn(props: { api: IHubApi; who: (IPerson | undefined)[]; tip: string; label?: string }): JSX.Element {
   const mails = props.who.filter(p => !!p && isEmail(p.email)).map(p => p!.email).filter((m, i, all) => all.indexOf(m) === i);
   return (
     <button type="button" className="btn sm askbtn tipx" data-tip={props.tip}
@@ -30,67 +27,38 @@ function useTab(init: string, key: number): [string, (k: string) => void] {
   return [tab, setTab];
 }
 /** '이름 · 설명' 한 줄 → 이름 굵게 */
-function NameLine(props: { text: string }): JSX.Element {
+export function NameLine(props: { text: string }): JSX.Element {
   const i = props.text.indexOf(' · ');
   return i > 0 ? <li><b>{props.text.slice(0, i)}</b><span>{props.text.slice(i + 3)}</span></li> : <li><b>{props.text}</b></li>;
 }
-const SHOT_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-const SHOT_MAX_BYTES = 3 * 1024 * 1024;
-const SHOT_SLOTS = [1, 2];
+/** 상세 정보 탭의 값 칸 (비면 '없음') */
+export function MpdValue(props: { title: string; value: string }): JSX.Element {
+  return <section className={'grp' + (props.value ? '' : ' mpd-empty')}><h2>{props.title}</h2>{props.value ? <p className="mpd-v">{props.value}</p> : <p className="mpd-none">없음</p>}</section>;
+}
+/** 상세 정보 탭의 목록 칸 (제목 + 개수, 비면 '없음') */
+export function MpdGroup(props: { title: string; items: JSX.Element[] }): JSX.Element {
+  const n = props.items.length;
+  return (
+    <section className={'grp' + (n ? '' : ' mpd-empty')}><h2>{props.title}{n ? <span className="cnt">{n}</span> : null}</h2>
+      {n ? <ul className="plain">{props.items}</ul> : <p className="mpd-none">없음</p>}</section>
+  );
+}
 /** '제작자는 이렇게 썼어요': 글 + 이미지 최대 2장 (첨부 파일 result1.* · result2.*).
-    edit 이 있으면(Agent Owner · Skill · HTML 등록자) 이미지 칸마다 넣기 · 바꾸기 · 빼기를 보여 줍니다. */
-function MakerNote(props: { text: string; images?: IImage[]; stamp?: string; edit?: { api: IHubApi; t: 'Agent' | 'Skill' | 'Html'; id: number } }): JSX.Element | null {
-  const { edit } = props;
-  const images = props.images || [];
-  const [busy, setBusy] = React.useState(0);
-  // 같은 이름으로 바꾸면 브라우저가 예전 그림을 보여 줘서, 바꿀 때마다 주소 끝을 바꿉니다
-  const [bust, setBust] = React.useState(0);
-  const pick = React.useRef<HTMLInputElement>(null);
-  const slotRef = React.useRef(1);
-  if (!props.text.trim() && !images.length && !edit) { return null; }
-  const at = (slot: number): IImage | undefined => first(images, x => x.slot === slot);
-  const urlOf = (im: IImage): string => `${im.url}?v=${encodeURIComponent((props.stamp || '') + '.' + bust)}`;
-  const run = async (slot: number, add: INewShot[], drop: number[]): Promise<void> => {
-    setBusy(slot);
-    const ok = await edit!.api.saveShots(edit!.t, edit!.id, add, drop);
-    setBusy(0);
-    if (ok) { setBust(b => b + 1); }
-  };
-  const take = (fl: File): void => {
-    const ext = (/\.([a-z0-9]+)$/i.exec(fl.name) || ['', ''])[1].toLowerCase();
-    if (SHOT_EXTS.indexOf(ext) < 0) { edit!.api.toast('.png · .jpg · .gif · .webp 이미지만 넣을 수 있어요.', 'error'); return; }
-    if (fl.size > SHOT_MAX_BYTES) { edit!.api.toast('3MB 이하 이미지만 넣을 수 있어요.', 'error'); return; }
-    const slot = slotRef.current;
-    const r = new FileReader();
-    r.onload = () => { run(slot, [{ slot, ext: ext === 'jpeg' ? 'jpg' : ext, data: r.result as ArrayBuffer }], []).catch(() => undefined); };
-    r.onerror = () => edit!.api.toast('이미지를 읽지 못했어요. 다시 골라 주세요.', 'error');
-    r.readAsArrayBuffer(fl);
-  };
-  const choose = (slot: number): void => { slotRef.current = slot; if (pick.current) { pick.current.value = ''; pick.current.click(); } };
-  // 보는 사람: 있는 이미지만. 고칠 수 있는 사람: 두 칸 모두 (빈 칸은 '이미지 넣기')
-  const slots = edit ? SHOT_SLOTS : images.map(x => x.slot);
+    올린 이미지만 칸 크기에 맞춰 보여 줍니다(넣지 않았으면 이미지 칸 없음). 이미지 넣기 · 바꾸기 · 빼기는 '나의 작업공간'의 수정 창에서 합니다. */
+function MakerNote(props: { text: string; images?: IImage[]; stamp?: string }): JSX.Element | null {
+  const images = (props.images || []).slice().sort((a, b) => a.slot - b.slot);
+  if (!props.text.trim() && !images.length) { return null; }
+  // 같은 이름으로 바꾸면 브라우저가 예전 그림을 보여 줘서, 수정한 때를 주소 끝에 붙입니다
+  const urlOf = (im: IImage): string => `${im.url}?v=${encodeURIComponent(props.stamp || '')}`;
   return (
     <section className="dsec"><h2>제작자는 이렇게 썼어요</h2>
       <article className="mnote">
         {props.text.split(/\r?\n/).filter(x => !!x.trim()).map((p, k) => <p key={k}>{p}</p>)}
-        {slots.length ? <div className="mimgs">{slots.map(slot => {
-          const im = at(slot);
-          return (
-            <div key={slot} className={'shot' + (im ? '' : ' shot-add') + (busy === slot ? ' is-busy' : '')}>
-              {im ? <a href={urlOf(im)} target="_blank" rel="noopener noreferrer" title="원본 크기로 보기"><img src={urlOf(im)} alt={`결과 이미지 ${slot}`} /></a> : null}
-              {edit ? (im
-                ? <div className="shot-act">
-                    <button type="button" className="btn sm" disabled={!!busy} onClick={() => choose(slot)}>바꾸기</button>
-                    <button type="button" className="btn sm" disabled={!!busy} onClick={() => { run(slot, [], [slot]).catch(() => undefined); }}>빼기</button>
-                  </div>
-                : <button type="button" className="shot-new" disabled={!!busy} onClick={() => choose(slot)}>
-                    <span aria-hidden="true">＋</span><b>이미지 넣기</b><small>사용 화면, 적용 전 · 후 등 · 3MB 이하</small>
-                  </button>) : null}
-              {busy === slot ? <span className="shot-wait" role="status">올리는 중…</span> : null}
-            </div>
-          );
-        })}</div> : null}
-        {edit ? <input ref={pick} type="file" accept=".png,.jpg,.jpeg,.gif,.webp" hidden={true} onChange={e => { const f = e.target.files && e.target.files[0]; if (f) { take(f); } }} /> : null}
+        {images.length ? <div className="mimgs">{images.map(im => (
+          <div key={im.slot} className="shot">
+            <a href={urlOf(im)} target="_blank" rel="noopener noreferrer" title="원본 크기로 보기"><img src={urlOf(im)} alt={`결과 이미지 ${im.slot}`} /></a>
+          </div>
+        ))}</div> : null}
       </article></section>
   );
 }
@@ -187,9 +155,9 @@ function Updates(props: { api: IHubApi; t: 'Agent' | 'Skill' | 'Html'; id: numbe
   const rows = list.length ? list : (props.fallback.version ? [props.fallback] : []);
   if (!rows.length) { return <p className="note">아직 업데이트 기록이 없어요.</p>; }
   return (
-    // 시안 c44: 버전 | 내용 | 날짜(오른쪽 회색)
+    // 시안 c44: 버전 | 내용 | 날짜(오른쪽 회색). 버전은 1.0.0.n (가장 오래된 기록이 1, 최신이 맨 위)
     <ul className="vlist big">
-      {rows.map((v, k) => <li key={k} data-c44="1"><b>{v.version}</b><span className="c44-tx">{v.note || '—'}{props.t === 'Skill' && props.fileName && k === 0 ? ` (${props.fileName})` : ''}</span><span className="c44-dt">{mmdd(v.date)}</span></li>)}
+      {rows.map((v, k) => <li key={k} data-c44="1"><b title={v.version && v.version !== `1.0.0.${rows.length - k}` ? `저장된 버전: ${v.version}` : undefined}>{`1.0.0.${rows.length - k}`}</b><span className="c44-tx">{v.note || '—'}{props.t === 'Skill' && props.fileName && k === 0 ? ` (${props.fileName})` : ''}</span><span className="c44-dt">{mmdd(v.date)}</span></li>)}
     </ul>
   );
 }
@@ -213,7 +181,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
   const skillByName = (n: string): ISkill | undefined => first(api.data.skills, x => x.title === n);
   const ib = `hub-a${a.id}`;
   return (
-    <div className="wrap">
+    <div className="wrap mh">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'Agent', view: 'agents' }, { label: a.title }]} />
       <header className="dp-head">
         {/* 썸네일: AgentList 항목 첨부 파일 thumb.png (없으면 이름 첫 글자) */}
@@ -223,20 +191,17 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
         <div className="dp-title">
           <h1>{a.title}</h1>
           <p className="sub">{a.summary}</p>
-          <p className="by">{a.tool ? <Pill>{a.tool}</Pill> : null} {a.owner ? <Person p={a.owner}><a href={teamsChat(a.owner) || '#'} target="_blank" rel="noopener noreferrer">{a.owner.name}</a></Person> : null}</p>
         </div>
         <div className="dp-cta">
           {isHttpsUrl(a.installLink)
             ? <a className="btn pri big" href={a.installLink} target="_blank" rel="noopener noreferrer">Teams에서 열기</a>
             : <button type="button" className="btn pri big" disabled={true} title="열기 링크가 아직 없어요">Teams에서 열기</button>}
-          {/* Owner: 썸네일 · 소개 · 결과 이미지 고치기 (나의 작업공간의 '수정'과 같은 창) */}
-          {mine ? <button type="button" className="btn big" onClick={() => api.openAgentForm(a.id)}>소개 · 이미지 수정</button> : null}
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Agent', title: a.title, owner: a.owner, id: a.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
       <dl className="dp-meta">
-        <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>카테고리</dt><dd>{a.workType || '—'}</dd></div>
+        <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a><span className="mh-cnt">(평가 {r.n}개)</span></dd></div>
+        <div><dt>카테고리</dt><dd className="mh-cat">{a.workType || '—'}</dd></div>
         <div><dt>결과물</dt><dd>{a.output || '—'}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(a.modified)}</dd></div>
       </dl>
@@ -247,7 +212,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
           <div>
             <section><h2 className="dph">이런 일을 해요</h2>{a.does.length ? <ul className="does">{a.does.map((x, k) => <li key={k}>{x}</li>)}</ul> : <p className="note">아직 소개가 없어요.</p>}</section>
             {/* 결과 이미지: AgentList 항목 첨부 파일 result1.* · result2.* (Owner는 여기서 넣기 · 바꾸기 · 빼기) */}
-            <MakerNote text={a.makerNote} images={a.images} stamp={a.modified} edit={mine ? { api, t: 'Agent', id: a.id } : undefined} />
+            <MakerNote text={a.makerNote} images={a.images} stamp={a.modified} />
             {a.prompts.length ? (
               <section className="dsec"><h2>이렇게 말해 보세요</h2>
                 <ul className="pex">{a.prompts.map((p, k) => <li key={k}>{a.workTypes[0] ? <span className="ptag">{a.workTypes[0]}</span> : null}<p>{p}</p><button className="btn sm" type="button" onClick={() => api.copy(p, '복사했어요')}>복사</button></li>)}</ul></section>
@@ -257,19 +222,30 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
             <table className="kv"><tbody>
               <tr><th>사용 범위</th><td>{a.scopes.length ? a.scopes.map(s => s.replace(/\s*(업무용|용)$/, '')).join(' · ') : '—'}</td></tr>
               <tr><th>Owner</th><td><Person p={a.owner} /></td></tr>
-              {a.sponsor ? <tr><th>Sponsor</th><td><Person p={a.sponsor} /></td></tr> : null}
-              <tr><th>처음 배포</th><td>{ymd(a.created)}</td></tr>
+              <tr><th>Sponsor</th><td>{a.sponsor ? <Person p={a.sponsor} /> : '—'}</td></tr>
+              <tr><th>처음 등록</th><td>{ymd(a.created)}</td></tr>
             </tbody></table>
             <AskBtn api={api} who={[a.owner, a.sponsor]} label="담당자에게 Teams로 문의하기" tip={a.sponsor ? 'Owner, Sponsor에게 Teams 채팅을 열어요' : 'Owner에게 Teams 채팅을 열어요'} /></div></aside>
         </div></section>
       ) : null}
       {tab === 'dt' ? (
-        <section className="dp-panel" id={`${ib}-p-dt`} role="tabpanel" aria-labelledby={`${ib}-t-dt`}><div className="dstack">
-          <section className="grp"><h2>지침</h2>{a.instructions ? <Clamp text={a.instructions} more="지침 전체 보기" /> : <p className="note">공개된 지침이 없어요.</p>}</section>
-          <section className="grp"><h2>참조 지식<span className="cnt">{a.knowledge.length}</span></h2><ul className="plain">{a.knowledge.map((x, k) => <NameLine key={k} text={x} />)}</ul></section>
-          <section className="grp"><h2>사용 도구<span className="cnt">{a.actions.length}</span></h2><ul className="plain">{a.actions.map((x, k) => <NameLine key={k} text={x} />)}</ul></section>
-          <section className="grp"><h2>연결된 Agent<span className="cnt">{a.linkedAgents.length}</span></h2><ul className="plain">{a.linkedAgents.map(n => { const x = agentByName(n); return <li key={n}>{x ? <Go go={api.go} view="agent" id={x.id}><b>{n}</b></Go> : <b>{n}</b>}</li>; })}</ul></section>
-          <section className="grp"><h2>Skill<span className="cnt">{a.linkedSkills.length}</span></h2><ul className="plain">{a.linkedSkills.map(n => { const x = skillByName(n); return <li key={n}>{x ? <Go go={api.go} view="skill" id={x.id}><b>{n}</b></Go> : <b>{n}</b>}</li>; })}</ul></section>
+        <section className="dp-panel" id={`${ib}-p-dt`} role="tabpanel" aria-labelledby={`${ib}-t-dt`}><div className="mpd">
+          {/* Agent 구성 정보: 사용 대상 · 사용 모델 · 실행 방식(비어 있어도 3칸, 빈 칸은 '없음') + 지침(한 줄 전체) */}
+          <h3 className="mpd-h">Agent 구성 정보</h3>
+          <div className="dstack mpd-grid mpd-g3">
+            <MpdValue title="사용 대상" value={a.audience.join(', ')} />
+            <MpdValue title="사용 모델" value={a.model.join(', ')} />
+            <MpdValue title="실행 방식" value={a.runMode} />
+            <section className="grp mpd-full"><h2>지침</h2>{a.instructions ? <Clamp text={a.instructions} more="지침 전체 보기" /> : <p className="mpd-none">공개된 지침이 없어요.</p>}</section>
+          </div>
+          {/* 연결된 자료와 도구: 비어 있어도 4칸 모두, 빈 칸은 '없음' */}
+          <h3 className="mpd-h">연결된 자료와 도구</h3>
+          <div className="dstack mpd-grid">
+            <MpdGroup title="지식 원본" items={a.knowledge.map((x, k) => <NameLine key={k} text={x} />)} />
+            <MpdGroup title="연결 도구 및 커넥터" items={a.actions.map((x, k) => <NameLine key={k} text={x} />)} />
+            <MpdGroup title="연결 에이전트" items={a.linkedAgents.map(n => { const x = agentByName(n); return <li key={n}>{x ? <Go go={api.go} view="agent" id={x.id}><b>{n}</b></Go> : <b>{n}</b>}</li>; })} />
+            <MpdGroup title="Skill" items={a.linkedSkills.map(n => { const x = skillByName(n); return <li key={n}>{x ? <Go go={api.go} view="skill" id={x.id}><b>{n}</b></Go> : <b>{n}</b>}</li>; })} />
+          </div>
         </div></section>
       ) : null}
       {tab === 'rv' ? <section className="dp-panel" id={`${ib}-p-rv`} role="tabpanel" aria-labelledby={`${ib}-t-rv`}><Reviews api={api} t="Agent" id={a.id} mine={mine} /></section> : null}
@@ -297,20 +273,20 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
   const mine = !!(k.author && k.author.id === api.me.id);
   const ib = `hub-s${k.id}`;
   return (
-    <div id="mv-skillOut" className="wrap skillOut">
+    <div id="mv-skillOut" className="wrap mh skillOut">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Skill Store', view: 'skills' }, { label: k.title }]} />
       <header className="dp-head">
         {/* Skill 머리는 썸네일 대신 늘 Skill 아이콘 */}
         <span className="ad-icon sk" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z" /></svg></span>
-        <div className="dp-title"><h1>{k.title}</h1><p className="sub">{k.summary}</p><p className="by"><Pill>Skill</Pill> {k.author ? <Person p={k.author}><a href={teamsChat(k.author) || '#'} target="_blank" rel="noopener noreferrer">{k.author.name}</a></Person> : null}</p></div>
+        <div className="dp-title"><h1>{k.title}</h1><p className="sub">{k.summary}</p></div>
         <div className="dp-cta">
           <a className="btn pri big" href={k.fileUrl + '?download=1'} download={k.fileName}>파일 받기</a>
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'Skill', title: k.title, owner: k.author, id: k.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
       <dl className="dp-meta">
-        <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>카테고리</dt><dd>{k.area || '—'}</dd></div>
+        <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a><span className="mh-cnt">(평가 {r.n}개)</span></dd></div>
+        <div><dt>카테고리</dt><dd className="mh-cat">{k.area || '—'}</dd></div>
         <div><dt>공유 형식</dt><dd>{extLabel(k.ext)}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(k.modified)}</dd></div>
       </dl>
@@ -318,7 +294,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
       {tab === 'ov' ? (
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid"><div>
           <section><h2 className="dph">이럴 때 써요</h2><ul className="does">{whenList(k.purpose).map((w, n) => <li key={n}>{w}</li>)}</ul></section>
-          <MakerNote text={k.usage} images={k.images} stamp={k.modified} edit={mine ? { api, t: 'Skill', id: k.id } : undefined} />
+          <MakerNote text={k.usage} images={k.images} stamp={k.modified} />
           <section className="dsec"><h2>본문</h2>
             {!readable ? <p className="note">Word 문서는 '파일 받기'로 내려받아 확인해 주세요.</p> : err ? <p className="note">{err}</p> : text === undefined ? <p className="note">파일을 불러오는 중이에요</p> : <Clamp text={text} more="전체 보기" />}
           </section>
@@ -349,21 +325,21 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
   const mine = !!(h.author && h.author.id === api.me.id);
   const ib = `hub-h${h.id}`;
   return (
-    <div className="wrap">
+    <div className="wrap mh">
       <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'HTML', view: 'htools' }, { label: h.title }]} />
       <header className="dp-head">
         {h.icon ? <span className="ad-icon dthumb hth icn" aria-hidden="true" style={thumbBg(h.icon.url, h.modified)} />
           : h.thumb ? <span className="ad-icon dthumb hth hcap" aria-hidden="true" style={thumbBg(h.thumb.url, h.modified)} />
           : <span className="ad-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 13l-2 2 2 2M15 13l2 2-2 2" /></svg></span>}
-        <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p><p className="by"><Pill>HTML</Pill> {h.author ? <Person p={h.author}><a href={teamsChat(h.author) || '#'} target="_blank" rel="noopener noreferrer">{h.author.name}</a></Person> : null}</p></div>
+        <div className="dp-title"><h1>{h.title}</h1><p className="sub">{h.summary}</p></div>
         <div className="dp-cta">
           <a className="btn pri big" href={h.fileUrl + '?download=1'} download={h.fileName}>파일 받기</a>
           <a className="rlink" href="#report" onClick={e => { e.preventDefault(); api.openReport({ type: 'HTML', title: h.title, owner: h.author, id: h.id }); }}><span aria-hidden="true">⚠</span> 오류 신고</a>
         </div>
       </header>
       <dl className="dp-meta">
-        <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a></dd><small>평가 {r.n}개</small></div>
-        <div><dt>종류</dt><dd>{h.workType || '—'}</dd></div>
+        <div><dt>평점</dt><dd><a href={`#${ib}-p-rv`} className="mlink" onClick={e => { e.preventDefault(); setTab('rv'); }}>{r.n ? `★ ${r.avg.toFixed(1)}` : '★ –'}</a><span className="mh-cnt">(평가 {r.n}개)</span></dd></div>
+        <div><dt>카테고리</dt><dd className="mh-cat">{h.area || '—'}</dd></div>
         <div><dt>결과물</dt><dd>{h.output || '—'}</dd></div>
         <div><dt>최근 업데이트</dt><dd>{mmdd(h.modified)}</dd></div>
       </dl>
@@ -371,11 +347,10 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
       {tab === 'ov' ? (
         <section className="dp-panel" id={`${ib}-p-ov`} role="tabpanel" aria-labelledby={`${ib}-t-ov`}><div className="dgrid"><div>
           <section><h2 className="dph">이런 일을 해요</h2><ul className="does">{h.does.map((x, i) => <li key={i}>{x}</li>)}</ul></section>
-          <MakerNote text={h.makerNote} images={h.images} stamp={h.modified} edit={mine ? { api, t: 'Html', id: h.id } : undefined} />
+          <MakerNote text={h.makerNote} images={h.images} stamp={h.modified} />
         </div>
         <aside className="dp-side"><div className="box"><h3>정보</h3>
           <table className="kv"><tbody>
-            <tr><th>카테고리</th><td>{h.area || '—'}</td></tr>
             <tr><th>사용 범위</th><td>{h.scopes.length ? h.scopes.map(s => s.replace(/\s*(업무용|용)$/, '')).join(' · ') : '—'}</td></tr>
             <tr><th>제작 도구</th><td>{h.madeWith || '—'}</td></tr>
             <tr><th>등록자</th><td><Person p={h.author} /></td></tr>

@@ -97,7 +97,10 @@ html{background:var(--bg,#fff)}
 /* 실제 이미지가 들어간 결과 이미지 */
 .mimgs img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
 .mimgs .shot{aspect-ratio:4/3;overflow:hidden;border-radius:10px;position:relative}
-.mimgs .shot img{object-position:top center}
+/* 결과 이미지: 자르지 않고 전체를 칸(4:3) 크기에 맞춰 넣기 (남는 곳은 연한 바탕) */
+.mimgs .shot{background:#f3f6f8!important;border:1px solid var(--line)!important;padding:0!important}
+.mimgs .shot img{object-fit:contain!important;object-position:center!important;border:0!important;border-radius:0!important}
+:root[data-theme=dark] .mimgs .shot{background:rgba(255,255,255,.05)!important}
 .mimgs .shot > a{display:block;width:100%;height:100%;cursor:zoom-in}
 /* Owner · 등록자: 이미지 넣기 · 바꾸기 · 빼기 */
 .mimgs .shot-act{position:absolute;right:8px;bottom:8px;display:flex;gap:6px;opacity:0;transition:opacity .15s}
@@ -237,3 +240,205 @@ html{background:var(--bg,#fff)}
 .thumbpair{display:flex;gap:10px;align-items:flex-end;flex:none}
 .thumbpair .thumbprev{width:160px}
 .iconprev{width:64px;height:64px;flex:none;border-radius:16px;box-shadow:0 0 0 1px var(--line);background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#fff}
+
+/* Marketplace 상세(Agent · Skill · HTML) 머리 = 연한 파란 판 하나 (머리 + KPI 칸)
+   KPI 칸은 더 연한 색 · 테두리 없음, 평점은 '★ 4.8 (평가 n개)' 한 줄, 오류 신고는 빨간 밑줄 글자 */
+.wrap.mh .dp-head{margin-top:28px;padding:28px 48px 20px!important;border-radius:24px 24px 0 0;align-items:center;background:#e6edf1!important}
+.wrap.mh .dp-head+.dp-meta{margin:0!important;padding:0 48px 28px;border:0!important;border-radius:0 0 24px 24px;background:#e6edf1!important;gap:12px}
+.wrap.mh .dp-head .ad-icon:not(.dthumb){background:#fff!important}
+.wrap.mh .dp-head+.dp-meta>div,.wrap.mh .dp-head+.dp-meta>div+div{border:0!important;border-radius:14px;box-shadow:none!important;transform:none!important;padding:12px 16px!important;min-height:0;background:#f3f6f8!important}
+.wrap.mh .dp-meta dd{margin-top:2px}
+.wrap.mh .dp-meta dd.mh-cat{word-break:keep-all}
+.wrap.mh .dp-meta+.dp-tabs{margin-top:24px}
+.wrap.mh .mh-cnt{display:inline-block;margin-left:6px;font-size:14px;font-weight:500;color:#5b5b5b;white-space:nowrap}
+.wrap.mh .dp-cta .rlink{display:inline-block!important;gap:0!important;white-space:nowrap;align-self:center;height:auto!important;padding:4px 0!important;border:0!important;border-radius:0!important;background:none!important;color:#b42318!important;font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.wrap.mh .dp-cta .rlink:hover,.wrap.mh .dp-cta .rlink:focus-visible{text-decoration-thickness:2px}
+:root[data-theme=dark] .wrap.mh .dp-head,:root[data-theme=dark] .wrap.mh .dp-head+.dp-meta{background:var(--fill)!important}
+:root[data-theme=dark] .wrap.mh .dp-head .ad-icon:not(.dthumb){background:var(--fill2)!important}
+:root[data-theme=dark] .wrap.mh .dp-head+.dp-meta>div,:root[data-theme=dark] .wrap.mh .dp-head+.dp-meta>div+div{background:rgba(255,255,255,.05)!important}
+:root[data-theme=dark] .wrap.mh .mh-cnt{color:var(--ink2)}
+:root[data-theme=dark] .wrap.mh .dp-cta .rlink{color:#ffa698!important}
+@media(max-width:700px){
+ .wrap.mh .dp-head{margin-top:20px;padding:20px 20px 16px!important;border-radius:18px 18px 0 0}
+ .wrap.mh .dp-head+.dp-meta{padding:0 20px 20px;border-radius:0 0 18px 18px}
+ .wrap.mh .mh-cnt{font-size:12px;margin-left:4px}}
+
+/* Agent 상세 정보 탭 (시안 mpd-): Agent 구성 정보(사용 대상 · 사용 모델 · 실행 방식 3칸 + 지침) / 연결된 자료와 도구(2칸씩) */
+.mpd{padding-bottom:48px}
+.mpd .mpd-h{margin:44px 0 12px;font-size:20px;font-weight:800;line-height:1.4;color:#2b2b2b}
+.mpd .mpd-h:first-child{margin-top:8px}
+.mpd .mpd-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;padding:0}
+.mpd .mpd-grid.mpd-g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mpd .mpd-grid .grp,.mpd .mpd-grid .grp:first-child{grid-column:auto;margin:0}
+.mpd .mpd-grid .grp.mpd-full{grid-column:1/-1}
+.mpd .mpd-grid .grp>h2{font-size:16px;line-height:24px}
+.mpd .mpd-v{margin:12px 18px 14px;font-size:15px;font-weight:600;color:#2b2b2b}
+.mpd .mpd-none{margin:12px 18px 14px;font-size:14px;color:#8c8c8c}
+:root[data-theme=dark] .mpd .mpd-h,:root[data-theme=dark] .mpd .mpd-v{color:var(--ink)}
+:root[data-theme=dark] .mpd .mpd-none{color:var(--ink2)}
+@media(max-width:700px){.mpd .mpd-grid,.mpd .mpd-grid.mpd-g3{grid-template-columns:1fr}.mpd .mpd-h{margin-top:32px}}
+.mpd .mpd-grid.dstack{max-width:none;padding-bottom:0}
+
+/* ===== Case Library 11/26 솔루션 단위 (시안 sc- · ci- · cfx- · mki-) ===== */
+/* 목록: 솔루션 한 줄씩 (업종 | 고객사 | 종류 | 솔루션 | 활용 방식 | 시기) */
+#cases .cb-head.sc-h,#caseGrid .sc-row{display:grid;grid-template-columns:120px 120px 106px minmax(0,1fr) 110px 88px;gap:24px;align-items:start}
+#caseGrid .sc-row{padding:18px 12px;border-bottom:1px solid #e3e3e3;color:inherit;text-decoration:none}
+#caseGrid .sc-row:hover{background:#f3f6f8}
+#caseGrid .sc-ty{padding-top:1px}
+#caseGrid .sc-row .sc-ty .cb-hash{margin:0}
+#caseGrid .sc-row b{display:block;font-size:17px;font-weight:800;line-height:1.4}
+#caseGrid .sc-row:hover b{text-decoration:underline;text-underline-offset:3px}
+#caseGrid .sc-row small{display:block;margin-top:3px;font-size:13.5px;line-height:1.5;color:#5b5b5b}
+#caseGrid .sc-cli{font-size:14px;font-weight:700;padding-top:1px}
+#caseGrid .sc-cli small{margin-top:2px;font-size:13px;font-weight:400}
+#caseGrid .sc-when{font-size:14px;color:#5b5b5b;padding-top:1px}
+#caseGrid .sc-area{font-size:14px;font-weight:700;padding-top:1px}
+@media(min-width:701px){#cases .cb-head.sc-h>span:nth-child(3),#caseGrid .sc-row .sc-ty{text-align:center;justify-self:center}}
+.cb-hash.h-html{background:var(--c-html,#e1edf5);color:#1f5f8b}
+:root[data-theme=dark] #caseGrid .sc-row:hover{background:rgba(255,255,255,.06)}
+:root[data-theme=dark] #caseGrid .sc-row small,:root[data-theme=dark] #caseGrid .sc-when{color:var(--ink2)}
+@media(max-width:700px){#cases .cb-tb.ca-tb{min-width:0}#cases .cb-head.sc-h{display:none}#caseGrid .sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:16px 0}#caseGrid .sc-ind{order:1}#caseGrid .sc-cli{order:2;display:flex;align-items:baseline;gap:6px;padding:0}#caseGrid .sc-cli small{margin:0}#caseGrid .sc-ty{order:3;flex:1 0 100%;margin-top:6px;padding:0}#caseGrid .sc-nm{order:4;flex:1 0 100%;margin-bottom:2px}#caseGrid .sc-area,#caseGrid .sc-when{font-size:13px;font-weight:400;color:#5b5b5b;padding:0}#caseGrid .sc-area{order:5}#caseGrid .sc-when{order:6}#caseGrid .sc-when::before{content:'· ';color:#8c8c8c}}
+
+/* 상세 머리: 연한 파란 판 + 오른쪽 아이디어 단추 */
+#caseOut .cd-head.sc-head{display:flex;align-items:center;gap:24px;margin-top:28px;padding:40px 48px 44px!important;background:#e6edf1;border-radius:24px;border:0}
+#caseOut .sc-htx{flex:1;min-width:0}
+#caseOut .cd-head h1.sc-h1{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:0}
+#caseOut .sc-hpill{flex:none;margin:0;position:relative;top:1px}
+#caseOut .sc-does{margin:10px 0 0;font-size:17px;color:#5b5b5b}
+#caseOut .ci-hact{flex:none;display:flex;flex-direction:column;align-items:center;gap:10px}
+.ci-go{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 18px;border:0;border-radius:999px;background:#004772;font:inherit;font-size:14px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap}
+.ci-go:hover{background:#003f6d}
+.ci-go:focus-visible{outline:2px solid #004772;outline-offset:2px}
+#caseOut .ci-hcnt{font-size:13px;font-weight:700;color:#004772;text-decoration:underline;text-underline-offset:3px}
+#caseOut .cd-grid{margin-top:56px!important;padding-top:0!important;border-top:0!important}
+:root[data-theme=dark] #caseOut .cd-head.sc-head{background:var(--fill)}
+:root[data-theme=dark] #caseOut .sc-does{color:var(--ink2)}
+:root[data-theme=dark] #caseOut .ci-hcnt{color:#80caff}
+@media(max-width:900px){#caseOut .cd-head.sc-head{flex-direction:column;align-items:flex-start}#caseOut .ci-hact{align-items:flex-start}}
+@media(max-width:700px){#caseOut .cd-head.sc-head{margin-top:20px;padding:24px 20px 28px!important;border-radius:18px}#caseOut .cd-grid{margin-top:40px!important}}
+
+/* 상세 본문: 개요 · 활용 목적(왼쪽 선) · 종류별 내용 · 원본 파일 */
+#caseOut .sc-body .sc-p{margin:0;font-size:15px;line-height:1.7;color:#2b2b2b}
+#caseOut .sc-body .cd-list li{font-size:15px;line-height:1.7}
+#caseOut .ci-ovba{display:grid;gap:12px}
+#caseOut .ci-ovba>div{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:baseline;padding:4px 0 4px 16px;border-left:3px solid #d1d1d1}
+#caseOut .ci-ovba>.ci-oa{border-left-color:#004772}
+#caseOut .ci-ovba small{font-size:13px;font-weight:700;color:#8c8c8c}
+#caseOut .ci-ovba .ci-oa small{color:#004772}
+#caseOut .ci-ovba p{margin:0;font-size:15px;line-height:1.7;color:#5b5b5b;word-break:keep-all}
+#caseOut .ci-ovba .ci-oa p{color:#2b2b2b}
+:root[data-theme=dark] #caseOut .sc-body .sc-p,:root[data-theme=dark] #caseOut .ci-ovba .ci-oa p{color:var(--ink)}
+:root[data-theme=dark] #caseOut .ci-ovba p{color:var(--ink2)}
+:root[data-theme=dark] #caseOut .ci-ovba .ci-oa small{color:#80caff}
+@media(max-width:700px){#caseOut .ci-ovba>div{grid-template-columns:1fr;gap:2px}}
+#caseOut .cfx-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid #e3e3e3;border-bottom:1px solid #e3e3e3}
+#caseOut .cfx-ic{flex:none;width:36px;height:36px;border-radius:8px;background:#f3f6f8;color:#004772;display:grid;place-items:center}
+#caseOut .cfx-nm{flex:1;min-width:0;display:flex;flex-direction:column}
+#caseOut .cfx-nm b{font-size:15px;font-weight:600;color:#2b2b2b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#caseOut .cfx-nm small{font-size:13px;color:#8c8c8c}
+#caseOut .cfx-dl{flex:none;font-size:14px;font-weight:700;color:#004772;text-decoration:none}
+#caseOut .cfx-dl:hover{text-decoration:underline}
+#caseOut .cfx-none{margin:0;font-size:15px;line-height:1.7;color:#8c8c8c}
+:root[data-theme=dark] #caseOut .cfx-row{border-color:rgba(255,255,255,.12)}
+:root[data-theme=dark] #caseOut .cfx-ic{background:rgba(255,255,255,.06);color:#80caff}
+:root[data-theme=dark] #caseOut .cfx-nm b{color:var(--ink)}
+:root[data-theme=dark] #caseOut .cfx-dl{color:#80caff}
+/* 같은 프로젝트에서 만든 솔루션 */
+#caseOut .sc-sib{margin-top:40px;border-top:1px solid #e3e3e3;padding-top:18px}
+#caseOut .sc-sib h3{margin:0 0 6px;font-size:15px;font-weight:800}
+#caseOut .sc-sib a{display:grid;grid-template-columns:96px minmax(0,1fr) 16px;gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid #e3e3e3;color:inherit;text-decoration:none}
+#caseOut .sc-sib a:hover b{text-decoration:underline;text-underline-offset:3px}
+#caseOut .sc-sib a .cd-pill{justify-self:start}
+#caseOut .sc-sib b{display:block;font-weight:800}
+#caseOut .sc-sib small{display:block;margin-top:2px;font-size:13.5px;color:#5b5b5b}
+#caseOut .sc-sib i{font-style:normal;color:#8c8c8c;font-weight:700}
+
+/* 아이디어 상세: 사례 출처 줄 */
+#idea .ci-srcw a{color:#004772;font-weight:700}
+:root[data-theme=dark] #idea .ci-srcw a{color:#80caff}
+
+/* 이 사례로 아이디어 제안하기: Idea Board에 올리기 창 */
+.ci-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.36)}
+.ci-dlg.ci3{width:min(640px,100%);max-height:calc(100vh - 32px);padding:0;display:flex;flex-direction:column;overflow:hidden;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.18);color:#2b2b2b}
+.ci3-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 16px 24px;border-bottom:1px solid #e3e3e3}
+.ci3-h h2{margin:0;font-size:18px;font-weight:800}
+.ci-x{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:none;cursor:pointer}
+.ci-x:hover{background:#f3f6f8}
+.ci3-b{flex:1;overflow:auto;padding:20px 24px 22px}
+.ci3-dup{margin:0 0 18px;padding:14px 16px 6px;border-radius:12px;background:#f3f6f8}
+.ci3-dup h3{display:flex;align-items:center;gap:6px;margin:0;font-size:14px;font-weight:800;color:#004772}
+.ci3-dup p{margin:4px 0 6px;font-size:13px;color:#5b5b5b}
+.ci3-dup ul{list-style:none;margin:0;padding:0}
+.ci3-dup li{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid #e3e3e3}
+.ci3-dt{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.45;color:#2b2b2b;text-decoration:none}
+.ci3-dt:hover{text-decoration:underline;text-underline-offset:3px}
+.ci3-like{flex:none;height:32px;padding:0 14px;border:1px solid #d6e1e9;border-radius:999px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:#004772;cursor:pointer}
+.ci3-like[aria-pressed=true]{background:#e6edf1;border-color:#004772}
+.ci3-row{display:flex;gap:22px;align-items:flex-start}
+.ci-post{position:relative;flex:none;width:289px;box-sizing:border-box;padding:18px 20px;border-radius:14px;background:#f3f6f8;background-image:radial-gradient(#d1d1d1 1px,transparent 1px);background-size:16px 16px}
+.ci-note{display:flex;flex-direction:column;gap:8px;padding:14px 16px 10px;background:#fffbe8;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 6px 14px -8px rgba(0,0,0,.25)}
+.ci-note textarea{width:100%;box-sizing:border-box;min-height:84px;padding:0;border:0;background:transparent;font:inherit;font-size:16px;font-weight:700;line-height:1.5;color:#2b2b2b;resize:none;outline:none}
+.ci-note .ci-cnt{align-self:flex-end;font-size:12px;color:#8c8c8c}
+.ci-post .ib3-lb{position:absolute;left:20px;right:20px;top:58px;z-index:5}
+.ci3-side{flex:1;min-width:0;padding-top:2px}
+.ci3-lab{margin:0 0 8px;font-size:13px;font-weight:700;color:#2b2b2b}
+.ci3-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;border:1px solid #d6e1e9;border-radius:12px;background:#fff}
+.ci3-card b{font-size:15px;font-weight:800;line-height:1.4}
+.ci3-card small{font-size:12.5px;line-height:1.5;color:#5b5b5b}
+.ci3-card em{margin-top:4px;font-style:normal;font-size:12px;color:#8c8c8c}
+.ci3-card .cb-hash{margin:0}
+.ci3-steps{list-style:none;margin:16px 0 0;padding:0;font-size:13px;line-height:1.6;color:#5b5b5b}
+.ci3-steps li{display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #e3e3e3}
+.ci3-steps li:last-child{border-bottom:0}
+.ci3-steps b{flex:none;color:#004772;font-weight:400;font-size:16px;line-height:20px}
+.ci3-f{display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:14px 24px;border-top:1px solid #e3e3e3}
+.ci3-need{margin:0 auto 0 0;font-size:12.5px;color:#5b5b5b}
+.ci3-need.bad{color:#d93b3b}
+.ci3-cancel{height:40px;padding:0 6px;border:0;background:none;font:inherit;font-size:14px;color:#5b5b5b;cursor:pointer}
+.ci3-cancel:hover{color:#2b2b2b;text-decoration:underline;text-underline-offset:3px}
+.ci3-go[disabled]{opacity:.4;cursor:not-allowed}
+:root[data-theme=dark] .ci-dlg.ci3{background:#1d2d3d;color:var(--ink)}
+:root[data-theme=dark] .ci3-h,:root[data-theme=dark] .ci3-f,:root[data-theme=dark] .ci3-dup li,:root[data-theme=dark] .ci3-steps li{border-color:rgba(255,255,255,.12)}
+:root[data-theme=dark] .ci3-dup,:root[data-theme=dark] .ci-post{background-color:rgba(255,255,255,.05)}
+:root[data-theme=dark] .ci3-card{background:transparent;border-color:rgba(255,255,255,.16)}
+:root[data-theme=dark] .ci3-dt,:root[data-theme=dark] .ci3-lab{color:var(--ink)}
+:root[data-theme=dark] .ci3-dup p,:root[data-theme=dark] .ci3-card small,:root[data-theme=dark] .ci3-steps,:root[data-theme=dark] .ci3-need,:root[data-theme=dark] .ci3-cancel{color:var(--ink2)}
+@media(max-width:700px){.ci3-row{flex-direction:column;align-items:center}.ci3-side{align-self:stretch}.ci3-f{flex-wrap:wrap}.ci3-need{flex:1 0 100%;margin:0}}
+
+/* 사례 올리기 창: 고른 원본 파일 */
+.cf-file{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.cf-file b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-file small{flex:1;font-size:12.5px;color:var(--ink2)}
+
+/* Marketplace 목록 빈 화면: 카테고리로 걸렀는데 0개면 Idea Board로 (mki-) */
+.empty.mki{display:flex;flex-direction:column;text-align:center;align-items:center;padding:32px 28px;gap:0}
+.mki .mki-t{font-size:18px;font-weight:800;color:#2b2b2b;margin:0}
+.mki .mki-s{font-size:14px;color:#5b5b5b;margin:6px 0 16px;word-break:keep-all}
+.mki .mki-s b{color:#004772}
+.empty.mki .mki-a{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center;margin-top:4px}
+.mki .mki-go{font-size:14px;font-weight:700;color:#004772;text-decoration:none}
+.mki .mki-go:hover{text-decoration:underline}
+:root[data-theme=dark] .mki .mki-t{color:var(--ink)}
+:root[data-theme=dark] .mki .mki-s{color:var(--ink2)}
+:root[data-theme=dark] .mki .mki-go,:root[data-theme=dark] .mki .mki-s b{color:#80caff}
+@media(max-width:700px){.empty.mki{padding:22px 18px}}
+
+/* 사례 고치기 창: 아직 채우지 않은 칸 표시 (노란 테두리 + 위쪽 목록) */
+.cf-gaps{margin:0 0 20px;padding:14px 16px;border:1px solid #f0d58a;border-radius:12px;background:#fffbe8}
+.cf-gaps h3{margin:0;font-size:15px;font-weight:800;color:#6b4e00}
+.cf-gaps p{margin:4px 0 10px;font-size:13px;color:#5b5b5b}
+.cf-gaps ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.cf-gaps li{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px}
+.cf-gaps li b{font-size:14px;font-weight:800;color:#2b2b2b}
+.cf-gaps li span{display:flex;flex-wrap:wrap;gap:6px}
+.cf-gaps button{height:26px;padding:0 10px;border:1px solid #e9c25a;border-radius:999px;background:#fff;font:inherit;font-size:12.5px;font-weight:700;color:#6b4e00;cursor:pointer}
+.cf-gaps button:hover,.cf-gaps button:focus-visible{background:#fff1bf}
+.field.fempty input,.field.fempty textarea,.field.fempty select{border-color:#e9c25a!important;background-color:#fffbe8!important}
+.field.fempty>label::after{content:'비어 있음';display:inline-block;margin-left:8px;padding:0 7px;border-radius:999px;background:#fff1bf;font-size:11px;font-weight:700;line-height:18px;color:#6b4e00;vertical-align:1px}
+:root[data-theme=dark] .cf-gaps{background:rgba(233,194,90,.08);border-color:rgba(233,194,90,.4)}
+:root[data-theme=dark] .cf-gaps h3,:root[data-theme=dark] .cf-gaps button{color:#f3d27a}
+:root[data-theme=dark] .cf-gaps p{color:var(--ink2)}
+:root[data-theme=dark] .cf-gaps li b{color:var(--ink)}
+:root[data-theme=dark] .cf-gaps button{background:transparent;border-color:rgba(233,194,90,.5)}
+:root[data-theme=dark] .field.fempty input,:root[data-theme=dark] .field.fempty textarea,:root[data-theme=dark] .field.fempty select{border-color:rgba(233,194,90,.6)!important;background-color:rgba(233,194,90,.06)!important}
+:root[data-theme=dark] .field.fempty>label::after{background:rgba(233,194,90,.18);color:#f3d27a}

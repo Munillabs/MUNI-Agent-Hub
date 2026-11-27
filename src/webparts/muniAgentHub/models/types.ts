@@ -40,6 +40,14 @@ export interface IAgent {
   prompts: string[];
   makerNote: string;
   instructions: string;
+  /** 사용 대상 (Config.audience) */
+  audience: string[];
+  /** 사용 모델 (Config.model) */
+  model: string[];
+  /** 실행 방식 (Config.run: "대화형" 또는 ["대화형", "사용자 요청 시"] → "대화형 (사용자 요청 시)") */
+  runMode: string;
+  /** [실행 방식, 실행 조건] (Config.run 원래 값) */
+  run: string[];
   knowledge: string[];
   actions: string[];
   linkedAgents: string[];
@@ -88,6 +96,8 @@ export interface IIdea {
   category: string;
   /** 외부에서 스크랩한 아이디어면 원문 주소, 주소 없이 스크랩이면 '외부', 아니면 빈 값 (ScrapSource) */
   source: string;
+  /** Case Library 솔루션에서 올린 아이디어면 그 사례 · 솔루션 (ScrapSource 열의 case:…) */
+  caseRef?: ICaseRef;
   /** 자세한 내용 (선택) */
   detail: string;
   /** 모집 중 / 제작 중 / 완성 / 보관. '만들기 완료'를 누르면 '완성'. 운영 담당자가 '완성'·'보관'으로 바꿔도 그대로 따릅니다. */
@@ -119,6 +129,8 @@ export interface IIdea {
 
 export interface INewIdea {
   title: string;
+  /** Case Library 솔루션에서 올린 아이디어 (ScrapSource 열의 case:…) */
+  caseRef?: ICaseRef;
   category?: string;
   source?: string;
   detail?: string;
@@ -131,17 +143,39 @@ export interface INewIdea {
 export type IdeaStage = 'live' | 'making' | 'done' | 'archived';
 
 /** 사례의 솔루션. 종류에 따라 상세가 다릅니다 (Agent: 지침·도구·데이터, Skill: 설명·본문, HTML: 설명·화면 구성) */
+/** 사례의 솔루션 하나 (HubCases Solutions JSON). Case Library 목록은 솔루션 한 줄씩 보여 줍니다. */
 export interface ISolution {
   kind: SolutionKind;
   name: string;
+  /** 목록 · 상세 머리의 한 줄 설명 (이 솔루션이 하는 일) */
+  does?: string;
+  /** 활용 방식 (CASE_USES 중 하나) */
+  use?: string;
+  /** 활용 목적: 이런 상황에서 / 이런 결과로 */
+  before?: string;
+  after?: string;
+  /** 개요(설명) */
+  desc?: string;
+  /** Agent: 지침 · 연결 도구 및 커넥터 · 지식 원본 · 사용 대상 · 사용 모델 · 실행 방식 · 연결 에이전트 · Skill · 예시 프롬프트 */
   ins?: string;
   tools?: string[];
   data?: string[];
-  desc?: string;
+  who?: string[];
+  model?: string[];
+  /** [실행 방식, 실행 조건] 예: ['자동 실행', '매일 오전 8시'] */
+  run?: string[];
+  agents?: string[];
+  skills?: string[];
+  ex?: { t: string; q: string }[];
+  /** Skill: 본문 / HTML: 화면 구성 */
   body?: string;
   parts?: string[];
+  /** 원본 파일: HubCases 항목 첨부 파일 이름 (Skill · HTML) */
+  file?: string;
 }
 /** 사례의 재사용 프롬프트 (Use Case). step = 연결한 After 단계 (0부터, 없으면 -1) */
+/** 아이디어가 나온 사례 솔루션 (HubIdeas ScrapSource 열: "case:사례 번호|솔루션 이름") */
+export interface ICaseRef { caseId: number; sol: string }
 export interface ICasePrompt {
   name: string;
   step: number;
@@ -157,6 +191,8 @@ export interface ICase {
   dept: string;
   period: string;
   solutions: ISolution[];
+  /** 항목 첨부 파일 (솔루션 원본 파일) */
+  files: IImage[];
   progress: string;
   /** 프로젝트명 (ProjectSummary 열) */
   summary: string;
@@ -224,6 +260,8 @@ export interface INewCase {
   how: string;
   solutions: ISolution[];
   prompts: ICasePrompt[];
+  /** 새로 올릴 원본 파일 (솔루션 file 이름과 같은 이름으로 첨부) */
+  addFiles?: { name: string; data: ArrayBuffer }[];
 }
 
 /** HubContents 목록의 Skill (구분 = Skill): 항목 하나 = Skill 하나, 파일은 첨부 파일 */
@@ -298,6 +336,11 @@ export interface IAgentEdit {
   does: string[];
   prompts: string[];
   makerNote: string;
+  /** Agent 구성 정보 (Config JSON 의 audience · model · run 에 저장, 나머지 Config 값은 그대로) */
+  audience: string[];
+  model: string[];
+  /** [실행 방식, 실행 조건] 예: ['대화형', '사용자 요청 시'] */
+  run: string[];
   thumb?: INewThumb;
   dropThumb?: boolean;
   /** 새 프로필 (첨부 파일 icon.<ext>) */

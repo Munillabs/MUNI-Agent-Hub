@@ -9,7 +9,7 @@ import {
 } from '../models/types';
 import { first, ideaStage, isHttpsUrl, mmdd, ratingOf } from '../models/rules';
 import { INotice, notices } from '../models/activity';
-import { IHubApi } from './api';
+import { IHubApi, IIdeaPreset } from './api';
 import { AgentForm, CaseForm, HtmlForm, IdeaEditForm, ReportForm, SkillForm } from './forms';
 import { Go, IconAgent, IconBell, IconGrid, IconCases, IconHtml, IconIdeas, IconMaker, IconMarket, IconSearch, IconSkill, Modal, Toast } from './ui';
 import { BadgeMedal } from './badge';
@@ -67,7 +67,8 @@ type ModalState =
   | { kind: 'idea'; id: number }
   | { kind: 'report'; target: IReportTarget }
   | undefined;
-interface IRoute { view: HubView; id?: number }
+/** sub: 사례 상세에서 고른 솔루션 번호 (#case-12-1) */
+interface IRoute { view: HubView; id?: number; sub?: number }
 
 const LIST_VIEWS: HubView[] = ['home', 'market', 'agents', 'skills', 'htools', 'ideas', 'cases', 'maker', 'search', 'me', 'badges'];
 const ITEM_VIEWS: HubView[] = ['agent', 'skill', 'htool', 'idea', 'case'];
@@ -88,12 +89,12 @@ const TITLES: { [v: string]: string } = { search: '검색', case: '사례', skil
 
 function readHash(): IRoute {
   const h = (window.location.hash || '').replace(/^#/, '');
-  const m = /^(agent|skill|htool|idea|case)-(\d+)$/.exec(h);
-  if (m) { return { view: m[1] as HubView, id: Number(m[2]) }; }
+  const m = /^(agent|skill|htool|idea|case)-(\d+)(?:-(\d+))?$/.exec(h);
+  if (m) { return { view: m[1] as HubView, id: Number(m[2]), sub: m[3] ? Number(m[3]) : undefined }; }
   return { view: LIST_VIEWS.indexOf(h as HubView) >= 0 ? h as HubView : 'home' };
 }
 function hashOf(r: IRoute): string {
-  return '#' + r.view + (r.id && ITEM_VIEWS.indexOf(r.view) >= 0 ? '-' + r.id : '');
+  return '#' + r.view + (r.id && ITEM_VIEWS.indexOf(r.view) >= 0 ? '-' + r.id + (r.sub ? '-' + r.sub : '') : '');
 }
 /** 조회수: 올린 사람이 자기 게시물을 본 것도 셀지 (true = 셈) */
 const COUNT_OWN_VIEWS = true;
@@ -275,8 +276,8 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     window.addEventListener('hashchange', onHash);
     return () => { window.removeEventListener('popstate', onHash); window.removeEventListener('hashchange', onHash); };
   }, []);
-  const go = React.useCallback((view: HubView, id?: number): void => {
-    const r: IRoute = { view, id };
+  const go = React.useCallback((view: HubView, id?: number, sub?: number): void => {
+    const r: IRoute = { view, id, sub };
     setModal(undefined);
     setMenu('');
     setRoute(r);
@@ -284,6 +285,8 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     const el = rootRef.current;
     if (el && el.getBoundingClientRect().top < 0) { el.scrollIntoView({ block: 'start' }); }
   }, []);
+  /** Idea Board를 열 때 미리 걸러 둘 조건 (Marketplace 빈 화면의 카테고리, 사례의 '관련 아이디어 n개 보기') */
+  const [ideaPreset, setIdeaPreset] = React.useState<IIdeaPreset | undefined>(undefined);
   const goHome = (): void => { go('home'); load().catch(() => undefined); };
   /* 검색: 흐린 화면 위로 열리는 검색 창 (시안 c11). 옛 주소 #search 로 들어오면 홈에서 검색 창만 엽니다 */
   const [sx, setSx] = React.useState<{ open: boolean; scope: 'all' | 'market'; q: string }>({ open: false, scope: 'all', q: '' });
@@ -463,7 +466,8 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   const submitCase = async (c: INewCase, editId?: number): Promise<boolean> => {
     try {
       // 승인 단계 없이 바로 공개됩니다. 올린(고친) 사례의 상세 화면으로 이동합니다.
-      const id = editId ? (await service.updateCase(editId, c), editId) : await service.createCase(c);
+      const old = editId ? first(data.cases, x => x.id === editId) : undefined;
+      const id = editId ? (await service.updateCase(editId, c, old ? old.files : undefined), editId) : await service.createCase(c);
       const cases = await service.getCases().catch(() => undefined);
       if (cases) { setData(d => ({ ...d, cases, casesError: undefined })); }
       go('case', id);
@@ -519,6 +523,9 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
 
   const api: IHubApi | undefined = me ? {
     data, me, now, searchQuery, go, search,
+    ideaPreset,
+    openIdeas: p => { setIdeaPreset(p); go('ideas'); },
+    clearIdeaPreset: () => setIdeaPreset(undefined),
     // 아이디어는 공감 수, Agent·Skill·HTML은 즐겨찾기(이 브라우저)라 수를 세지 않습니다
     likeCount: (t, id) => t === 'Idea' ? data.reactions.filter(r => r.targetType === 'Idea' && r.targetId === id && r.kind === '좋아요').length : 0,
     liked: (t, id) => t === 'Idea' ? !!mineOf('Idea', id, '좋아요') : favs.indexOf(`${t}:${id}`) >= 0,
@@ -554,7 +561,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     updateIdea: async (id, idea) => {
       try {
         await service.updateIdea(id, idea);
-        patchIdea(id, i => ({ ...i, ...idea, detail: idea.detail || '', pain: idea.pain || '', frequency: idea.frequency || '', category: idea.category !== undefined ? idea.category : i.category, source: idea.source !== undefined ? idea.source : i.source }));
+        patchIdea(id, i => ({ ...i, ...idea, detail: idea.detail || '', pain: idea.pain || '', frequency: idea.frequency || '', category: idea.category !== undefined ? idea.category : i.category, source: idea.source !== undefined ? idea.source : i.source, caseRef: idea.source ? undefined : i.caseRef }));
         toast('아이디어를 고쳤어요'); return true;
       } catch (e) { fail(e); return false; }
     },
@@ -586,7 +593,10 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
         const id = await service.createIdea(idea); const ideas = await service.getIdeas(); setData(d => withIdeas(d, ideas));
         const saved = ideas.filter(x => x.id === id)[0];
         // HubIdeas 에 Category 열이 아직 없으면 카테고리만 빠지고 저장됩니다
-        toast(saved && idea.category && !saved.category ? '포스트잇을 붙였어요. 목록에 Category 열이 없어 카테고리는 저장되지 않았어요' : '포스트잇을 붙였어요');
+        // 사례 연결은 ScrapSource 열에 들어가므로 그 열이 없으면 사례 연결만 빠지고 저장됩니다
+        toast(saved && idea.category && !saved.category ? '포스트잇을 붙였어요. 목록에 Category 열이 없어 카테고리는 저장되지 않았어요'
+          : saved && idea.caseRef && !saved.caseRef ? 'Idea Board에 포스트잇을 붙였어요. 목록에 ScrapSource 열이 없어 사례 연결은 저장되지 않았어요'
+            : idea.caseRef ? 'Idea Board에 포스트잇을 붙였어요' : '포스트잇을 붙였어요');
         return true;
       } catch (e) { fail(e); return false; }
     },
@@ -724,7 +734,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       case 'ideas': body = <IdeaBoard api={api} />; break;
       case 'idea': body = <IdeaPage api={api} idea={first(data.ideas, x => x.id === id)} />; break;
       case 'cases': body = <CaseLibrary api={api} />; break;
-      case 'case': body = <CasePage api={api} item={first(data.cases, x => x.id === id)} />; break;
+      case 'case': body = <CasePage api={api} item={first(data.cases, x => x.id === id)} sol={route.sub || 0} />; break;
       case 'maker': body = <MakerLab api={api} />; break;
       case 'search': body = null; break;
       case 'me': body = <MyWorkspace api={api} />; break;

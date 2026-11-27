@@ -65,11 +65,29 @@ function Sort(props: { id: string; value: string; onChange: (v: string) => void;
 }
 const STAR_GROUP: IFilterGroup = { k: 'star', label: '별점', items: ['★ 4.5 이상', '★ 4.0 이상'] };
 /** 검색어·필터로 아무것도 안 나올 때 (시안 .empty) */
-function NoMatch(props: { api: IHubApi; lab: string; ga: string; q: string; filtered: boolean; total: number; onClearQ: () => void; onClearF: () => void; add?: React.ReactNode }): JSX.Element {
+function NoMatch(props: { api: IHubApi; lab: string; ga: string; q: string; filtered: boolean; total: number; onClearQ: () => void; onClearF: () => void; add?: React.ReactNode; cats?: string[] }): JSX.Element {
   if (!props.total) {
     return <Empty title={`아직 등록된 ${props.lab}${props.ga} 없어요`} actions={props.add}>{props.lab === 'Agent' ? 'Prod에 배포된 Agent가 여기에 모여요. Maker Lab에서 첫 Agent를 만들어 보세요.' : props.lab === 'Skill' ? '자주 쓰는 지침이나 양식이 있다면 처음으로 올려 주세요.' : '브라우저에서 바로 여는 도구를 만들었다면 처음으로 올려 주세요.'}</Empty>;
   }
   const q = props.q.trim();
+  // 시안 mki: 검색어 없이 카테고리로 걸렀는데 0개면, 같은 카테고리의 Idea Board 아이디어로 이어 줍니다
+  const cats = (props.cats || []).filter(x => x !== '전체');
+  if (!q && cats.length) {
+    const api = props.api;
+    const ideas = api.data.ideas.filter(i => api.stageOf(i) !== 'archived' && cats.indexOf(i.category) >= 0);
+    const go = (t: string): JSX.Element => (
+      <div className="mki-a"><a className="mki-go" href="#ideas" onClick={e => { e.preventDefault(); api.openIdeas(cats.length === 1 ? { cat: cats[0] } : undefined); }}>{t} →</a>
+        <button type="button" className="btn sm" onClick={props.onClearF}>필터 모두 지우기</button></div>
+    );
+    return (
+      <div className="empty mki">
+        <p className="mki-t">아직 이 업무에 맞는 {props.lab}{props.ga} 없어요.</p>
+        {ideas.length
+          ? <><p className="mki-s">관련 아이디어 <b>{ideas.length}개</b>를 발견했어요. 마음에 드는 아이디어에 공감하거나 제작에 참여해 보세요.</p>{go('Idea Board에서 보기')}</>
+          : <><p className="mki-s">관련 아이디어도 아직 없어요. 필요한 도구를 처음으로 올려 보세요.</p>{go('Idea Board에 아이디어 올리기')}</>}
+      </div>
+    );
+  }
   return (
     <Empty title={q ? `'${q}'에 맞는 ${props.lab}${props.ga} 없어요` : `선택한 조건에 맞는 ${props.lab}${props.ga} 없어요`}
       actions={<>{q ? <button type="button" className="btn sm" onClick={props.onClearQ}>검색어 지우기</button> : null}{props.filtered ? <button type="button" className="btn sm" onClick={props.onClearF}>필터 모두 지우기</button> : null}<Go go={props.api.go} view="ideas" className="btn sm pri">Idea Board에 제안하기</Go></>}>
@@ -131,7 +149,7 @@ export function AgentStore(props: { api: IHubApi }): JSX.Element {
           <div className="rbar"><span className="rcount" aria-live="polite"><b>{q.trim() ? `'${q.trim()}' ` : ''}Agent {rows.length}개</b></span><Applied groups={AGENT_FILTERS} value={fl} onChange={setFl} />
             <Sort id="hub-ag-sort" value={sort} onChange={setSort} options={[['hot', '인기순'], ['new', '최신순'], ['star', '별점순']]} /></div>
           {rows.length ? <div className="g3">{rows.slice(0, more).map(a => <AgentCard key={a.id} api={api} agent={a} q={q} />)}</div>
-            : <NoMatch api={api} lab="Agent" ga="가" q={q} filtered={filtered(fl)} total={api.data.agents.length} onClearQ={() => setQ('')} onClearF={() => setFl({})}
+            : <NoMatch api={api} lab="Agent" ga="가" q={q} filtered={filtered(fl)} total={api.data.agents.length} cats={fl.work} onClearQ={() => setQ('')} onClearF={() => setFl({})}
               add={<Go go={api.go} view="maker" className="btn sm pri">＋ Agent 올리기</Go>} />}
           {rows.length > more ? <div style={{ textAlign: 'center', margin: '28px 0 72px' }}><button type="button" className="btn" onClick={() => setMore(more + 6)}>더 보기 ({more} / {rows.length})</button></div> : <div style={{ height: 72 }} />}
         </div>
@@ -212,7 +230,7 @@ export function SkillStore(props: { api: IHubApi }): JSX.Element {
             <div className="rbar"><span className="rcount" aria-live="polite"><b>{q.trim() ? `'${q.trim()}' ` : ''}Skill {rows.length}개</b></span><Applied groups={SKILL_FILTERS} value={fl} onChange={setFl} />
               <Sort id="hub-sk-sort" value={sort} onChange={setSort} options={[['hot', '많이 쓰는 순'], ['new', '최신순'], ['star', '별점순']]} /></div>
             {rows.length ? <div className="g3" style={{ marginBottom: 72 }}>{rows.map(s => <SkillCard key={s.id} api={api} skill={s} q={q} />)}</div>
-              : <NoMatch api={api} lab="Skill" ga="이" q={q} filtered={filtered(fl)} total={api.data.skills.length} onClearQ={() => setQ('')} onClearF={() => setFl({})}
+              : <NoMatch api={api} lab="Skill" ga="이" q={q} filtered={filtered(fl)} total={api.data.skills.length} cats={fl.area} onClearQ={() => setQ('')} onClearF={() => setFl({})}
                 add={<button type="button" className="btn sm pri" onClick={() => api.openSkillForm()}>＋ Skill 올리기</button>} />}
           </div>
         </div>
@@ -270,7 +288,7 @@ export function HtmlStore(props: { api: IHubApi }): JSX.Element {
             <div className="rbar"><span className="rcount" aria-live="polite"><b>{q.trim() ? `'${q.trim()}' ` : ''}HTML {rows.length}개</b></span><Applied groups={HTML_FILTERS} value={fl} onChange={setFl} />
               <Sort id="hub-ht-sort" value={sort} onChange={setSort} options={[['hot', '많이 쓰는 순'], ['new', '최신순'], ['star', '별점순']]} /></div>
             {rows.length ? <div className="g3" style={{ marginBottom: 72 }}>{rows.map(h => <HtmlCard key={h.id} api={api} tool={h} q={q} />)}</div>
-              : <NoMatch api={api} lab="HTML" ga="이" q={q} filtered={filtered(fl)} total={api.data.htmls.length} onClearQ={() => setQ('')} onClearF={() => setFl({})}
+              : <NoMatch api={api} lab="HTML" ga="이" q={q} filtered={filtered(fl)} total={api.data.htmls.length} cats={fl.area} onClearQ={() => setQ('')} onClearF={() => setFl({})}
                 add={<button type="button" className="btn sm pri" onClick={() => api.openHtmlForm()}>＋ HTML 올리기</button>} />}
           </div>
         </div>

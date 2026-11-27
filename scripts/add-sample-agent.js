@@ -23,7 +23,7 @@
     BuildTool: 'Copilot Studio',
     Env: 'Prod',
     OpsStatus: ['정식 운영', '안정화 중'],          // 목록에 있는 첫 값을 씁니다
-    TaskArea: ['문서 작성', '요약'],
+    TaskArea: ['프로젝트·사내 업무 하기'],
     Output: ['문서 초안', '표'],
     OutputNote: '팀 양식에 맞춘 주간 보고 초안 (이번 주 한 일 · 다음 주 계획 · 이슈)',
     Scope: ['사내 업무용'],

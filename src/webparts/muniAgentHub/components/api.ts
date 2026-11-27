@@ -1,5 +1,8 @@
 /* 화면 컴포넌트들이 공통으로 쓰는 상태와 동작. MuniAgentHub(최상위)가 만들어 내려 줍니다. */
-import { HubView, IHtmlTool, IHubData, IIdea, IMe, INewIdea, INewShot, IPerson, IReaction, IReportTarget, IVersion, IdeaStage, TargetType } from '../models/types';
+import { HubView, ICaseRef, IHtmlTool, IHubData, IIdea, IMe, INewIdea, INewShot, IPerson, IReaction, IReportTarget, IVersion, IdeaStage, TargetType } from '../models/types';
+
+/** Idea Board 미리 거르기: 카테고리 하나, 또는 사례 솔루션에서 나온 아이디어 */
+export interface IIdeaPreset { cat?: string; caseRef?: ICaseRef }
 
 export interface IHubApi {
   data: IHubData;
@@ -7,7 +10,12 @@ export interface IHubApi {
   now: Date;
 
   /* 이동 */
-  go(view: HubView, id?: number): void;
+  /** sub: 사례 상세의 솔루션 번호 */
+  go(view: HubView, id?: number, sub?: number): void;
+  /** Idea Board를 열 때 미리 걸러 둘 조건 */
+  ideaPreset?: IIdeaPreset;
+  openIdeas(p?: IIdeaPreset): void;
+  clearIdeaPreset(): void;
   /** 검색 창 열기 (흐린 화면 위). scope 'market' 이면 Agent·Skill·HTML만 */
   search(q: string, scope?: 'all' | 'market'): void;
   searchQuery: string;

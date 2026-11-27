@@ -2,8 +2,8 @@
 import * as React from 'react';
 import { IAgent, IAgentEdit, ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml, INewIdea, INewShot, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
 import {
-  CASE_INDUSTRIES, CASE_LEVELS, CASE_PATTERNS, CASE_PRODUCTS, HTML_KINDS, HTML_MAX_BYTES, IDEA_CATS, IDEA_CAT_DESC, IDEA_FREQS, IDEA_SCRAP, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
-  SKILL_TOOLS, SOLUTION_KINDS,
+  CASE_INDUSTRIES, CASE_USES, HTML_KINDS, HTML_MAX_BYTES, IDEA_CATS, IDEA_CAT_DESC, IDEA_FREQS, IDEA_SCRAP, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
+  RUN_CHAT_WHEN, RUN_MODES, SKILL_TOOLS, SOLUTION_KINDS,
   compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
   splitLines
 } from '../models/rules';
@@ -476,7 +476,7 @@ function ShotsField(props: { id: string; current?: IImage[]; value: IThumbState[
     }, () => bad('이미지를 읽지 못했어요. 다시 골라 주세요.'));
   };
   return (
-    <Field k="shots" label="결과 이미지 (선택, 최대 2장)" hint="상세 화면의 '제작자는 이렇게 썼어요' 아래에 나란히 보여요. 사용 화면이나 적용 전 · 후를 넣어 보세요." errors={props.errors}>
+    <Field k="shots" label="결과 이미지 (선택, 최대 2장)" hint="상세 화면의 '제작자는 이렇게 썼어요' 아래에 나란히 보여요. 이미지 전체가 칸 크기에 맞춰 들어가요. 넣지 않으면 이미지 칸이 보이지 않아요." errors={props.errors}>
       <div className="shotpick">
         {SHOT_SLOTS.map(slot => {
           const v = props.value[slot - 1];
@@ -709,11 +709,14 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
 /* ================= Agent 소개 고치기 (모달 본문) =================
    Agent는 배포 흐름이 AgentList에 만들고, Hub에서는 Owner가 카드 · 상세에 보이는 소개와 이미지만 고칩니다.
    이름 · 지침 · 구성 정보 · 버전은 배포 흐름이 관리해서 여기서 고치지 않습니다. */
-const AGENT_COLS = ['Summary', 'Does', 'Prompts', 'MakerNote'];
+const AGENT_COLS = ['Summary', 'Does', 'Prompts', 'MakerNote', 'Config', 'TargetUsers', 'AIModel', 'RunMode', 'RunSchedule'];
+/** "A, B" → ['A', 'B'] */
+const commaList = (v: string): string[] => v.split(/\s*,\s*/).map(x => x.trim()).filter(x => !!x);
 export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () => void; onSubmit: (e: IAgentEdit) => Promise<void> }): JSX.Element {
   const cur = props.agent;
   const ref = React.useRef<HTMLFormElement>(null);
-  const [f, set, errors, setErrors] = useForm({ summary: cur.summary, does: cur.does.join('\n'), prompts: cur.prompts.join('\n'), makerNote: cur.makerNote });
+  const [f, set, errors, setErrors] = useForm({ summary: cur.summary, does: cur.does.join('\n'), prompts: cur.prompts.join('\n'), makerNote: cur.makerNote,
+    audience: cur.audience.join(', '), model: cur.model.join(', '), runMode: cur.run[0] || '', runWhen: cur.run[0] && cur.run[0] !== RUN_MODES[0] ? (cur.run[1] || '') : '' });
   const [thumb, setThumb] = useThumb();
   const [shots, setShot] = useShots();
   const [busy, setBusy] = React.useState(false);
@@ -731,7 +734,10 @@ export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () 
     setBusy(true);
     setFailure(undefined);
     try {
-      await props.onSubmit({ summary: f.summary.trim(), does: splitLines(f.does), prompts: splitLines(f.prompts), makerNote: f.makerNote.trim(), ...thumbOut(thumb), ...shotsOut(shots) });
+      await props.onSubmit({ summary: f.summary.trim(), does: splitLines(f.does), prompts: splitLines(f.prompts), makerNote: f.makerNote.trim(),
+        audience: commaList(f.audience), model: commaList(f.model), // 대화형은 늘 '사용자 요청 시', 자동 실행만 일시를 적어요
+        run: f.runMode ? (f.runMode === RUN_MODES[0] ? [f.runMode, RUN_CHAT_WHEN] : [f.runMode, f.runWhen.trim()]) : [],
+        ...thumbOut(thumb), ...shotsOut(shots) });
     } catch (err) {
       setFailure(uploadFailure(err, props.libName, AGENT_COLS));
     }
@@ -747,86 +753,149 @@ export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () 
         <Field id="hub-ag-pr" k="prompts" label="이렇게 말해 보세요" req={true} hint="예시 질문을 한 줄에 하나씩. 상세 화면에서 복사 버튼과 함께 보여요" errors={errors}><textarea id="hub-ag-pr" rows={4} value={f.prompts} onChange={e => set('prompts', e.target.value)} {...inv(errors, 'prompts')} /></Field>
         <Field id="hub-ag-note" k="makerNote" label="제작자는 이렇게 썼어요" errors={errors}><textarea id="hub-ag-note" rows={4} placeholder="예: 매주 월요일 팀 회의 전에 지난주 메일을 넣고 이슈 목록을 뽑아 봐요." value={f.makerNote} onChange={e => set('makerNote', e.target.value)} /></Field>
         <ShotsField id="hub-ag-shot" current={cur.images} value={shots} onChange={setShot} errors={errors} setErrors={setErrors} />
+        {/* 상세 정보 탭 'Agent 구성 정보' 세 칸 */}
+        <div className="row2">
+          <Field id="hub-ag-who" label="사용 대상" hint="여러 개면 쉼표(,)로 나눠요"><input id="hub-ag-who" maxLength={80} placeholder="예: 프로젝트 팀원, 사내 구성원" value={f.audience} onChange={e => set('audience', e.target.value)} /></Field>
+          <Field id="hub-ag-model" label="사용 모델" hint="여러 개면 쉼표(,)로 나눠요"><input id="hub-ag-model" maxLength={60} placeholder="예: GPT-4.1" value={f.model} onChange={e => set('model', e.target.value)} /></Field>
+        </div>
+        <div className="row2">
+          <Field id="hub-ag-run" label="실행 방식"><select id="hub-ag-run" value={f.runMode} onChange={e => set('runMode', e.target.value)}>
+            <option value="">고르지 않음</option>
+            {RUN_MODES.concat(f.runMode && RUN_MODES.indexOf(f.runMode) < 0 ? [f.runMode] : []).map(m => <option key={m} value={m}>{m}</option>)}
+          </select></Field>
+          {f.runMode && f.runMode !== RUN_MODES[0]
+            ? <Field id="hub-ag-when" label="실행 일시" hint="상세 화면에 '자동 실행 (매일 오전 8시)'처럼 괄호 안에 보여요"><input id="hub-ag-when" maxLength={40} placeholder="예: 매일 오전 8시, 통화 종료 시" value={f.runWhen} onChange={e => set('runWhen', e.target.value)} /></Field>
+            : <Field id="hub-ag-when" label="실행 일시" hint={f.runMode ? `'${RUN_MODES[0]} (${RUN_CHAT_WHEN})'로 보여요` : '자동 실행을 고르면 적을 수 있어요'}><input id="hub-ag-when" disabled={true} value={f.runMode ? RUN_CHAT_WHEN : ''} readOnly={true} /></Field>}
+        </div>
         <UploadError f={failure} />
         <Act busy={busy} label="저장" onCancel={props.onCancel} errors={errors} />
       </form>
       <aside className="sticky-side"><p className="note" style={{ marginTop: 0 }}>여기서 고친 내용은 Agent 카드와 상세 화면에 바로 보여요.</p>
-        <p className="note">이름 · 지침 · 구성 정보 · 버전은 배포 흐름(AgentList)에서 관리해요.</p></aside>
+        <p className="note">사용 대상 · 사용 모델 · 실행 방식은 상세 정보 탭의 'Agent 구성 정보'에 보여요.</p>
+        <p className="note">이름 · 지침 · 지식 원본 · 연결 도구 · 버전은 배포 흐름(AgentList)에서 관리해요.</p></aside>
     </div>
   );
 }
 
-/* ================= 사례 올리기 · 고치기 (모달 본문, 시안 casenew) ================= */
+/* ================= 사례 올리기 · 고치기 (모달 본문): 프로젝트 기본 정보 + 솔루션 (Case Library는 솔루션 한 줄씩 보여요) ================= */
 const CASE_REQ: [string, string, string][] = [
-  ['title', 'hub-cf-title', '사례명을 적어 주세요.'], ['industry', 'hub-cf-ind', '업종을 골라 주세요.'], ['client', 'hub-cf-cli', '고객사를 적어 주세요.'],
-  ['dept', 'hub-cf-dept', '조직을 적어 주세요.'], ['period', 'hub-cf-when', '시기를 골라 주세요.'], ['pattern', 'hub-cf-pat', '활용 방식을 골라 주세요.'],
-  ['keyValue', 'hub-cf-keyb', '대표 효과 결과를 적어 주세요.'], ['keyNote', 'hub-cf-keyl', '대표 효과 상세를 적어 주세요.'],
-  ['beforeText', 'hub-cf-bt', '업무 변화 Before를 적어 주세요.'], ['afterText', 'hub-cf-at', '업무 변화 After를 적어 주세요.'],
-  ['beforeSteps', 'hub-cf-pb', 'Before 단계를 적어 주세요.'], ['afterSteps', 'hub-cf-pa', 'After 단계를 적어 주세요.'], ['how', 'hub-cf-how', '측정 방법을 적어 주세요.']];
-interface ISolRow { kind: SolutionKind; name: string; ins: string; tools: string; data: string; desc: string; body: string; parts: string }
-interface IPrmRow { name: string; step: string; text: string }
-const solRow = (s?: ISolution): ISolRow => ({ kind: s ? s.kind : 'agent', name: s ? s.name : '', ins: (s && s.ins) || '', tools: ((s && s.tools) || []).join('\n'),
-  data: ((s && s.data) || []).join('\n'), desc: (s && s.desc) || '', body: (s && s.body) || '', parts: ((s && s.parts) || []).join('\n') });
+  ['title', 'hub-cf-title', '프로젝트 이름을 적어 주세요.'], ['industry', 'hub-cf-ind', '업종을 골라 주세요.'], ['client', 'hub-cf-cli', '고객사를 적어 주세요.'],
+  ['dept', 'hub-cf-dept', '조직을 적어 주세요.'], ['period', 'hub-cf-when', '시기를 골라 주세요.']];
+interface ISolRow {
+  kind: SolutionKind; name: string; does: string; use: string; desc: string; before: string; after: string;
+  ins: string; tools: string; data: string; who: string; model: string; runMode: string; runWhen: string; agents: string; skills: string; ex: string;
+  body: string; parts: string; file: string;
+}
+/** 예시 프롬프트 한 줄 = '제목 | 질문' (제목은 빼도 돼요) */
+const exText = (ex?: { t: string; q: string }[]): string => (ex || []).map(p => p.t ? `${p.t} | ${p.q}` : p.q).join('\n');
+const exParse = (v: string): { t: string; q: string }[] => splitLines(v).map(line => { const i = line.indexOf('|'); return i > 0 ? { t: line.slice(0, i).trim(), q: line.slice(i + 1).trim() } : { t: '', q: line.trim() }; }).filter(p => !!p.q);
+const solRow = (s?: ISolution): ISolRow => ({
+  kind: s ? s.kind : 'agent', name: s ? s.name : '', does: (s && s.does) || '', use: (s && s.use) || '', desc: (s && s.desc) || '', before: (s && s.before) || '', after: (s && s.after) || '',
+  ins: (s && s.ins) || '', tools: ((s && s.tools) || []).join('\n'), data: ((s && s.data) || []).join('\n'), who: ((s && s.who) || []).join(', '), model: ((s && s.model) || []).join(', '),
+  runMode: (s && s.run && s.run[0]) || '', runWhen: (s && s.run && s.run[0] !== '대화형' && s.run[1]) || '', agents: ((s && s.agents) || []).join('\n'), skills: ((s && s.skills) || []).join('\n'), ex: exText(s && s.ex),
+  body: (s && s.body) || '', parts: ((s && s.parts) || []).join('\n'), file: (s && s.file) || ''
+});
 const effPair = (c: ICase | undefined, label: string): [string, string] => { const x = c ? c.effects.filter(e => e.label === label)[0] : undefined; return x ? [x.before, x.after] : ['', '']; };
 export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void; onSubmit: (c: INewCase) => Promise<boolean> }): JSX.Element {
   const ref = React.useRef<HTMLFormElement>(null);
   const c = props.item;
   const [f, set, errors, setErrors] = useForm({
     title: c ? c.title : '', industry: c ? c.industry : '', client: c ? c.client : '', dept: c ? c.dept : '', period: c ? c.period : '',
-    project: c ? c.summary : '', area: c ? c.area : '', pattern: c ? c.pattern : '', contact: c && c.contactPerson ? c.contactPerson.email : '', keyValue: c ? c.keyValue : '', keyNote: c ? c.keyNote : '',
-    beforeText: c ? c.beforeText : '', afterText: c ? c.afterText : '', beforeSteps: c ? c.before.join('\n') : '', afterSteps: c ? c.after.join('\n') : '', how: c ? (c.how || c.verify.join('\n')) : ''
+    contact: c && c.contactPerson ? c.contactPerson.email : ''
   });
-  const [products, setProducts] = React.useState<string[]>(c ? c.products : []);
-  const [time, setTime] = React.useState<[string, string]>(effPair(c, '시간'));
-  const [quality, setQuality] = React.useState<[string, string]>(effPair(c, '품질 수준'));
-  const [effort, setEffort] = React.useState<[string, string]>(effPair(c, '정신적 노력 수준'));
-  const [sols, setSols] = React.useState<ISolRow[]>(c ? c.solutions.map(solRow) : []);
-  const [prms, setPrms] = React.useState<IPrmRow[]>(c && c.prompts.length ? c.prompts.map(p => ({ name: p.name, step: p.step >= 0 ? String(p.step) : '', text: p.text })) : [{ name: '', step: '', text: '' }]);
+  const [sols, setSols] = React.useState<ISolRow[]>(c && c.solutions.length ? c.solutions.map(solRow) : [solRow()]);
+  /** 솔루션별로 새로 고른 원본 파일 (번호 → 파일) */
+  const [files, setFiles] = React.useState<{ [i: number]: { name: string; data: ArrayBuffer; size: number } }>({});
   const [busy, setBusy] = React.useState(false);
-  const afterSteps = splitLines(f.afterSteps);
   const clearErr = (k: string): void => setErrors(e => { if (!e[k]) { return e; } const n = { ...e }; delete n[k]; return n; });
-  const setSol = (i: number, p: Partial<ISolRow>): void => setSols(sols.map((x, k) => k === i ? { ...x, ...p } : x));
-  const setPrm = (i: number, p: Partial<IPrmRow>): void => { setPrms(prms.map((x, k) => k === i ? { ...x, ...p } : x)); clearErr('prm'); };
-  const filledPrms = prms.filter(p => !!p.text.trim());
+  const setSol = (i: number, p: Partial<ISolRow>): void => { setSols(sols.map((x, k) => k === i ? { ...x, ...p } : x)); clearErr('sol'); };
+  const dropSol = (i: number): void => {
+    setSols(sols.filter((_, k) => k !== i));
+    // 뒤 솔루션의 새 파일 번호를 하나씩 당깁니다
+    const n: { [i: number]: { name: string; data: ArrayBuffer; size: number } } = {};
+    Object.keys(files).forEach(k => { const j = Number(k); if (j < i) { n[j] = files[j]; } else if (j > i) { n[j - 1] = files[j]; } });
+    setFiles(n);
+  };
+  const pickFile = (i: number, fl: File): void => {
+    if (fl.size > 10 * 1024 * 1024) { setErrors(e => ({ ...e, sol: '원본 파일은 10MB 이하만 올릴 수 있어요.' })); return; }
+    readAs(fl, 'buffer').then(r => { setFiles(m => ({ ...m, [i]: { name: fl.name, data: r as ArrayBuffer, size: fl.size } })); setSol(i, { file: fl.name }); },
+      () => setErrors(e => ({ ...e, sol: '파일을 읽지 못했어요. 다시 골라 주세요.' })));
+  };
   const filledSols = sols.filter(s => !!s.name.trim());
   const submit = async (ev: React.FormEvent): Promise<void> => {
     ev.preventDefault();
     const e: Errors = {};
     CASE_REQ.forEach(x => { if (!String((f as { [k: string]: string })[x[0]]).trim()) { e[x[0]] = x[2]; } });
-    if (!products.length) { e.prod = '활용 제품을 하나 이상 골라 주세요.'; }
-    if (!time[0].trim() || !time[1].trim() || !quality[0] || !quality[1] || !effort[0] || !effort[1]) { e.ba = '시간, 품질 수준, 정신적 노력 수준의 Before와 After를 모두 채워 주세요.'; }
-    if (!filledPrms.length) { e.prm = '프롬프트를 하나 이상 적어 주세요.'; }
+    // 사례 하나에는 솔루션 하나만 둡니다
+    if (!filledSols.length) { e.sol = '솔루션 이름을 적어 주세요.'; }
+    else if (sols.length > 1) { e.sol = '사례 하나에는 솔루션을 하나만 둘 수 있어요. 나머지 솔루션은 ✕로 빼고, 필요하면 새 사례로 올려 주세요.'; }
+    else if (filledSols.some(s => !s.does.trim())) { e.sol = '솔루션마다 한 줄 설명을 적어 주세요. 목록에 보여요.'; }
+    // 같은 이름의 원본 파일은 하나만 첨부할 수 있어요
+    const names = filledSols.map(s => s.kind !== 'agent' ? s.file : '').filter(n => !!n);
+    if (names.some((n, k) => names.indexOf(n) !== k)) { e.sol = '솔루션마다 원본 파일 이름이 달라야 해요.'; }
     setErrors(e);
     if (Object.keys(e).length) { focusFirstError(ref.current); return; }
     setBusy(true);
     const lines = (v: string): string[] => splitLines(v);
+    const addFiles: { name: string; data: ArrayBuffer }[] = [];
+    const solutions: ISolution[] = [];
+    sols.forEach((s, i) => {
+      if (!s.name.trim()) { return; }
+      const common = { kind: s.kind, name: s.name.trim(), does: s.does.trim(), use: s.use, desc: s.desc.trim(), before: s.before.trim(), after: s.after.trim() };
+      if (s.kind === 'agent') {
+        solutions.push({ ...common, ins: s.ins.trim(), tools: lines(s.tools), data: lines(s.data), who: commaList(s.who), model: commaList(s.model),
+          run: s.runMode ? (s.runMode === RUN_MODES[0] ? [s.runMode, RUN_CHAT_WHEN] : [s.runMode, s.runWhen.trim()]) : [],
+          agents: lines(s.agents), skills: lines(s.skills), ex: exParse(s.ex) });
+        return;
+      }
+      const nf = files[i];
+      if (nf && s.file === nf.name) { addFiles.push({ name: nf.name, data: nf.data }); }
+      solutions.push(s.kind === 'skill' ? { ...common, body: s.body.trim(), file: s.file || undefined } : { ...common, parts: lines(s.parts), file: s.file || undefined });
+    });
+    // 예전 사례 형식의 칸(대표 효과 · 전후 비교 · 업무 프로세스 · 프롬프트)은 화면에서 뺐어요. 고칠 때는 저장된 값을 그대로 둡니다
     await props.onSubmit({
-      title: f.title.trim(), industry: f.industry, client: f.client.trim(), dept: f.dept.trim(), period: f.period,
-      project: f.project.trim(), area: f.area.trim(), pattern: f.pattern, contact: f.contact.trim(), products,
-      keyValue: f.keyValue.trim(), keyNote: f.keyNote.trim(), time: [time[0].trim(), time[1].trim()], quality, effort,
-      beforeText: f.beforeText.trim(), afterText: f.afterText.trim(), beforeSteps: lines(f.beforeSteps), afterSteps: lines(f.afterSteps), how: f.how.trim(),
-      solutions: filledSols.map(s => s.kind === 'agent' ? { kind: s.kind, name: s.name.trim(), ins: s.ins.trim(), tools: lines(s.tools), data: lines(s.data) }
-        : s.kind === 'skill' ? { kind: s.kind, name: s.name.trim(), desc: s.desc.trim(), body: s.body.trim() }
-          : { kind: s.kind, name: s.name.trim(), desc: s.desc.trim(), parts: lines(s.parts) }),
-      prompts: filledPrms.map(p => ({ name: p.name.trim(), step: p.step === '' ? -1 : Number(p.step), text: p.text.trim() }))
+      title: f.title.trim(), industry: f.industry, client: f.client.trim(), dept: f.dept.trim(), period: f.period, contact: f.contact.trim(),
+      project: c ? c.summary : '', area: c ? c.area : '', pattern: c ? c.pattern : '', products: c ? c.products : [],
+      keyValue: c ? c.keyValue : '', keyNote: c ? c.keyNote : '', time: effPair(c, '시간'), quality: effPair(c, '품질 수준'), effort: effPair(c, '정신적 노력 수준'),
+      beforeText: c ? c.beforeText : '', afterText: c ? c.afterText : '', beforeSteps: c ? c.before : [], afterSteps: c ? c.after : [], how: c ? c.how : '',
+      solutions, prompts: c ? c.prompts : [], addFiles
     });
     setBusy(false);
   };
-  const errList: [string, string, string][] = CASE_REQ.filter(x => !!errors[x[0]])
-    .concat(errors.prod ? [['prod', 'hub-cf-prod-0', errors.prod]] : [], errors.ba ? [['ba', 'hub-cf-tb', errors.ba]] : [], errors.prm ? [['prm', 'hub-cf-pp-0', errors.prm]] : []);
-  const txt = (k: 'title' | 'client' | 'dept' | 'project' | 'area' | 'contact' | 'keyValue' | 'keyNote', id: string, ph: string, max?: number): JSX.Element =>
+  const errList: [string, string, string][] = CASE_REQ.filter(x => !!errors[x[0]]).concat(errors.sol ? [['sol', 'hub-cf-sn-0', errors.sol]] : []);
+  const txt = (k: 'title' | 'client' | 'dept' | 'contact', id: string, ph: string, max?: number): JSX.Element =>
     <input id={id} maxLength={max} placeholder={ph} value={f[k]} onChange={e => set(k, e.target.value)} {...inv(errors, k)} />;
-  const area = (k: 'beforeText' | 'afterText' | 'beforeSteps' | 'afterSteps' | 'how', id: string, ph: string, rows: number): JSX.Element =>
-    <textarea id={id} rows={rows} placeholder={ph} value={f[k]} onChange={e => set(k, e.target.value)} {...inv(errors, k)} />;
-  const lvSel = (id: string, v: string, on: (x: string) => void, label?: string): JSX.Element =>
-    <select id={id} aria-label={label} value={v} onChange={e => { on(e.target.value); clearErr('ba'); }}><option value="">선택</option>{CASE_LEVELS.map(x => <option key={x}>{x}</option>)}</select>;
+  /* 고칠 때: 아직 비어 있는 칸을 노랗게 표시하고, 위에 목록으로 모아 보여 줍니다 (누르면 그 칸으로) */
+  const gapsOf = (s: ISolRow, i: number): { k: keyof ISolRow; id: string; label: string }[] => {
+    const list: { k: keyof ISolRow; id: string; label: string }[] = [
+      { k: 'does', id: `hub-cf-sdo-${i}`, label: '한 줄 설명' }, { k: 'use', id: `hub-cf-su-${i}`, label: '활용 방식' }, { k: 'desc', id: `hub-cf-sd-${i}`, label: '개요' },
+      { k: 'before', id: `hub-cf-sbf-${i}`, label: '이런 상황에서' }, { k: 'after', id: `hub-cf-saf-${i}`, label: '이런 결과로' }];
+    if (s.kind === 'agent') {
+      list.push({ k: 'who', id: `hub-cf-sw-${i}`, label: '사용 대상' }, { k: 'model', id: `hub-cf-sm-${i}`, label: '사용 모델' }, { k: 'runMode', id: `hub-cf-sr-${i}`, label: '실행 방식' });
+      if (s.runMode && s.runMode !== RUN_MODES[0]) { list.push({ k: 'runWhen', id: `hub-cf-srw-${i}`, label: '실행 일시' }); }
+      list.push({ k: 'ins', id: `hub-cf-sa-${i}`, label: '지침' }, { k: 'data', id: `hub-cf-sc-${i}`, label: '지식 원본' }, { k: 'tools', id: `hub-cf-sb-${i}`, label: '연결 도구 및 커넥터' });
+    } else if (s.kind === 'skill') { list.push({ k: 'body', id: `hub-cf-se-${i}`, label: '본문' }); }
+    else { list.push({ k: 'parts', id: `hub-cf-sf-${i}`, label: '화면 구성' }); }
+    return list.filter(g => !String(s[g.k] || '').trim());
+  };
+  const gaps = c ? sols.map((s, i) => ({ s, i, list: s.name.trim() ? gapsOf(s, i) : [] })).filter(g => g.list.length) : [];
+  const nGaps = gaps.reduce((n, g) => n + g.list.length, 0);
+  /** 고치는 중이고 이 칸이 비어 있으면 노란 표시 */
+  const fe = (i: number, k: keyof ISolRow): string => c && sols[i].name.trim() && !String(sols[i][k] || '').trim() ? ' fempty' : '';
+  const jump = (id: string): void => { const el = document.getElementById(id); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } };
+  const ta = (i: number, k: keyof ISolRow, id: string, label: string, ph: string, rows: number, hint?: string): JSX.Element => (
+    <div className={'field' + fe(i, k)}><label htmlFor={id}>{label}</label><textarea id={id} rows={rows} placeholder={ph} value={sols[i][k]} onChange={e => setSol(i, { [k]: e.target.value } as Partial<ISolRow>)} />{hint ? <span className="hint">{hint}</span> : null}</div>
+  );
+  const one = (i: number, k: keyof ISolRow, id: string, label: string, ph: string, hint?: string): JSX.Element => (
+    <div className={'field' + fe(i, k)}><label htmlFor={id}>{label}</label><input id={id} placeholder={ph} value={sols[i][k]} onChange={e => setSol(i, { [k]: e.target.value } as Partial<ISolRow>)} />{hint ? <span className="hint">{hint}</span> : null}</div>
+  );
   return (
     <div className="fgrid one">
       <form ref={ref} noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
         <div className={'errsum' + (errList.length ? ' on' : '')} role="alert" tabIndex={-1}><h2>입력하지 않은 항목이 있어요</h2>
           <ul>{errList.map(x => <li key={x[0]}><a href={'#' + x[1]} onClick={ev => { ev.preventDefault(); const el = document.getElementById(x[1]); if (el) { el.focus(); } }}>{x[2]}</a></li>)}</ul></div>
-        <fieldset className="afs"><legend>기본 정보</legend>
-          <Field id="hub-cf-title" k="title" label="사례명" req={true} errors={errors}>{txt('title', 'hub-cf-title', '예: 콜센터 상담 요약', 30)}</Field>
+        <fieldset className="afs"><legend>프로젝트 기본 정보</legend>
+          <Field id="hub-cf-title" k="title" label="프로젝트 이름" req={true} hint="목록에는 솔루션 이름이 보이고, 프로젝트 이름은 검색에 쓰여요" errors={errors}>{txt('title', 'hub-cf-title', '예: 콜센터 AI 상담 지원 구축', 40)}</Field>
           <div className="row2">
             <Field id="hub-cf-ind" k="industry" label="업종" req={true} errors={errors}><select id="hub-cf-ind" value={f.industry} onChange={e => set('industry', e.target.value)} {...inv(errors, 'industry')}><option value="">선택</option>{CASE_INDUSTRIES.map(x => <option key={x}>{x}</option>)}</select></Field>
             <Field id="hub-cf-cli" k="client" label="고객사" req={true} errors={errors}>{txt('client', 'hub-cf-cli', '예: B사', 20)}</Field>
@@ -835,81 +904,65 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
             <Field id="hub-cf-dept" k="dept" label="조직" req={true} errors={errors}>{txt('dept', 'hub-cf-dept', '예: 고객센터', 30)}</Field>
             <Field id="hub-cf-when" k="period" label="시기" req={true} errors={errors}><select id="hub-cf-when" value={f.period} onChange={e => set('period', e.target.value)} {...inv(errors, 'period')}><option value="">선택</option>{periodOptions(props.now).concat(f.period && periodOptions(props.now).indexOf(f.period) < 0 ? [f.period] : []).map(x => <option key={x}>{x}</option>)}</select></Field>
           </div>
-          <div className="row2">
-            <Field id="hub-cf-proj" label="프로젝트명">{txt('project', 'hub-cf-proj', '예: 콜센터 AI 상담 지원 구축')}</Field>
-            <Field id="hub-cf-area" label="업무 영역">{txt('area', 'hub-cf-area', '예: 고객 상담')}</Field>
-          </div>
-          <div className="row2">
-            <Field id="hub-cf-pat" k="pattern" label="활용 방식" req={true} errors={errors}><select id="hub-cf-pat" value={f.pattern} onChange={e => set('pattern', e.target.value)} {...inv(errors, 'pattern')}><option value="">선택</option>{CASE_PATTERNS.concat(f.pattern && CASE_PATTERNS.indexOf(f.pattern) < 0 ? [f.pattern] : []).map(x => <option key={x}>{x}</option>)}</select></Field>
-            <Field id="hub-cf-owner" label="문의 담당자" hint="회사 이메일. 비워 두면 올린 사람">{txt('contact', 'hub-cf-owner', '예: name@munilabs.co.kr')}</Field>
-          </div>
-          <fieldset className={'field' + (errors.prod ? ' bad' : '')} data-f="prod"><legend>활용 제품<Req /></legend>
-            <div className="chkrow">{CASE_PRODUCTS.map((p, k) => <label key={p}><input type="checkbox" id={`hub-cf-prod-${k}`} checked={products.indexOf(p) >= 0}
-              onChange={() => { setProducts(products.indexOf(p) >= 0 ? products.filter(x => x !== p) : products.concat([p])); clearErr('prod'); }} /> {p}</label>)}</div>
-            <span className="err">{errors.prod}</span></fieldset>
+          <Field id="hub-cf-owner" label="담당자" hint="회사 이메일. 비워 두면 올린 사람. 상세 화면의 '담당자에게 Teams로 문의하기'로 연결돼요">{txt('contact', 'hub-cf-owner', '예: name@munilabs.co.kr')}</Field>
         </fieldset>
-        <fieldset className="afs"><legend>요약 카드</legend>
-          <h3 className="afh">대표 효과</h3>
-          <div className="row2">
-            <Field id="hub-cf-keyb" k="keyValue" label="결과" req={true} hint="굵게 크게 보여요" errors={errors}>{txt('keyValue', 'hub-cf-keyb', '예: 75% 감소', 12)}</Field>
-            <Field id="hub-cf-keyl" k="keyNote" label="상세" req={true} errors={errors}>{txt('keyNote', 'hub-cf-keyl', '예: 상담 후처리 시간', 24)}</Field>
-          </div>
-          <h3 className="afh">전후 비교</h3>
-          <div className={'field' + (errors.ba ? ' bad' : '')} data-f="ba"><div className="bagrid"><span className="bah" /><small>Before</small><span /><small>After</small>
-            <label htmlFor="hub-cf-tb">시간<Req /></label><input id="hub-cf-tb" placeholder="예: 3시간" value={time[0]} onChange={e => { setTime([e.target.value, time[1]]); clearErr('ba'); }} /><span className="baarr" aria-hidden="true">→</span>
-            <input aria-label="시간 After" placeholder="예: 40분" value={time[1]} onChange={e => { setTime([time[0], e.target.value]); clearErr('ba'); }} />
-            <label htmlFor="hub-cf-qb">품질 수준<Req /></label>{lvSel('hub-cf-qb', quality[0], x => setQuality([x, quality[1]]))}<span className="baarr" aria-hidden="true">→</span>{lvSel('hub-cf-qa', quality[1], x => setQuality([quality[0], x]), '품질 수준 After')}
-            <label htmlFor="hub-cf-eb">정신적 노력 수준<Req /></label>{lvSel('hub-cf-eb', effort[0], x => setEffort([x, effort[1]]))}<span className="baarr" aria-hidden="true">→</span>{lvSel('hub-cf-ea', effort[1], x => setEffort([effort[0], x]), '정신적 노력 수준 After')}
-          </div><span className="err">{errors.ba}</span></div>
-        </fieldset>
-        <fieldset className="afs"><legend>개선 내용 탭</legend>
-          <h3 className="afh">업무 변화</h3>
-          <div className="row2">
-            <Field id="hub-cf-bt" k="beforeText" label="Before" req={true} errors={errors}>{area('beforeText', 'hub-cf-bt', '예: 상담이 끝난 뒤 메모를 다시 읽으며 요약을 쓰고, 코드표를 검색해 처리 코드를 직접 고르는 방식.', 3)}</Field>
-            <Field id="hub-cf-at" k="afterText" label="After" req={true} errors={errors} hint="첫 문장이 사례 목록에 한 줄 설명으로 보여요">{area('afterText', 'hub-cf-at', '예: 통화가 끝나면 요약과 처리 코드가 바로 만들어지고, 상담사는 확인 후 저장만 하는 방식.', 3)}</Field>
-          </div>
-          <h3 className="afh">업무 프로세스</h3>
-          <div className="row2">
-            <Field id="hub-cf-pb" k="beforeSteps" label="Before 단계" req={true} hint="한 줄에 한 단계" errors={errors}>{area('beforeSteps', 'hub-cf-pb', '상담 종료\n메모 다시 읽기\n요약 작성\n코드표 검색\n코드 입력', 5)}</Field>
-            <Field id="hub-cf-pa" k="afterSteps" label="After 단계" req={true} hint="한 줄에 한 단계" errors={errors}>{area('afterSteps', 'hub-cf-pa', '상담 종료\nAgent가 요약과 코드 추천\n상담사 확인 후 저장', 5)}</Field>
-          </div>
-          <Field id="hub-cf-how" k="how" label="어떻게 측정했나요" req={true} errors={errors}>{area('how', 'hub-cf-how', '예: 상담 300건의 처리 시간을 도입 전후로 비교하고, 상담사 12명 설문으로 부담 정도를 측정.', 3)}</Field>
-        </fieldset>
-        <fieldset className="afs"><legend>솔루션 탭<span className="opt">선택</span></legend>
+        {nGaps ? <div className="cf-gaps" role="note"><h3>아직 채우지 않은 칸이 {nGaps}개 있어요</h3><p>노랗게 표시한 칸이에요. 누르면 그 칸으로 이동해요. 비워 둔 칸은 상세 화면에 '없음'으로 보이거나 빠져요.</p>
+          <ul>{gaps.map(g => <li key={g.i}><b>{g.s.name}</b><span>{g.list.map(x => <button key={x.id} type="button" onClick={() => jump(x.id)}>{x.label}</button>)}</span></li>)}</ul></div> : null}
+        <fieldset className={'afs' + (errors.sol ? ' bad' : '')} data-f="sol"><legend>솔루션<Req /></legend>
+          <p className="hint" style={{ margin: '0 0 10px' }}>사례 하나에 솔루션 하나만 올려요. 다른 솔루션은 새 사례로 올려 주세요.</p>
+          {errors.sol ? <p className="err" style={{ display: 'block', marginTop: 0 }}>{errors.sol}</p> : null}
           <div>{sols.map((s, i) => (
             <div key={i} className="solcard" data-t={s.kind}>
               <div className="solhd"><label className="sr" htmlFor={`hub-cf-st-${i}`}>솔루션 종류</label>
                 <select id={`hub-cf-st-${i}`} value={s.kind} onChange={e => setSol(i, { kind: e.target.value as SolutionKind })}>{SOLUTION_KINDS.map(x => <option key={x.k} value={x.k}>{x.label}</option>)}</select>
-                <label className="sr" htmlFor={`hub-cf-sn-${i}`}>솔루션 이름</label><input id={`hub-cf-sn-${i}`} placeholder="예: 상담 요약 Agent" value={s.name} onChange={e => setSol(i, { name: e.target.value })} />
-                <button type="button" className="soldel" aria-label="솔루션 지우기" onClick={() => setSols(sols.filter((_, k) => k !== i))}>✕</button></div>
+                <label className="sr" htmlFor={`hub-cf-sn-${i}`}>솔루션 이름</label><input id={`hub-cf-sn-${i}`} placeholder="예: 상담 요약" value={s.name} onChange={e => setSol(i, { name: e.target.value })} />
+                {/* 예전에 여러 개 넣은 사례만 빼기 단추가 보여요 */}
+                {sols.length > 1 ? <button type="button" className="soldel" aria-label="솔루션 지우기" onClick={() => dropSol(i)}>✕</button> : null}</div>
               <div className="solbd">
+                <div className="row2">
+                  {one(i, 'does', `hub-cf-sdo-${i}`, '한 줄 설명 (필수)', '예: 통화 종료 직후 상담 내용 요약', '목록과 상세 머리에 보여요')}
+                  <div className={'field' + fe(i, 'use')}><label htmlFor={`hub-cf-su-${i}`}>활용 방식</label><select id={`hub-cf-su-${i}`} value={s.use} onChange={e => setSol(i, { use: e.target.value })}><option value="">선택</option>{CASE_USES.concat(s.use && CASE_USES.indexOf(s.use) < 0 ? [s.use] : []).map(x => <option key={x}>{x}</option>)}</select></div>
+                </div>
+                {ta(i, 'desc', `hub-cf-sd-${i}`, '개요', '어떤 솔루션인지 한두 문장으로', 2)}
+                <div className="row2">
+                  {ta(i, 'before', `hub-cf-sbf-${i}`, '활용 목적: 이런 상황에서', '예: 통화가 끝난 뒤 메모를 다시 읽으며 상담사가 요약을 직접 작성', 3)}
+                  {ta(i, 'after', `hub-cf-saf-${i}`, '활용 목적: 이런 결과로', '예: 통화가 끝나자마자 요약이 채워져, 상담사는 확인 후 바로 다음 상담 응대', 3)}
+                </div>
                 {s.kind === 'agent' ? <>
-                  <div className="field"><label htmlFor={`hub-cf-sa-${i}`}>지침</label><textarea id={`hub-cf-sa-${i}`} rows={4} placeholder="Agent 지침을 그대로 붙여 넣어 주세요" value={s.ins} onChange={e => setSol(i, { ins: e.target.value })} /></div>
-                  <div className="row2"><div className="field"><label htmlFor={`hub-cf-sb-${i}`}>도구</label><textarea id={`hub-cf-sb-${i}`} rows={3} placeholder={'SharePoint 파일 읽기\nWord 문서 만들기'} value={s.tools} onChange={e => setSol(i, { tools: e.target.value })} /></div>
-                    <div className="field"><label htmlFor={`hub-cf-sc-${i}`}>사용 데이터</label><textarea id={`hub-cf-sc-${i}`} rows={3} placeholder={'품질 검사 결과 (SharePoint 폴더)\n주간 보고서 양식 (Word)'} value={s.data} onChange={e => setSol(i, { data: e.target.value })} /></div></div>
+                  <h4 className="afh">Agent 구성 정보</h4>
+                  <div className="row2">
+                    {one(i, 'who', `hub-cf-sw-${i}`, '사용 대상', '예: 고객센터 상담사', '여러 개면 쉼표(,)로 나눠요')}
+                    {one(i, 'model', `hub-cf-sm-${i}`, '사용 모델', '예: GPT-4.1', '여러 개면 쉼표(,)로 나눠요')}
+                  </div>
+                  <div className="row2">
+                    <div className={'field' + fe(i, 'runMode')}><label htmlFor={`hub-cf-sr-${i}`}>실행 방식</label><select id={`hub-cf-sr-${i}`} value={s.runMode} onChange={e => setSol(i, { runMode: e.target.value })}><option value="">고르지 않음</option>{RUN_MODES.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                      <span className="hint">{s.runMode === RUN_MODES[0] ? `'${RUN_MODES[0]} (${RUN_CHAT_WHEN})'로 보여요` : s.runMode ? '자동 실행은 일시를 함께 적어요' : ''}</span></div>
+                    {s.runMode && s.runMode !== RUN_MODES[0] ? one(i, 'runWhen', `hub-cf-srw-${i}`, '실행 일시', '예: 매일 오전 8시, 통화 종료 시') : <div />}
+                  </div>
+                  {ta(i, 'ins', `hub-cf-sa-${i}`, '지침', 'Agent 지침을 그대로 붙여 넣어 주세요', 4)}
+                  <h4 className="afh">연결된 자료와 도구</h4>
+                  <div className="row2">
+                    {ta(i, 'data', `hub-cf-sc-${i}`, '지식 원본', '품질 검사 결과 (SharePoint 폴더)\n주간 보고서 양식 (Word)', 3, '한 줄에 하나씩')}
+                    {ta(i, 'tools', `hub-cf-sb-${i}`, '연결 도구 및 커넥터', 'SharePoint 파일 읽기\nWord 문서 만들기', 3, '한 줄에 하나씩')}
+                  </div>
+                  <div className="row2">
+                    {ta(i, 'agents', `hub-cf-sg-${i}`, '연결 에이전트', '예: 상담 요약', 2, '한 줄에 하나씩. Marketplace에 같은 이름이 있으면 링크돼요')}
+                    {ta(i, 'skills', `hub-cf-sk-${i}`, 'Skill', '예: 처리 코드 분류 기준', 2, '한 줄에 하나씩. Marketplace에 같은 이름이 있으면 링크돼요')}
+                  </div>
+                  {ta(i, 'ex', `hub-cf-sx-${i}`, '예시 프롬프트', '통화 요약 | 방금 끝난 상담 내용을 요약해 줘.\n처리 코드 | 이 상담에 맞는 처리 코드를 추천해 줘.', 3, "한 줄에 하나씩 '제목 | 질문'. 제목은 빼도 돼요")}
                 </> : <>
-                  <div className="field"><label htmlFor={`hub-cf-sd-${i}`}>설명</label><input id={`hub-cf-sd-${i}`} placeholder="언제 쓰는 산출물인지 한 줄로" value={s.desc} onChange={e => setSol(i, { desc: e.target.value })} /></div>
                   {s.kind === 'skill'
-                    ? <div className="field"><label htmlFor={`hub-cf-se-${i}`}>본문</label><textarea id={`hub-cf-se-${i}`} rows={5} placeholder="Skill 파일 내용을 그대로 붙여 넣어 주세요" value={s.body} onChange={e => setSol(i, { body: e.target.value })} /></div>
-                    : <div className="field"><label htmlFor={`hub-cf-sf-${i}`}>화면 구성</label><textarea id={`hub-cf-sf-${i}`} rows={3} placeholder={'일별 매출 추이 차트\n매장 순위 표'} value={s.parts} onChange={e => setSol(i, { parts: e.target.value })} /></div>}
+                    ? ta(i, 'body', `hub-cf-se-${i}`, '본문', 'Skill 파일 내용을 그대로 붙여 넣어 주세요', 5)
+                    : ta(i, 'parts', `hub-cf-sf-${i}`, '화면 구성', '일별 매출 추이 차트\n매장 순위 표', 3, '한 줄에 하나씩')}
+                  <div className="field"><span className="flabel">원본 파일 (선택)</span>
+                    {s.file ? <div className="cf-file"><b>{s.file}</b>{files[i] && files[i].name === s.file ? <small>{fileSize(files[i].size)} · 저장하면 올라가요</small> : <small>올려 둔 파일</small>}
+                      <button type="button" className="btn sm" onClick={() => setSol(i, { file: '' })}>빼기</button></div> : null}
+                    <Drop id={`hub-cf-sfile-${i}`} accept={s.kind === 'html' ? '.html,.htm' : '.md,.txt,.docx'} has={!!s.file} title={s.file ? '다른 파일로 바꾸려면 누르세요' : '원본 파일을 끌어다 놓거나 눌러서 고르세요'}
+                      sub={`${s.kind === 'html' ? '.html' : '.md · .txt · .docx'} · 10MB 이하. 없으면 상세 화면에 '원본 파일이 없어요'로 보여요`} onPick={fl => pickFile(i, fl)} /></div>
                 </>}
               </div>
             </div>
           ))}</div>
-          <button type="button" id="mv-addSol" className="btn sm addSol" onClick={() => setSols(sols.concat([solRow()]))}>＋ 솔루션 추가</button>
-        </fieldset>
-        <fieldset className="afs"><legend>프롬프트 탭</legend>
-          <div className={'field' + (errors.prm ? ' bad' : '')} data-f="prm" style={{ marginBottom: 8 }}>
-            {prms.map((p, i) => (
-              <div key={i} className="prmrow">
-                <div className="prmhd"><span className="ucn">USE CASE <b>{i + 1}</b></span><button type="button" className="soldel" aria-label="프롬프트 지우기" onClick={() => { if (prms.length > 1) { setPrms(prms.filter((_, k) => k !== i)); } }}>✕</button></div>
-                <div className="row2"><div className="field"><label htmlFor={`hub-cf-pn-${i}`}>이름</label><input id={`hub-cf-pn-${i}`} placeholder="예: 상담 요약과 코드 추천" value={p.name} onChange={e => setPrm(i, { name: e.target.value })} /></div>
-                  <div className="field"><label htmlFor={`hub-cf-ps-${i}`}>연결할 After 단계</label><select id={`hub-cf-ps-${i}`} value={p.step} onChange={e => setPrm(i, { step: e.target.value })}><option value="">선택 안 함</option>{afterSteps.map((t, k) => <option key={k} value={String(k)}>{k + 1}. {t}</option>)}</select></div></div>
-                <div className="field" style={{ marginBottom: 0 }}><label htmlFor={`hub-cf-pp-${i}`}>프롬프트</label><textarea id={`hub-cf-pp-${i}`} rows={3} placeholder="Copilot에 그대로 붙여 넣을 프롬프트" value={p.text} onChange={e => setPrm(i, { text: e.target.value })} /></div>
-              </div>
-            ))}
-            <span className="err">{errors.prm}</span></div>
-          <button type="button" className="btn sm" onClick={() => setPrms(prms.concat([{ name: '', step: '', text: '' }]))}>＋ 프롬프트 추가</button>
         </fieldset>
         <p className="note" style={{ marginTop: 12 }}>고객사 실명, 계약 금액, 개인정보는 적지 마세요.</p>
         <MissingNote errors={errors} />
@@ -937,7 +990,8 @@ export function IdeaEditForm(props: { idea: IIdea; cats?: string[]; onCancel: ()
     setBusy(true);
     const l = link.trim();
     const source = scrap ? (l ? (/^https?:\/\//i.test(l) ? l : 'https://' + l) : IDEA_SCRAP) : '';
-    await props.onSubmit({ title: title.trim(), category: cat, source, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined });
+    // 사례에서 온 아이디어는 고쳐도 사례 연결을 그대로 둡니다 (외부 스크랩으로 바꾸면 그 주소가 출처가 됩니다)
+    await props.onSubmit({ title: title.trim(), category: cat, source, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined, caseRef: props.idea.caseRef });
     setBusy(false);
   };
   return (

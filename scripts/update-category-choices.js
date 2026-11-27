@@ -19,7 +19,7 @@
  *   - 제목 · 다른 열 · 첨부 파일은 건드리지 않습니다. 여러 번 실행해도 안전합니다.
  */
 (async () => {
-  const RUN = false;
+  const RUN = true;
 
   const CATS = ['제안과 전략 세우기', '데이터로 인사이트 찾기', '고객 업무 이해하고 설계하기', '산출물 만들고 다듬기', '교육·확산 프로그램 운영하기', '프로젝트·사내 업무 하기'];
   /* 예전 업무 분야 → 새 카테고리 (추정이에요. 미리 보기를 보고 맞게 고쳐 주세요) */
@@ -36,8 +36,12 @@
     '자동 실행': '산출물 만들고 다듬기',
     '개발 지원': '산출물 만들고 다듬기'
   };
+  /* 항목별로 직접 정하기 (MAP 보다 먼저 적용): '화면에 보이는 이름': ['새 카테고리', ...] */
+  const FIX = {
+    '인사 규정 Q&A': ['프로젝트·사내 업무 하기']
+  };
   const TARGETS = [
-    { titles: ['AgentList', 'Agent List'], url: 'AgentList', field: 'TaskArea', display: '카테고리' },
+    { titles: ['AgentList', 'Agent List'], url: 'AgentList', field: 'TaskArea', display: '카테고리', name: 'AgentName' },
     { titles: ['HubContents'], url: 'HubContents', field: 'WorkArea', display: '카테고리(분야)' }
   ];
 
@@ -76,15 +80,19 @@
 
     // 항목별 바뀔 값
     const rows = [];
-    let url = `${L.base}/items?$select=Id,Title,${T.field}&$top=500`;
+    let url = `${L.base}/items?$select=Id,Title,${T.name ? T.name + ',' : ''}${T.field}&$top=500`;
     while (url) {
       const d = await req('GET', url);
       (d.value || []).forEach(it => {
+        const shown = (T.name && it[T.name]) || it.Title;
         const old = vals(it[T.field]);
-        const next = [];
-        old.forEach(v => { const n = CATS.indexOf(v) >= 0 ? v : MAP[v]; if (n && next.indexOf(n) < 0) { next.push(n); } });
+        let next = [];
+        const fix = FIX[shown] || FIX[it.Title];
+        if (fix) { next = fix.filter(v => CATS.indexOf(v) >= 0); }
+        else { old.forEach(v => { const n = CATS.indexOf(v) >= 0 ? v : MAP[v]; if (n && next.indexOf(n) < 0) { next.push(n); } }); }
+        next = next.slice(0, 1); // 카테고리는 하나만: 앞의 값(맨 처음 고른 값)을 남깁니다
         const same = old.length === next.length && old.every((v, i) => v === next[i]);
-        rows.push({ id: it.Id, 제목: it.Title, 지금: old.join(' · '), 바뀔값: next.join(' · ') || '(비어 있음)', 상태: same ? '그대로' : !next.length ? '⚠ 확인 필요' : '바뀜', _next: next, _same: same });
+        rows.push({ id: it.Id, 제목: shown, 지금: old.join(' · '), 바뀔값: next.join(' · ') || '(비어 있음)', 상태: same ? '그대로' : !next.length ? '⚠ 확인 필요' : fix ? '바뀜 (FIX)' : '바뀜', _next: next, _same: same });
       });
       url = d['odata.nextLink'] || d['@odata.nextLink'] || null;
     }

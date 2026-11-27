@@ -7,7 +7,7 @@
  *   3. 끝나면 표로 결과가 나옵니다.
  *
  * 하는 일
- *   - 아래 20개 열 중 목록에 없는 것만 추가합니다.
+ *   - 아래 24개 열 중 목록에 없는 것만 추가합니다.
  *   - 같은 내부 이름이나 같은 표시 이름의 열이 이미 있으면 건너뜁니다.
  *   - 이미 있는 열, 목록 설정, 제목(Title), 들어 있는 데이터는 하나도 건드리지 않습니다.
  *   - 운영 상태는 이미 있는 OpsStatus 를 쓰므로 Status 열은 만들지 않습니다.
@@ -38,7 +38,11 @@
     ['Skills', '사용 Skill', 'LookupMulti', { lookup: { list: 'HubContents', url: 'HubContents', show: 'Title' } }],
     ['Instructions', '지침', 'Note', {}],
     ['Config', '구성 정보', 'Note', {}],
-    ['Releases', '업데이트 기록', 'Note', {}]
+    ['Releases', '업데이트 기록', 'Note', {}],
+    ['TargetUsers', '사용 대상', 'Text', { max: 255 }],
+    ['AIModel', '사용 모델', 'Text', { max: 255 }],
+    ['RunMode', '실행 방식', 'Choice', { choices: ['대화형', '자동 실행'] }],
+    ['RunSchedule', '실행 일시', 'Text', { max: 255 }]
   ];
 
   const web = (window._spPageContextInfo && window._spPageContextInfo.webAbsoluteUrl)

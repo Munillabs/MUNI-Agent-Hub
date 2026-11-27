@@ -46,7 +46,28 @@ export const CASE_INDUSTRIES: string[] = ['제조', '금융·보험', 'IT·통�
   '물류·운송', '관광·숙박·외식', '전문·사업서비스', '문화·스포츠·여가', '농림수산·광업', '생활·기타서비스'];
 /** 사례: Copilot 활용 방식 */
 /* 아래 사례 선택 값은 HubCases 목록의 선택 열 값과 같아야 합니다 */
-export const CASE_PATTERNS: string[] = ['초안 작성', '요약 및 분류', '검토 및 점검', '비교 분석', '데이터 시각화', '질의응답', '형식 변환'];
+/** Case Library 솔루션의 활용 방식 (솔루션이 하는 일, 시안 USE) */
+export const CASE_USES: string[] = ['문서 작성', '요약 분류', '질의응답', '검토 점검', '데이터 분석', '양식 변환'];
+/** 예전 Pattern 열 값 → 새 활용 방식 (솔루션에 활용 방식이 비어 있을 때만 씁니다) */
+const OLD_PATTERN_USE: { [k: string]: string } = {
+  '초안 작성': '문서 작성', '요약 및 분류': '요약 분류', '질의응답': '질의응답', '검토 및 점검': '검토 점검',
+  '비교 분석': '데이터 분석', '데이터 시각화': '데이터 분석', '형식 변환': '양식 변환'
+};
+export function useFromPattern(pattern: string): string {
+  const p = (pattern || '').trim();
+  return CASE_USES.indexOf(p) >= 0 ? p : (OLD_PATTERN_USE[p] || '');
+}
+/** Agent 실행 방식: 대화형은 늘 '사용자 요청 시', 자동 실행만 일시를 적습니다 */
+export const RUN_MODES: string[] = ['대화형', '자동 실행'];
+export const RUN_CHAT_WHEN = '사용자 요청 시';
+/** [실행 방식, 일시] → '대화형 (사용자 요청 시)' / '자동 실행 (매일 오전 8시)' */
+export function runLabel(run?: string[]): string {
+  const m = ((run && run[0]) || '').trim();
+  if (!m) { return ''; }
+  const w = m === '대화형' ? RUN_CHAT_WHEN : ((run && run[1]) || '').trim();
+  return w ? `${m} (${w})` : m;
+}
+export const CASE_PATTERNS: string[] =['초안 작성', '요약 및 분류', '검토 및 점검', '비교 분석', '데이터 시각화', '질의응답', '형식 변환'];
 /** 사례: 시기(Period) 선택 값. 목록에 분기를 더하면 여기도 더해 주세요. */
 export const CASE_PERIODS: string[] = ['2025 3분기', '2025 4분기', '2026 1분기', '2026 2분기', '2026 3분기', '2026 4분기'];
 /** 사례: 활용 제품 (목록의 색 점은 PRODUCT_CLASS) */
@@ -143,7 +164,9 @@ export function parseSolutions(v: string): ISolution[] {
 }
 export function solutionsText(list: ISolution[]): string {
   // 상세가 하나라도 있으면 JSON, 이름만 있으면 읽기 쉬운 '종류|이름' 줄
-  const rich = list.some(s => !!(s.ins || s.desc || s.body || (s.tools && s.tools.length) || (s.data && s.data.length) || (s.parts && s.parts.length)));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filled = (v: any): boolean => Array.isArray(v) ? v.length > 0 : !!v;
+  const rich = list.some(s => Object.keys(s).some(k => k !== 'kind' && k !== 'name' && filled((s as unknown as { [k: string]: unknown })[k])));
   return rich ? JSON.stringify(list) : list.map(s => `${s.kind}|${s.name}`).join('\n');
 }
 /** 사례 프롬프트(Use Case): JSON 배열 [{name, step, text}] 또는 예전처럼 프롬프트 한 개 */

@@ -59,7 +59,7 @@ export function KindTag(props: { k: string; className: string; children?: React.
 
 /** 해시 링크 (화면 이동)
     버튼 모양이면 시안(11/18 버튼 B안)처럼 화살표를 붙입니다: 채운 버튼(btn pri) = 오른쪽 원 화살표, '… 가기'·'자세히' = → */
-export function Go(props: { go: (v: HubView, id?: number) => void; view: HubView; id?: number; className?: string; children: React.ReactNode; label?: string; style?: React.CSSProperties; current?: boolean }): JSX.Element {
+export function Go(props: { go: (v: HubView, id?: number, sub?: number) => void; view: HubView; id?: number; sub?: number; className?: string; children: React.ReactNode; label?: string; style?: React.CSSProperties; current?: boolean }): JSX.Element {
   let cls = props.className || '';
   let kids = props.children;
   if (/\bbtn\b/.test(cls) && !/\b(b6-home|b6-more|b6-sbtn|b6-go|b6-none)\b/.test(cls)) {
@@ -73,8 +73,8 @@ export function Go(props: { go: (v: HubView, id?: number) => void; view: HubView
     }
   }
   return (
-    <a href={'#' + props.view + (props.id ? '-' + props.id : '')} className={cls || undefined} aria-label={props.label} style={props.style} aria-current={props.current ? 'page' : undefined}
-      onClick={e => { e.preventDefault(); props.go(props.view, props.id); }}>{kids}</a>
+    <a href={'#' + props.view + (props.id ? '-' + props.id + (props.sub ? '-' + props.sub : '') : '')} className={cls || undefined} aria-label={props.label} style={props.style} aria-current={props.current ? 'page' : undefined}
+      onClick={e => { e.preventDefault(); props.go(props.view, props.id, props.sub); }}>{kids}</a>
   );
 }
 
@@ -204,7 +204,8 @@ export function Clamp(props: { text: string; more: string }): JSX.Element {
   return (
     <>
       <div className={'prompt' + (long && !open ? ' clamp' : '')}>{props.text}</div>
-      {long ? <button type="button" className="btn sm" aria-expanded={open} style={{ marginTop: 8 }} onClick={() => setOpen(!open)}>{open ? '접기' : props.more}</button> : null}
+      {/* 시안 b6-more: 밑줄 없는 파란 글자 + → (접기일 때는 화살표 없음) */}
+      {long ? <button type="button" className="btn sm b6-more" aria-expanded={open} style={{ marginTop: 8 }} onClick={() => setOpen(!open)}>{open ? '접기' : <>{props.more}<span className="b6-ar" aria-hidden="true">→</span></>}</button> : null}
     </>
   );
 }

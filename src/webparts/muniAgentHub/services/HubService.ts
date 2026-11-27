@@ -4,11 +4,11 @@
    - 열 내부 이름은 README의 'SharePoint 목록'과 같습니다. */
 import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions } from '@microsoft/sp-http';
 import {
-  IAgent, IAgentEdit, ICase, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill, INewShot, INewThumb,
+  IAgent, IAgentEdit, ICase, ICaseRef, IHtmlTool, IHubData, IHubLists, IIdea, IImage, IMe, INewCase, INewHtml, INewIdea, INewSkill, INewShot, INewThumb,
   IPerson, IReaction, ISkill, IVersion, TargetType
 } from '../models/types';
 import {
-  IDEA_STATUS, compareText, extOf, originalSkillName, parseCompare, parseProcess, parsePrompts, parseSolutions, processText, promptsText, solutionsText, splitLines, storedSkillName
+  IDEA_STATUS, compareText, extOf, runLabel, originalSkillName, parseCompare, parseProcess, parsePrompts, parseSolutions, processText, promptsText, solutionsText, splitLines, storedSkillName, useFromPattern
 } from '../models/rules';
 
 // SPHttpClient(v1)는 OData-Version 이 3.0 또는 4.0 이어야 합니다. odata=nometadata 는 OData 3.0 형식이라 3.0 으로 맞춥니다.
@@ -304,7 +304,9 @@ export class HubService {
       ['Owner', 'Sponsor', 'AttachmentFiles'],
       // 조회 열은 대상 목록이 바뀌거나 없으면 400 이 나므로 따로 읽어 봅니다
       // 조회수 열(ViewCount)도 아직 없을 수 있어 따로 읽어 봅니다 (묶음마다 따로 빠짐)
-      [{ select: ['LinkedAgents/AgentName', 'Skills/Title'], expand: ['LinkedAgents', 'Skills'] }, { select: HubService.VIEW_COLS }]);
+      [{ select: ['LinkedAgents/AgentName', 'Skills/Title'], expand: ['LinkedAgents', 'Skills'] }, { select: HubService.VIEW_COLS },
+        // 상세 정보 'Agent 구성 정보' 열 4개 (scripts/add-agent-config-columns.js). 없으면 Config JSON 값을 씁니다
+        { select: HubService.CONF_COLS }]);
     return rows.filter(HubService.onHub).map((r: any): IAgent => {
       const cfg = HubService.json(r.Config);
       const releases = HubService.releases(r.Releases);
@@ -315,6 +317,7 @@ export class HubService {
         workType: areas.join(' · '), workTypes: areas, scopes: choices(r.Scope), output: outputs.join(' · '), outputs, outputNote: str(r.OutputNote),
         does: splitLines(str(r.Does)), prompts: splitLines(str(r.Prompts)), makerNote: str(r.MakerNote),
         instructions: str(r.Instructions),
+        ...HubService.agentConf(r, cfg),
         knowledge: HubService.cfgLines(cfg && cfg.knowledge, ['where', 'type']),
         actions: HubService.cfgLines(cfg && cfg.tools, ['connector', 'kind']),
         linkedAgents: lookups(r.LinkedAgents, 'AgentName'), linkedSkills: lookups(r.Skills, 'Title'),
@@ -347,6 +350,25 @@ export class HubService {
       return name && more ? `${name} · ${more}` : name || more;
     }).filter(s => !!s);
   }
+  /** 'Agent 구성 정보' 열: 사용 대상 · 사용 모델 · 실행 방식 · 실행 일시 */
+  private static readonly CONF_COLS = ['TargetUsers', 'AIModel', 'RunMode', 'RunSchedule'];
+  /** 열 값을 먼저, 비어 있으면 예전 Config JSON(audience · model · run) 값 */
+  private static agentConf(r: any, cfg: any): { audience: string[]; model: string[]; run: string[]; runMode: string } {
+    const audience = HubService.cfgList(r.TargetUsers).length ? HubService.cfgList(r.TargetUsers) : HubService.cfgList(cfg && cfg.audience);
+    const model = HubService.cfgList(r.AIModel).length ? HubService.cfgList(r.AIModel) : HubService.cfgList(cfg && cfg.model);
+    const mode = str(r.RunMode).trim();
+    const run = mode ? [mode, str(r.RunSchedule).trim()].filter(x => !!x) : HubService.cfgRun(cfg && cfg.run);
+    return { audience, model, run, runMode: runLabel(run) };
+  }
+  /** Config 의 audience · model: 문자열("A, B") 또는 배열 → 목록 */
+  private static cfgList(v: any): string[] {
+    const arr: any[] = Object.prototype.toString.call(v) === '[object Array]' ? v : typeof v === 'string' ? v.split(/\s*[,\n]\s*/) : [];
+    return arr.map(x => str(x).trim()).filter(s => !!s);
+  }
+  /** Config 의 run: "대화형" 또는 ["대화형", "사용자 요청 시"] → "대화형 (사용자 요청 시)" */
+  private static cfgRun(v: any): string[] {
+    return HubService.cfgList(Object.prototype.toString.call(v) === '[object Array]' ? v : typeof v === 'string' ? [v] : []).slice(0, 2);
+  }
   /** 업데이트 기록(Releases) JSON: [{"v":"1.0.0.3","d":"2026-11-01","n":"변경 내용"}] → 최신이 먼저 */
   private static releases(v: any): IVersion[] {
     const list = HubService.json(v);
@@ -377,7 +399,28 @@ export class HubService {
       이름 · 지침 · 구성 정보 · 버전은 배포 흐름이 관리해서 건드리지 않습니다. */
   public async updateAgent(a: IAgent, e: IAgentEdit): Promise<void> {
     const list = this.lists.agents;
-    await this.staged('info', () => this.merge(list, a.id, { Summary: e.summary, Does: e.does.join('\n'), Prompts: e.prompts.join('\n'), MakerNote: e.makerNote }));
+    await this.staged('info', async () => {
+      const base = { Summary: e.summary, Does: e.does.join('\n'), Prompts: e.prompts.join('\n'), MakerNote: e.makerNote };
+      // 구성 정보(Config)는 JSON 하나에 지식 원본 · 도구도 들어 있어서, 지금 값을 읽어 세 항목만 바꿔 씁니다
+      const d = await this.getJson(`${this.listUrl(list)}/items(${a.id})?$select=Config`, list);
+      const raw = HubService.json(d && d.Config);
+      const cfg = raw && typeof raw === 'object' && Object.prototype.toString.call(raw) !== '[object Array]' ? raw : {};
+      const run = e.run.filter(x => !!x);
+      // 1) 'Agent 구성 정보' 열 4개에 저장. 예전 Config 값은 지워서, 칸을 비우면 예전 값이 다시 보이지 않게 합니다
+      const old = { ...cfg };
+      delete cfg.audience; delete cfg.model; delete cfg.run;
+      try {
+        await this.merge(list, a.id, { ...base, Config: JSON.stringify(cfg),
+          TargetUsers: e.audience.join(', '), AIModel: e.model.join(', '), RunMode: run[0] || null, RunSchedule: run[0] && run[0] !== '대화형' ? (run[1] || '') : '' });
+        return;
+      } catch (err) {
+        if (!(err instanceof HubError && err.status === 400)) { throw err; }
+      }
+      // 2) 열이 아직 없으면(400) 예전처럼 Config JSON 에 저장
+      old.audience = e.audience; old.model = e.model; old.run = run;
+      if (!run.length) { delete old.run; }
+      await this.merge(list, a.id, { ...base, Config: JSON.stringify(old) });
+    });
     await this.applyThumb(list, a.id, a.thumb, e.thumb, e.dropThumb);
     await this.applyThumb(list, a.id, a.icon, e.icon, e.dropIcon, 'icon');
     await this.saveShots('Agent', a.id, a.images, e.shots || [], e.dropShots || []);
@@ -430,7 +473,8 @@ export class HubService {
       [{ select: ppl('LikedBy'), expand: ['LikedBy'] }, { select: [catName] }, { select: ['ScrapSource'] }], undefined, 5000);
     const people = (v: any): IPerson[] => HubService.users(v).map(person).filter(p => !!p) as IPerson[];
     return rows.map((r: any): IIdea => ({
-      id: r.Id, title: str(r.Title), category: choices(r[catName])[0] || '', source: str(r.ScrapSource), detail: str(r.Detail), status: str(r.Status),
+      id: r.Id, title: str(r.Title), category: choices(r[catName])[0] || '', source: HubService.isCaseSrc(str(r.ScrapSource)) ? '' : str(r.ScrapSource),
+      caseRef: HubService.isCaseSrc(str(r.ScrapSource)) ? HubService.caseRefOf(r.ScrapSource) : undefined, detail: str(r.Detail), status: str(r.Status),
       likers: people(r.LikedBy), makers: people(r.Makers),
       startedOn: str(r.StartedOn), doneAt: str(r.DoneAt), resultRef: str(r.ResultRef), archivedOn: str(r.ArchivedOn), revivedOn: str(r.RevivedOn),
       pain: str(r.Pain), frequency: str(r.Frequency), minutes: num(r.MinutesPerRun),
@@ -448,16 +492,29 @@ export class HubService {
     });
     return out;
   }
+  /** 사례 연결은 출처(ScrapSource) 열에 "case:사례 번호|솔루션 이름"으로 넣습니다. 새 열 없이 씁니다 */
+  private static readonly CASE_SRC = 'case:';
+  private static isCaseSrc(v: string): boolean { return v.indexOf(HubService.CASE_SRC) === 0; }
+  /** "사례 번호|솔루션 이름" (앞의 case: 는 빼고) */
+  private static caseRefOf(v: any): ICaseRef | undefined {
+    let t = str(v);
+    if (HubService.isCaseSrc(t)) { t = t.slice(HubService.CASE_SRC.length); }
+    const i = t.indexOf('|');
+    const id = i > 0 ? Number(t.slice(0, i)) : NaN;
+    return i > 0 && !isNaN(id) && t.slice(i + 1).trim() ? { caseId: id, sol: t.slice(i + 1).trim() } : undefined;
+  }
   private ideaFields(idea: INewIdea): any {
     const f: any = {
       Title: idea.title, Detail: idea.detail || '', Pain: idea.pain || '',
       Frequency: idea.frequency || null, MinutesPerRun: typeof idea.minutes === 'number' && !isNaN(idea.minutes) ? idea.minutes : null
     };
     if (idea.category !== undefined) { f.Category = idea.category || null; }
-    if (idea.source !== undefined) { f.ScrapSource = idea.source || null; }
+    // 외부 스크랩 주소가 있으면 그게 출처, 없고 사례에서 왔으면 사례 연결이 출처입니다
+    if (idea.caseRef && !idea.source) { f.ScrapSource = `${HubService.CASE_SRC}${idea.caseRef.caseId}|${idea.caseRef.sol}`; }
+    else if (idea.source !== undefined) { f.ScrapSource = idea.source || null; }
     return f;
   }
-  /** Category · ScrapSource 열이 아직 없으면(400) 그 두 열만 빼고 다시 저장합니다. 화면은 다시 읽은 값으로 빠진 것을 알려 줍니다 */
+  /** ScrapSource · Category 열이 아직 없으면(400) 하나씩 빼며 다시 저장합니다. 화면은 다시 읽은 값으로 빠진 것을 알려 줍니다 */
   private async ideaSave<T>(idea: INewIdea, run: (fields: any) => Promise<T>): Promise<T> {
     const f = this.ideaFields(idea);
     // 카테고리는 목록의 실제 카테고리 열(내부 이름이 Category 가 아닐 수도 있음)에 넣습니다
@@ -469,12 +526,17 @@ export class HubService {
       cat = col.name;
       f[cat] = col.multi ? (v ? [v] : []) : v;
     }
-    try {
-      return await run(f);
-    } catch (e) {
-      if (!(e instanceof HubError && e.status === 400) || !(cat in f || 'ScrapSource' in f)) { throw e; }
-      delete f[cat]; delete f.ScrapSource;
-      return run(f);
+    // 400(열 없음)이면 새로 생긴 열을 하나씩 빼며 다시 저장합니다. 없는 열 하나 때문에 카테고리까지 빠지지 않게
+    // 나중에 생긴 열부터 뺍니다: ScrapSource → 카테고리
+    const optional = ['ScrapSource', cat];
+    for (;;) {
+      try {
+        return await run(f);
+      } catch (e) {
+        const next = optional.filter(k => k in f)[0];
+        if (!(e instanceof HubError && e.status === 400) || !next) { throw e; }
+        delete f[next];
+      }
     }
   }
   public async createIdea(idea: INewIdea): Promise<number> {
@@ -548,8 +610,8 @@ export class HubService {
     const rows = await this.items(this.lists.cases,
       ['Id', 'Title', 'Industry', 'Client', 'Dept', 'Period', 'Project', 'Area', 'Pattern', 'Products', 'KeyResult', 'KeyDetail',
         'Compare', 'ChangeBefore', 'ChangeAfter', 'Process', 'Measure', 'Solutions', 'ApplyPoints', 'CasePrompts', 'Created', 'OData__ModerationStatus',
-        'Contact/Id', 'Contact/Title', 'Contact/EMail'].concat(AUTHOR),
-      ['Author', 'Contact'], undefined, 5000);
+        'Contact/Id', 'Contact/Title', 'Contact/EMail', 'AttachmentFiles/FileName', 'AttachmentFiles/ServerRelativeUrl'].concat(AUTHOR),
+      ['Author', 'Contact', 'AttachmentFiles'], undefined, 5000);
     return rows.map((r: any): ICase => {
       const key = splitEffect(str(r.KeyResult), str(r.KeyDetail));
       const proc = parseProcess(str(r.Process));
@@ -557,7 +619,8 @@ export class HubService {
       const contact = person(r.Contact);
       return {
         id: r.Id, title: str(r.Title), industry: str(r.Industry), client: str(r.Client), dept: str(r.Dept), period: str(r.Period),
-        solutions: parseSolutions(str(r.Solutions)), progress: '',
+        // 활용 방식이 비어 있는 예전 사례는 Pattern 열 값을 새 활용 방식으로 바꿔 채웁니다
+        solutions: parseSolutions(str(r.Solutions)).map(s => s.use ? s : { ...s, use: useFromPattern(str(r.Pattern)) || undefined }), files: this.allFiles(r.AttachmentFiles), progress: '',
         oneLine: (after.split(/[.\n]/)[0] || '').trim(), beforeText: str(r.ChangeBefore), afterText: after, keyValue: key.value, keyNote: key.note,
         contact: contact ? contact.name : '', contactPerson: contact, how: str(r.Measure), prompts: parsePrompts(str(r.CasePrompts), proc.aiStep),
         summary: str(r.Project), keyEffect: str(r.KeyResult), points: splitLines(str(r.ApplyPoints)),
@@ -600,11 +663,27 @@ export class HubService {
   /** 사례 올리기. 승인 없이 바로 모두에게 보입니다. */
   public async createCase(c: INewCase): Promise<number> {
     const d = await this.create(this.lists.cases, await this.caseFields(c));
+    await this.caseFiles(d.Id, c);
     return d.Id;
   }
+  /** 솔루션 원본 파일 첨부: 같은 이름이 있으면 바꾸고, 어느 솔루션도 쓰지 않는 첨부는 지웁니다 */
+  private async caseFiles(id: number, c: INewCase, old?: IImage[]): Promise<void> {
+    const list = this.lists.cases;
+    const keep = c.solutions.map(s => s.file || '').filter(n => !!n);
+    for (const f of old || []) {
+      const replaced = (c.addFiles || []).some(a => a.name === f.name);
+      if (replaced || keep.indexOf(f.name) < 0) { await this.removeAttachment(list, id, f.name); }
+    }
+    for (const a of c.addFiles || []) { await this.addAttachment(list, id, a.name, a.data); }
+  }
+  private allFiles(files: any): IImage[] {
+    const list: any[] = Object.prototype.toString.call(files) === '[object Array]' ? files : ((files && files.results) || []);
+    return list.map((f: any) => ({ slot: 0, name: str(f.FileName), url: this.origin() + encodeURI(str(f.ServerRelativeUrl)) }));
+  }
   /** 내 사례 고치기 */
-  public async updateCase(id: number, c: INewCase): Promise<void> {
+  public async updateCase(id: number, c: INewCase, old?: IImage[]): Promise<void> {
     await this.merge(this.lists.cases, id, await this.caseFields(c));
+    await this.caseFiles(id, c, old);
   }
   public async deleteCase(id: number): Promise<void> {
     await this.send(`${this.listUrl(this.lists.cases)}/items(${id})/recycle()`, undefined, undefined, this.lists.cases);

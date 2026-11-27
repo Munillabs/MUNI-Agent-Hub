@@ -10,7 +10,7 @@ import { Mag } from './mv';
 
 const WORDS = ['회의록', '번역', '상담', '재고', '규정'];
 const RECENT = 'hubRecent';
-interface IRow { key: string; view: HubView; id: number; title: string; sub: string }
+interface IRow { key: string; view: HubView; id: number; title: string; sub: string; /** 사례 상세의 솔루션 번호 */ sol?: number }
 interface IGroup { k: string; rows: IRow[] }
 type Scope = 'all' | 'market';
 
@@ -35,7 +35,10 @@ function groupsOf(api: IHubApi, qq: string, scope: Scope): IGroup[] {
     { k: 'Skill', rows: d.skills.filter(s => contains(s.title, qq) || contains(s.summary, qq)).map(s => ({ key: 's' + s.id, view: 'skill' as HubView, id: s.id, title: s.title, sub: s.summary })) },
     { k: 'HTML', rows: d.htmls.filter(h => contains(h.title, qq) || contains(h.summary, qq)).map(h => ({ key: 'h' + h.id, view: 'htool' as HubView, id: h.id, title: h.title, sub: h.summary })) },
     { k: '아이디어', rows: d.ideas.filter(i => contains(i.title, qq)).map(i => ({ key: 'i' + i.id, view: 'idea' as HubView, id: i.id, title: i.title, sub: `${i.author ? i.author.name : ''} · 공감 ${api.likeCount('Idea', i.id)}` })) },
-    { k: '사례', rows: d.cases.filter(c => !c.pending && (contains(c.title, qq) || contains(c.keyNote + ' ' + c.keyValue, qq) || contains(c.industry + ' ' + c.client, qq))).map(c => ({ key: 'c' + c.id, view: 'case' as HubView, id: c.id, title: c.title, sub: `${c.industry} · ${c.client}` })) }
+    // Case Library는 솔루션 단위로 찾습니다
+    { k: '사례', rows: d.cases.filter(c => !c.pending).reduce((out, c) => out.concat(c.solutions.map((s, k) => ({ c, s, k }))), [] as { c: typeof d.cases[0]; s: typeof d.cases[0]['solutions'][0]; k: number }[])
+      .filter(o => contains(o.s.name + ' ' + (o.s.does || '') + ' ' + (o.s.use || ''), qq) || contains(o.c.industry + ' ' + o.c.client + ' ' + o.c.title, qq))
+      .map(o => ({ key: 'c' + o.c.id + ':' + o.k, view: 'case' as HubView, id: o.c.id, sol: o.k || undefined, title: o.s.name, sub: `${o.c.industry} · ${o.c.client}${o.s.does ? ' · ' + o.s.does : ''}` })) }
   ] as IGroup[]).filter(g => g.rows.length && (scope === 'all' || ['Agent', 'Skill', 'HTML'].indexOf(g.k) >= 0));
 }
 
@@ -97,7 +100,7 @@ export function InlineSearch(props: { api: IHubApi; scope: Scope; formId: string
       <div className="sx-res c74-res" id={resId} hidden={!q}>
         {q ? <Results api={api} q={q} scope={props.scope} f={f} setF={setF}
           onWord={w => { setText(w); setQ(w); setF('all'); saveRecent(w); }}
-          onOpen={r => { saveRecent(q); api.go(r.view, r.id); }}
+          onOpen={r => { saveRecent(q); api.go(r.view, r.id, r.sol); }}
           onIdea={() => { saveRecent(q); api.go('ideas'); }}
           close={<button type="button" className="c74-x" onClick={close}>결과 닫기</button>} /> : null}
       </div>
@@ -166,7 +169,7 @@ export function SearchOverlay(props: { api: IHubApi; open: boolean; scope: Scope
           </div>
           <div className="sx-res" id="mv-sxRes" hidden={!qq}>
             {qq ? <Results api={api} q={q} scope={props.scope} f={f} setF={setF} onWord={pick}
-              onOpen={r => { saveRecent(q); props.onClose(); api.go(r.view, r.id); }}
+              onOpen={r => { saveRecent(q); props.onClose(); api.go(r.view, r.id, r.sol); }}
               onIdea={() => { saveRecent(q); props.onClose(); api.go('ideas'); }} /> : null}
           </div>
         </div>

@@ -1,233 +1,290 @@
-/* Case Library (시안 그대로): 검색 + 필터 패널(활용 방식·활용 제품), 업종 칩, 사례 표 / 사례 상세(개선 내용 · 솔루션 · 프롬프트) */
+/* Case Library (시안 11/26 솔루션 단위): 검색 + 업종 · 솔루션 종류 칩, 솔루션 한 줄씩 목록 /
+   솔루션 상세(머리 연한 파란 판 + 아이디어 제안 단추, 개요 · 활용 목적 · 종류별 내용 · 원본 파일, 오른쪽 정보) */
 import * as React from 'react';
-import { ICase, ISolution } from '../../models/types';
-import { CASE_INDUSTRIES, PRODUCT_CLASS, contains, isEmail, newestFirst, stepSpans } from '../../models/rules';
+import { ICase, IIdea, ISolution, SolutionKind } from '../../models/types';
+import { CASE_INDUSTRIES, contains, first, newestFirst, runLabel } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Crumb, Empty, Go, ListError } from '../ui';
+import { Clamp, Crumb, Empty, Go, ListError } from '../ui';
 import { Person } from '../persona';
 import { Mag } from '../mv';
+import { AskBtn, MpdGroup, MpdValue, NameLine } from './detail';
+import { ideaCats, palOf, useCatPicker } from './ideas';
 
 const IND_TOP = 6;
-const PROD_TOP = 4;
 const KIND_LABEL: { [k: string]: string } = { agent: 'Agent', skill: 'Skill', html: 'HTML' };
+const KINDS: SolutionKind[] = ['agent', 'skill', 'html'];
 const SearchIcon = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
-/** CSS 변수(--n 등)를 style 에 넣기 위한 변환 */
-const vars = (v: { [k: string]: string | number }): React.CSSProperties => v as unknown as React.CSSProperties;
 
-function ProdCell(props: { list: string[] }): JSX.Element {
-  return <span className="pc-list">{props.list.map(p => <span key={p} className={'pc ' + (PRODUCT_CLASS[p] || 'pc-etc')}>{p}</span>)}</span>;
+/** 목록 한 줄 = 사례(프로젝트) 안의 솔루션 하나 */
+interface ISolRow { c: ICase; s: ISolution; k: number }
+function solRows(cases: ICase[]): ISolRow[] {
+  const out: ISolRow[] = [];
+  cases.forEach(c => c.solutions.forEach((s, k) => out.push({ c, s, k })));
+  return out;
 }
-function Eff(props: { c: ICase }): JSX.Element {
-  return <div className="cb-eff"><b>{props.c.keyValue || '—'}</b><small>{props.c.keyNote}</small></div>;
+/** 이 솔루션에서 나온 아이디어 */
+export function ideasFromSol(ideas: IIdea[], caseId: number, sol: string): IIdea[] {
+  return ideas.filter(i => !!i.caseRef && i.caseRef.caseId === caseId && i.caseRef.sol === sol);
 }
 
-type Sel = { pat: string[]; prod: string[] };
 export function CaseLibrary(props: { api: IHubApi }): JSX.Element {
   const { api } = props;
   const all = api.data.cases;
+  const allRows = solRows(all);
   const [q, setQ] = React.useState('');
   const [ind, setInd] = React.useState('');
-  const [sel, setSel] = React.useState<Sel>({ pat: [], prod: [] });
+  const [kind, setKind] = React.useState('');
   const [sort, setSort] = React.useState('new');
   const [moreInd, setMoreInd] = React.useState(false);
-  const [moreProd, setMoreProd] = React.useState(false);
 
-  const text = (c: ICase): string => [c.industry, c.client, c.dept, c.title, c.pattern, c.products.join(' '), c.keyEffect, c.summary, c.area,
-    c.beforeText, c.afterText, c.before.join(' '), c.after.join(' '), c.solutions.map(s => s.name).join(' ')].join(' ');
-  const rows = all.filter(c => (!ind || c.industry === ind)
-    && (!sel.pat.length || sel.pat.indexOf(c.pattern) >= 0) && (!sel.prod.length || c.products.some(p => sel.prod.indexOf(p) >= 0))
-    && (!q.trim() || contains(text(c), q.trim())))
-    .sort(sort === 'ind' ? (a, b) => a.industry.localeCompare(b.industry, 'ko') : sort === 'cli' ? (a, b) => a.client.localeCompare(b.client, 'ko') : (a, b) => newestFirst(a.created, b.created));
+  const text = (r: ISolRow): string => [r.c.industry, r.c.client, r.c.dept, r.c.title, r.c.summary, r.s.name, r.s.does || '', r.s.use || '', r.s.desc || '', r.s.before || '', r.s.after || ''].join(' ');
+  const rows = allRows.filter(r => (!ind || r.c.industry === ind) && (!kind || r.s.kind === kind) && (!q.trim() || contains(text(r), q.trim())))
+    .sort(sort === 'ind' ? (a, b) => a.c.industry.localeCompare(b.c.industry, 'ko') : sort === 'cli' ? (a, b) => a.c.client.localeCompare(b.c.client, 'ko')
+      : (a, b) => newestFirst(a.c.created, b.c.created) || a.k - b.k);
 
-  // 업종 칩: 사례가 많은 6개 먼저, 나머지는 더보기
-  const cnt = (v: string): number => all.filter(c => c.industry === v).length;
+  // 업종 칩: 솔루션이 많은 6개 먼저, 나머지는 더보기
+  const cnt = (v: string): number => allRows.filter(r => r.c.industry === v).length;
   const known = CASE_INDUSTRIES.concat(all.map(c => c.industry).filter(v => !!v && CASE_INDUSTRIES.indexOf(v) < 0).filter((v, i, a) => a.indexOf(v) === i));
   const ord = known.map((v, i) => ({ v, n: cnt(v), i })).sort((a, b) => b.n - a.n || a.i - b.i);
   const top = ord.slice(0, IND_TOP).map(x => x.v);
   const rest = known.filter(v => top.indexOf(v) < 0);
-  const opts = (f: (c: ICase) => string[]): [string, number][] => {
-    const m: { [k: string]: number } = {};
-    all.forEach(c => f(c).forEach(v => { if (v) { m[v] = (m[v] || 0) + 1; } }));
-    return Object.keys(m).sort((a, b) => a.localeCompare(b, 'ko')).map(k => [k, m[k]] as [string, number]);
-  };
-  // 활용 제품 칩: Copilot 계열 먼저, Office 앱은 뒤 (같은 묶음 안에서는 사례가 많은 순)
-  const office = (v: string): boolean => /pc-(wd|xl|pp|ol|tm)/.test(PRODUCT_CLASS[v] || '');
-  const prods = opts(c => c.products).sort((a, b) => Number(office(a[0])) - Number(office(b[0])) || b[1] - a[1]);
-  const toggle = (k: keyof Sel, v: string): void => setSel(s => ({ ...s, [k]: s[k].indexOf(v) >= 0 ? s[k].filter(x => x !== v) : s[k].concat([v]) }));
-  const nF = sel.pat.length + sel.prod.length;
-  const active = !!q || !!ind || nF > 0;
-  const clearAll = (): void => { setQ(''); setInd(''); setSel({ pat: [], prod: [] }); };
+  const kcnt = (k: string): number => allRows.filter(r => r.s.kind === k).length;
+  const active = !!q || !!ind || !!kind;
+  const clearAll = (): void => { setQ(''); setInd(''); setKind(''); };
   const chip = (v: string, label: string, more?: boolean): JSX.Element => (
     <button key={v || 'all'} type="button" className={'ca-chip' + (more ? ' ca-more' : '')} aria-pressed={ind === v} disabled={!!v && !cnt(v)} hidden={more && !moreInd && ind !== v}
-      onClick={() => setInd(v)}>{label}<small>{v ? cnt(v) : all.length}</small></button>
+      onClick={() => setInd(v)}>{label}<small>{v ? cnt(v) : allRows.length}</small></button>
   );
 
   return (
     <div className="wrap">
-      <div className="ptop"><div><span className="k">Case Library</span><h1>Case Library</h1><p>업종과 업무로 찾아보는 고객사 프로젝트 사례</p></div></div>
+      <div className="ptop"><div><span className="k">Case Library</span><h1>Case Library</h1><p>고객사 프로젝트에서 만든 솔루션을 찾아보세요</p></div></div>
       {api.data.casesError ? <ListError what="Case Library" message={api.data.casesError} /> : <div className="ca">
         <div className="ca-srow">
-          <label className="cf-search b4-f">{SearchIcon}<span className="sr">사례 검색</span>
-            <input type="search" id="mv-caseQ" placeholder="업종이나 업무 키워드로 고객사 사례를 검색해 보세요." autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
+          <label className="cf-search b4-f">{SearchIcon}<span className="sr">솔루션 검색</span>
+            <input type="search" id="mv-caseQ" placeholder="솔루션 이름이나 업무 키워드로 검색해 보세요." autoComplete="off" value={q} onChange={e => setQ(e.target.value)} />
             {q ? <button type="button" className="cf-clear" aria-label="검색어 지우기" onClick={() => setQ('')}>✕</button> : null}
             <button type="button" className="b4-btn b6-sbtn" aria-label="검색" onClick={() => { const el = document.getElementById('mv-caseQ'); if (el) { el.focus(); } }}><Mag /></button></label>
         </div>
-        {/* 시안 cz: 업종 칩 줄 + 활용 제품 칩 줄 (상세 필터 창은 없앰) */}
         <div className="cz-f"><span className="cz-l" id="hub-czL1">업종</span>
           <div className="ca-chips end" role="group" aria-labelledby="hub-czL1" id="mv-caseInd">
             {chip('', '전체')}{top.map(v => chip(v, v))}{rest.map(v => chip(v, v, true))}
             {rest.length ? <button type="button" className="ca-moreb" aria-expanded={moreInd} onClick={() => setMoreInd(!moreInd)}>{moreInd ? '접기' : <>더보기 <small>+{rest.length}</small></>}</button> : null}
           </div></div>
-        {prods.length ? <div className="cz-f"><span className="cz-l" id="hub-czL2">활용 제품</span>
-          <div className="cz-prods" role="group" aria-labelledby="hub-czL2" id="mv-caseProd">
-            {prods.map(([v, n], k) => (
-              <button key={v} type="button" className="cz-chip" aria-pressed={sel.prod.indexOf(v) >= 0} hidden={k >= PROD_TOP && !moreProd && sel.prod.indexOf(v) < 0} onClick={() => toggle('prod', v)}>
-                <span className={'pc ' + (PRODUCT_CLASS[v] || 'pc-etc')} aria-hidden="true" />{v}<small>{n}</small></button>
-            ))}
-            {prods.length > PROD_TOP ? <button type="button" className="cz-more" aria-expanded={moreProd} onClick={() => setMoreProd(!moreProd)}>{moreProd ? '접기' : <>더보기 <small>+{prods.length - PROD_TOP}</small></>}</button> : null}
-          </div></div> : null}
+        <div className="cz-f"><span className="cz-l" id="hub-czL0">솔루션</span>
+          <div className="ca-chips" role="group" aria-labelledby="hub-czL0" id="mv-solType">
+            <button type="button" className="ca-chip" aria-pressed={!kind} onClick={() => setKind('')}>전체<small>{allRows.length}</small></button>
+            {KINDS.map(k => <button key={k} type="button" className="ca-chip" aria-pressed={kind === k} disabled={!kcnt(k)} onClick={() => setKind(k)}>{KIND_LABEL[k]}<small>{kcnt(k)}</small></button>)}
+          </div></div>
         <div className="ca-bar">
           {active ? <button type="button" className="cf-reset" onClick={clearAll}>필터 초기화</button> : null}
-          <span className="rcount" aria-live="polite"><b>총 {rows.length}개</b>{rows.length !== all.length ? <> <span className="cb-tot">/ 전체 {all.length}개</span></> : null}</span>
+          <span className="rcount" aria-live="polite"><b>솔루션 {rows.length}개</b>{rows.length !== allRows.length ? <> <span className="cb-tot">/ 전체 {allRows.length}개</span></> : null}</span>
           <label className="sortsel">정렬<select value={sort} onChange={e => setSort(e.target.value)}><option value="new">최신순</option><option value="ind">업종순</option><option value="cli">고객사순</option></select></label>
         </div>
-        <div className="cb-tw"><div className="cb-tb ca-tb" role="table" aria-label="사례 목록">
-          <div className="cb-row cb-head" role="row"><span role="columnheader">고객사</span><span role="columnheader">사례</span><span role="columnheader">Copilot 활용 방식</span><span role="columnheader">활용 제품</span><span role="columnheader">대표 효과</span></div>
-          <div id="mv-caseGrid" className="caseGrid">{rows.length ? rows.map(c => {
-            const kinds = c.solutions.map(s => s.kind).filter((k, i, a) => a.indexOf(k) === i && (k === 'agent' || k === 'skill'));
-            return (
-              <Go key={c.id} go={api.go} view="case" id={c.id} className="cb-row">
-                <span className="cb-c1" role="cell">{c.industry ? <span className="cc-dept ct-ind">{c.industry}</span> : null}<b>{c.client}</b><small>{c.dept}</small></span>
-                <span className="cb-c2" role="cell"><b className="cb-ttl">{c.title}{c.pending ? ' (공개 검토 중)' : ''}{kinds.map(k => <React.Fragment key={k}> <span className={'cb-hash h-' + k}>#{KIND_LABEL[k]}</span></React.Fragment>)}</b>
-                  {c.oneLine ? <span className="cb-chg">{c.oneLine}</span> : null}</span>
-                <span className="cb-c3" role="cell">{c.pattern}</span>
-                <span className="cb-c5" role="cell"><ProdCell list={c.products} /></span>
-                <span className="cb-c4" role="cell"><Eff c={c} /></span>
-              </Go>
-            );
-          }) : all.length ? <div className="cf-empty"><p>조건에 맞는 사례가 없어요.</p><button type="button" className="btn sm" onClick={clearAll}>조건 모두 지우기</button></div>
-            : <div className="cf-empty"><p>아직 올라온 사례가 없어요.</p></div>}</div>
+        <div className="cb-tw"><div className="cb-tb ca-tb" role="table" aria-label="솔루션 목록">
+          <div className="cb-row cb-head sc-h" role="row"><span role="columnheader">업종</span><span role="columnheader">고객사</span><span role="columnheader">종류</span><span role="columnheader">솔루션</span><span role="columnheader">활용 방식</span><span role="columnheader">시기</span></div>
+          <div id="mv-caseGrid" className="caseGrid">{rows.length ? rows.map(r => (
+            <Go key={r.c.id + ':' + r.k} go={api.go} view="case" id={r.c.id} sub={r.k || undefined} className="sc-row">
+              <span className="sc-ind" role="cell">{r.c.industry ? <span className="cc-dept ct-ind">{r.c.industry}</span> : null}</span>
+              <span className="sc-cli" role="cell">{r.c.client}<small>{r.c.dept}</small></span>
+              <span className="sc-ty" role="cell"><span className={'cb-hash h-' + r.s.kind}>#{KIND_LABEL[r.s.kind]}</span></span>
+              <span className="sc-nm" role="cell"><b>{r.s.name}{r.c.pending ? ' (공개 검토 중)' : ''}</b>{r.s.does ? <small>{r.s.does}</small> : null}</span>
+              <span className="sc-area" role="cell">{r.s.use || ''}</span>
+              <span className="sc-when" role="cell">{r.c.period}</span>
+            </Go>
+          )) : allRows.length ? <div className="cf-empty"><p>조건에 맞는 솔루션이 없어요.</p><button type="button" className="btn sm" onClick={clearAll}>조건 모두 지우기</button></div>
+            : <div className="cf-empty"><p>아직 올라온 솔루션이 없어요.</p></div>}</div>
         </div></div>
       </div>}
     </div>
   );
 }
 
-/* ---------- 사례 상세 ---------- */
+/* ---------- 솔루션 상세 ---------- */
 function Pre(props: { api: IHubApi; label: string; text: string }): JSX.Element {
   return <div className="cd-pre"><div className="cd-preh"><span>{props.label}</span><button className="btn sm" type="button" onClick={() => props.api.copy(props.text, '본문을 복사했어요')}>복사</button></div><pre>{props.text}</pre></div>;
 }
-function SolCard(props: { api: IHubApi; s: ISolution }): JSX.Element {
-  const { s } = props;
+const FileIc = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>;
+
+/** Agent 솔루션 = Marketplace Agent '상세 정보'와 같은 구성 */
+function AgentSol(props: { api: IHubApi; s: ISolution }): JSX.Element {
+  const { api, s } = props;
+  const agentLink = (n: string): JSX.Element => { const x = first(api.data.agents, a => a.title === n); return <li key={n}>{x ? <Go go={api.go} view="agent" id={x.id}><b>{n}</b></Go> : <b>{n}</b>}</li>; };
+  const skillLink = (n: string): JSX.Element => { const x = first(api.data.skills, a => a.title === n); return <li key={n}>{x ? <Go go={api.go} view="skill" id={x.id}><b>{n}</b></Go> : <b>{n}</b>}</li>; };
+  const ex = s.ex || [];
+  return <>
+    <h3 className="mpd-h">Agent 구성 정보</h3>
+    <div className="dstack mpd-grid mpd-g3">
+      <MpdValue title="사용 대상" value={(s.who || []).join(', ')} />
+      <MpdValue title="사용 모델" value={(s.model || []).join(', ')} />
+      <MpdValue title="실행 방식" value={runLabel(s.run)} />
+      <section className="grp mpd-full"><h2>지침</h2>{s.ins ? <Clamp text={s.ins} more="지침 전체 보기" /> : <p className="mpd-none">공개된 지침이 없어요.</p>}</section>
+    </div>
+    <h3 className="mpd-h">연결된 자료와 도구</h3>
+    <div className="dstack mpd-grid">
+      <MpdGroup title="지식 원본" items={(s.data || []).map((x, k) => <NameLine key={k} text={x} />)} />
+      <MpdGroup title="연결 도구 및 커넥터" items={(s.tools || []).map((x, k) => <NameLine key={k} text={x} />)} />
+      <MpdGroup title="연결 에이전트" items={(s.agents || []).map(agentLink)} />
+      <MpdGroup title="Skill" items={(s.skills || []).map(skillLink)} />
+    </div>
+    {ex.length ? <>
+      <h3 className="mpd-h">예시 프롬프트</h3>
+      <ul className="pex">{ex.map((p, k) => <li key={k}>{p.t ? <span className="ptag">{p.t}</span> : null}<p>{p.q}</p><button className="btn sm" type="button" onClick={() => api.copy(p.q, '복사했어요')}>복사</button></li>)}</ul>
+    </> : null}
+  </>;
+}
+
+/** 원본 파일 (Skill · HTML): 없으면 회색 안내 */
+function OrigFile(props: { c: ICase; s: ISolution }): JSX.Element {
+  const f = props.s.file ? first(props.c.files, x => x.name === props.s.file) : undefined;
+  return <>
+    <h3 className="mpd-h">원본 파일</h3>
+    {f ? <div className="cfx-row"><span className="cfx-ic">{FileIc}</span><span className="cfx-nm"><b>{f.name}</b><small>{props.s.kind === 'skill' ? 'Skill 파일' : 'HTML 파일'}</small></span>
+      <a className="cfx-dl" href={f.url + '?download=1'} download={f.name}>내려받기 →</a></div>
+      : <p className="cfx-none">이 솔루션은 등록된 원본 파일이 없어요. 파일이 필요하면 담당자에게 문의해 주세요.</p>}
+  </>;
+}
+
+export function CasePage(props: { api: IHubApi; item?: ICase; sol?: number }): JSX.Element {
+  const { api } = props;
+  const c = props.item;
+  const [dlg, setDlg] = React.useState(false);
+  if (!c || !c.solutions.length) {
+    return <div className="wrap"><Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: '솔루션' }]} />
+      <Empty title="이 솔루션을 찾을 수 없어요." actions={<Go go={api.go} view="cases" className="btn">Case Library로</Go>}>삭제됐거나 아직 공개 전일 수 있어요.</Empty></div>;
+  }
+  const k = props.sol && props.sol < c.solutions.length ? props.sol : 0;
+  const s = c.solutions[k];
+  const owner = c.contactPerson || c.author;
+  const related = ideasFromSol(api.data.ideas, c.id, s.name);
+  // 예전 사례(솔루션별 활용 목적이 없음)는 사례의 업무 변화 Before/After를 씁니다
+  const before = s.before || c.beforeText;
+  const after = s.after || c.afterText;
   return (
-    <details className="cd-sol"><summary><span className={'cd-pill t-' + s.kind}>{KIND_LABEL[s.kind]}</span><b>{s.name}</b><span className="cd-chev" aria-hidden="true" /></summary>
-      <div className="cd-solb">
-        {s.kind === 'agent' ? <>
-          {s.ins ? <><h4>지침</h4><Pre api={props.api} label="Instructions" text={s.ins} /></> : null}
-          {s.tools && s.tools.length ? <><h4>도구</h4><ul className="cd-chips">{s.tools.map(v => <li key={v}>{v}</li>)}</ul></> : null}
-          {s.data && s.data.length ? <><h4>사용 데이터</h4><ul className="cd-list">{s.data.map(v => <li key={v}>{v}</li>)}</ul></> : null}
-        </> : s.kind === 'skill' ? <>
-          {s.desc ? <><h4>설명</h4><p>{s.desc}</p></> : null}
-          {s.body ? <><h4>본문</h4><Pre api={props.api} label={s.name} text={s.body} /></> : null}
-        </> : <>
-          {s.desc ? <><h4>설명</h4><p>{s.desc}</p></> : null}
-          {s.parts && s.parts.length ? <><h4>화면 구성</h4><ul className="cd-list">{s.parts.map(v => <li key={v}>{v}</li>)}</ul></> : null}
-        </>}
-        {!(s.ins || s.desc || s.body || (s.tools && s.tools.length) || (s.parts && s.parts.length)) ? <p className="note">자세한 내용이 아직 없어요.</p> : null}
+    <div id="mv-caseOut" className="wrap caseOut sc-out">
+      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: s.name }]} />
+      {/* 머리: 연한 파란 판. 오른쪽 '이 사례로 아이디어 제안하기 →' + 이미 올린 아이디어가 있으면 '관련 아이디어 n개 보기' */}
+      <div className={'cd-head sc-head' + (related.length ? ' ci-has' : '')}>
+        <div className="sc-htx">
+          <h1 className="sc-h1"><span>{s.name}{c.pending ? ' (공개 검토 중)' : ''}</span><span className={'cd-pill t-' + s.kind + ' sc-hpill'}>{KIND_LABEL[s.kind]}</span></h1>
+          {s.does ? <p className="sc-does">{s.does}</p> : null}
+        </div>
+        <div className="ci-hact">
+          <button type="button" className="ci-go ci-hgo" onClick={() => setDlg(true)}>이 사례로 아이디어 제안하기 <span aria-hidden="true">→</span></button>
+          {related.length ? <a href="#ideas" className="ci-hcnt" onClick={e => { e.preventDefault(); api.openIdeas({ caseRef: { caseId: c.id, sol: s.name } }); }}>관련 아이디어 {related.length}개 보기</a> : null}
+        </div>
       </div>
-    </details>
+      <div className="cd-grid"><div className="cd-main">
+        <div className="mpd sc-body">
+          <h3 className="mpd-h">개요</h3>
+          <p className="sc-p">{s.desc || s.does || '아직 설명이 없어요.'}</p>
+          {before || after ? <>
+            <h3 className="mpd-h">활용 목적</h3>
+            <div className="ci-ovba">
+              <div className="ci-ob"><small>이런 상황에서</small><p>{before || '—'}</p></div>
+              <div className="ci-oa"><small>이런 결과로</small><p>{after || '—'}</p></div>
+            </div>
+          </> : null}
+          {s.kind === 'agent' ? <AgentSol api={api} s={s} />
+            : s.kind === 'skill' ? <>
+              {s.body ? <><h3 className="mpd-h">본문</h3><Pre api={api} label={s.file || s.name} text={s.body} /></> : null}
+              <OrigFile c={c} s={s} />
+            </> : <>
+              {s.parts && s.parts.length ? <><h3 className="mpd-h">화면 구성</h3><ul className="cd-list">{s.parts.map(v => <li key={v}>{v}</li>)}</ul></> : null}
+              <OrigFile c={c} s={s} />
+            </>}
+        </div>
+      </div>
+        <aside className="dp-side cd-info"><div className="box"><h3>정보</h3>
+          <table className="kv"><tbody>
+            <tr><th>솔루션 종류</th><td>{KIND_LABEL[s.kind]}</td></tr>
+            <tr><th>활용 방식</th><td>{s.use || '—'}</td></tr>
+            <tr><th>업종</th><td>{c.industry || '—'}</td></tr>
+            <tr><th>고객사·부서</th><td>{[c.client, c.dept].filter(x => !!x).join(' ') || '—'}</td></tr>
+            <tr><th>프로젝트 시기</th><td>{c.period || '—'}</td></tr>
+            <tr><th>담당자</th><td>{c.contactPerson ? <Person p={c.contactPerson} /> : c.contact || <Person p={c.author} />}</td></tr>
+          </tbody></table>
+          <AskBtn api={api} who={[owner]} label="담당자에게 Teams로 문의하기" tip="담당자에게 Teams 채팅을 열어요" />
+        </div></aside>
+      </div>
+      {dlg ? <CaseIdeaDialog api={api} c={c} s={s} related={related} onClose={() => setDlg(false)} /> : null}
+    </div>
   );
 }
 
-export function CasePage(props: { api: IHubApi; item?: ICase }): JSX.Element {
-  const { api } = props;
-  const c = props.item;
-  const [tab, setTab] = React.useState(0);
-  React.useEffect(() => { setTab(0); }, [c ? c.id : 0]);
-  if (!c) {
-    return <div className="wrap"><Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: '사례' }]} />
-      <Empty title="이 사례를 찾을 수 없어요." actions={<Go go={api.go} view="cases" className="btn">Case Library로</Go>}>삭제됐거나 아직 공개 전일 수 있어요.</Empty></div>;
-  }
-  // Use Case: 저장된 프롬프트, 없으면 예전 AI 단계 번호를 Use Case 1로
-  const ucs = c.prompts.length ? c.prompts : (c.aiStep >= 0 && c.after[c.aiStep] ? [{ name: c.after[c.aiStep], step: c.aiStep, text: c.prompt }] : []);
-  const ucAt = (i: number): number => { for (let k = 0; k < ucs.length; k++) { if (ucs[k].step === i) { return k; } } return -1; };
-  const tabs: [string, number][] = [['개선 내용', 0]];
-  if (c.solutions.length) { tabs.push(['솔루션', c.solutions.length]); }
-  tabs.push(['프롬프트', ucs.length]);
-  const cur = Math.min(tab, tabs.length - 1);
-  const map = stepSpans(Math.max(1, c.before.length), c.after.length);
-  // 문의 담당자(Contact)가 있으면 그 사람, 없으면 올린 사람
-  const owner = c.contactPerson || c.author;
-  const onKey = (e: React.KeyboardEvent): void => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') { return; }
-    setTab((cur + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length);
+/* ---------- 이 사례로 아이디어 제안하기 (Idea Board에 올리기 창) ----------
+   비슷한 아이디어가 이미 있으면 공감 먼저, 아래 포스트잇 쓰기(고정 문구 + 카테고리 직접 고르기) */
+function CaseIdeaDialog(props: { api: IHubApi; c: ICase; s: ISolution; related: IIdea[]; onClose: () => void }): JSX.Element {
+  const { api, c, s } = props;
+  const cats = ideaCats(api);
+  const [text, setText] = React.useState(`고객사 솔루션 '${s.name}' 같은 게 우리 업무에도 있으면 좋겠어요`.slice(0, 60));
+  const [cat, setCat] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [tried, setTried] = React.useState(false);
+  const picker = useCatPicker(cats, cat, setCat);
+  const txRef = React.useRef<HTMLTextAreaElement>(null);
+  const last = React.useRef<Element | null>(null);
+  React.useEffect(() => {
+    last.current = document.activeElement;
+    if (txRef.current) { const t = txRef.current; t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') { return; }
+      const lb = document.querySelector('.ci3 .ib3-lb') as HTMLElement | null;
+      if (lb && !lb.hidden) { return; }
+      close();
+    };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const close = (): void => { props.onClose(); const l = last.current as HTMLElement | null; if (l && l.focus) { l.focus(); } };
+  const ok = !!cat && !!text.trim();
+  const need = !cat ? '카테고리를 고르면 게시할 수 있어요' : '아이디어를 한 줄 써 주세요';
+  const post = async (e?: React.FormEvent): Promise<void> => {
+    if (e) { e.preventDefault(); }
+    if (!ok) { setTried(true); return; }
+    setBusy(true);
+    const done = await api.addIdea({ title: text.trim(), category: cat, source: '', detail: '', pain: '', frequency: '', minutes: undefined, caseRef: { caseId: c.id, sol: s.name } });
+    setBusy(false);
+    if (done) { close(); }
   };
+  const tint = palOf(cat, cats);
   return (
-    <div id="mv-caseOut" className="wrap caseOut">
-      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: c.title }]} />
-      <div className="cd-head"><div className="cd-meta">{c.industry ? <span className="cc-dept ct-ind">{c.industry}</span> : null}<span>{c.client}</span><i>|</i><span>{c.dept}</span><i>|</i><span>{c.period}</span></div><h1>{c.title}</h1></div>
-      <div className="cd-sum">
-        <div className="cd-k"><small>대표 효과</small><b>{c.keyValue || '—'}</b><span>{c.keyNote}</span></div>
-        {c.effects.map(f => <div key={f.label} className="cd-m"><small>{f.label}</small><span>{f.before} <i aria-label="에서">→</i> <b>{f.after}</b></span></div>)}
-      </div>
-      <div className="cd-grid"><div className="cd-main">
-        <div className="cd-tabs" role="tablist" aria-label="사례 상세" onKeyDown={onKey}>
-          {tabs.map(([l, n], i) => <button key={l} type="button" role="tab" id={`hub-cdt${i}`} aria-controls={`hub-cdp${i}`} aria-selected={i === cur} tabIndex={i === cur ? 0 : -1} onClick={() => setTab(i)}>{l}{i ? <> <span className="cnt">{n}</span></> : null}</button>)}
-        </div>
-        {tabs[cur][0] === '개선 내용' ? (
-          <section className="cd-panel" role="tabpanel" id={`hub-cdp${cur}`} aria-labelledby={`hub-cdt${cur}`}>
-            <h3 className="cd-h">업무 변화</h3>
-            <div className="cd-chg"><div className="bf"><small>Before</small><p>{c.beforeText || c.before.join(', ') || '—'}</p></div>
-              <span className="cd-arr" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
-              <div className="af"><small>After</small><p>{c.afterText || c.after.join(', ') || '—'}</p></div></div>
-            {c.before.length || c.after.length ? <>
-              <h3 className="cd-h">업무 프로세스</h3>
-              <div className="pf" style={vars({ '--n': Math.max(1, c.before.length) })}><span className="pf-l lb">Before</span><span className="pf-l la">After</span>
-                {c.before.map((t, i) => <div key={'b' + i} className="pf-b" style={vars({ '--c': i + 2, '--e': i + 3 })}><i>{i + 1}</i>{t}</div>)}
-                {c.after.map((t, i) => {
-                  const [s, e] = map[i];
-                  const u = ucAt(i);
-                  const sp = e - s + 1;
-                  return <React.Fragment key={'a' + i}>
-                    <span className={'pf-k' + (sp > 1 ? '' : ' one')} hidden={sp <= 1} style={vars({ '--c': s + 2, '--e': e + 3 })} aria-hidden="true" />
-                    <div className={'pf-a' + (u > -1 ? ' ai' : '')} style={vars({ '--c': s + 2, '--e': e + 3 })}><i>{i + 1}</i><span>{t}</span>
-                      {u > -1 ? <em><span className="cd-ai">AI</span><span className="cd-uc">UC{u + 1}</span></em> : null}</div>
-                  </React.Fragment>;
-                })}
+    <div className="ci-ov" onClick={e => { if (e.target === e.currentTarget) { close(); } }}>
+      <div className="ci-dlg ci3" role="dialog" aria-modal="true" aria-labelledby="hub-ciT">
+        <div className="ci3-h"><h2 id="hub-ciT">Idea Board에 올리기</h2>
+          <button type="button" className="ci-x" aria-label="닫기" onClick={close}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="#5b5b5b" strokeWidth="2.4" strokeLinecap="round" /></svg></button></div>
+        <div className="ci3-b">
+          {props.related.length ? <section className="ci3-dup" aria-labelledby="hub-ciDupT">
+            <h3 id="hub-ciDupT"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#004772" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>비슷한 아이디어가 이미 있어요</h3>
+            <p>같은 생각이라면 새로 올리지 말고 공감을 눌러 주세요.</p>
+            <ul>{props.related.map(i => {
+              const on = api.liked('Idea', i.id);
+              const n = api.likeCount('Idea', i.id);
+              return <li key={i.id}><Go go={api.go} view="idea" id={i.id} className="ci3-dt">{i.title}</Go>
+                <button type="button" className="pn-pill ci3-like" aria-pressed={on} aria-label={'공감 ' + n} onClick={() => api.toggleLike('Idea', i.id)}>{on ? '♥' : '♡'} <span className="n">{n}</span></button></li>;
+            })}</ul>
+          </section> : null}
+          <div className="ci3-row">
+            <form className="ci-post" id="hub-ciForm" noValidate={true} onSubmit={e => { post(e).catch(() => undefined); }}>
+              <div className="ci-note" style={tint ? { background: tint[0] } : undefined}>
+                {picker.button(tried && !cat)}
+                <label className="sr" htmlFor="hub-ciTx">아이디어 한 줄</label>
+                <textarea ref={txRef} id="hub-ciTx" maxLength={60} rows={3} value={text} onChange={e => setText(e.target.value.replace(/[\r\n]+/g, ' '))}
+                  onKeyDown={e => { if (e.key === 'Enter' && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); post().catch(() => undefined); } }} />
+                <span className="ci-cnt" aria-live="polite">{text.length} / 60</span>
               </div>
-            </> : null}
-            {c.how || c.verify.length ? <details className="cs-more"><summary>어떻게 측정했나요</summary><p className="cd-how">{c.how || c.verify.join(', ')}</p></details> : null}
-          </section>
-        ) : tabs[cur][0] === '솔루션' ? (
-          <section className="cd-panel" role="tabpanel" id={`hub-cdp${cur}`} aria-labelledby={`hub-cdt${cur}`}>{c.solutions.map((s, i) => <SolCard key={i} api={api} s={s} />)}</section>
-        ) : (
-          <section className="cd-panel" role="tabpanel" id={`hub-cdp${cur}`} aria-labelledby={`hub-cdt${cur}`}>
-            {ucs.length ? <>
-              <p className="cs-sub">{c.products.indexOf('Copilot Cowork') >= 0 ? 'Copilot Cowork' : 'Copilot Chat'}에 붙여 넣어 바로 쓸 수 있어요.</p>
-              {ucs.map((u, k) => (
-                <div key={k} className="cd-card"><div className="cd-uch"><span className="cd-ucn">USE CASE {k + 1}</span><b>{u.name || (u.step >= 0 && c.after[u.step]) || `Use Case ${k + 1}`}</b></div>
-                  <div className="cd-prm"><p>“{u.text}”</p><button className="btn sm" type="button" onClick={() => api.copy(u.text, '복사했어요')}>복사</button></div></div>
-              ))}
-            </> : <p className="note">아직 올린 프롬프트가 없어요.</p>}
-          </section>
-        )}
-      </div>
-        <aside className="dp-side cd-info"><div className="box">
-          <h3>프로젝트</h3><table className="kv"><tbody>
-            <tr><th>프로젝트명</th><td>{c.summary || '—'}</td></tr>
-            <tr><th>업무 영역</th><td>{c.area || '—'}</td></tr>
-            {c.points.length ? <tr><th>적용 포인트</th><td>{c.points.map((p, i) => <React.Fragment key={i}>{i ? <br /> : null}{p}</React.Fragment>)}</td></tr> : null}
-          </tbody></table>
-          <h3>AI 활용</h3><table className="kv"><tbody>
-            <tr><th>활용 방식</th><td>{c.pattern || '—'}</td></tr>
-            <tr><th>활용 제품</th><td>{c.products.length ? c.products.map((p, i) => <React.Fragment key={p}>{i ? <br /> : null}{p}</React.Fragment>) : '—'}</td></tr>
-            <tr><th>솔루션</th><td>{c.solutions.length ? c.solutions.map((s, i) => <React.Fragment key={i}>{i ? <br /> : null}{s.name}</React.Fragment>) : '별도 산출물 없음'}</td></tr>
-            <tr><th>문의</th><td>{c.contactPerson ? <Person p={c.contactPerson} /> : c.contact || <Person p={c.author} />}</td></tr>
-          </tbody></table>
-          <button type="button" className="btn sm askbtn tipx" data-tip="문의 담당자에게 Teams 채팅을 열어요"
-            onClick={() => { if (owner && isEmail(owner.email)) { window.open(`https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(owner.email)}`, '_blank', 'noopener'); } else { api.toast('연락할 사람의 메일 주소가 없어요.'); } }}>Teams로 묻기</button>
-        </div></aside>
+              {picker.list}
+            </form>
+            <div className="ci3-side"><p className="ci3-lab">함께 연결되는 솔루션</p>
+              <div className="ci3-card"><span className={'cb-hash h-' + s.kind}>#{KIND_LABEL[s.kind]}</span><b>{s.name}</b>{s.does ? <small>{s.does}</small> : null}<em>📚 Case Library</em></div>
+              <ol className="ci3-steps"><li><b>①</b>알맞은 업무 카테고리를 선택해요</li><li><b>②</b>아이디어를 더해 본문을 수정해도 좋아요</li><li><b>③</b>작성이 끝나면 게시 버튼을 눌러 주세요</li></ol></div>
+          </div>
+        </div>
+        <div className="ci3-f"><p className={'ci3-need' + (tried && !ok ? ' bad' : '')} hidden={ok}>{need}</p>
+          <button type="button" className="ci3-cancel" onClick={close}>취소</button>
+          <button type="submit" form="hub-ciForm" className="btn pri ci3-go" disabled={!ok || busy}>{busy ? '올리는 중…' : '게시'}</button></div>
       </div>
     </div>
   );
 }
+

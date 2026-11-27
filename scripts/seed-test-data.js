@@ -55,13 +55,13 @@
 
   /* ---------- HubContents: Skill ---------- */
   const skills = [
-    { Title: '보고서 말투 맞추기', Summary: '보고서 문장을 회사 표준 말투로', Category: '규칙', WorkArea: ['문서 작성'], Tools: ['Copilot', 'Cowork'], Scope: ['사내 업무용'],
+    { Title: '보고서 말투 맞추기', Summary: '보고서 문장을 회사 표준 말투로', Category: '규칙', WorkArea: ['산출물 만들고 다듬기'], Tools: ['Copilot', 'Cowork'], Scope: ['사내 업무용'],
       Does: '보고서 초안 말투가 제각각일 때', Usage: '파일을 받아 Agent 지침 맨 아래에 붙여요.', Releases: rel([['1.0', '처음 공유', 20], ['1.1', '높임말 규칙 추가', 3]]),
       file: ['tone.md', '---\nname: 보고서 말투 맞추기\ndescription: 보고서 문장을 회사 표준 말투로\n---\n\n- 문장은 "~합니다"로 끝냅니다.\n- 한 문장은 50자 이내로 씁니다.\n'], stars: 5, review: '팀 보고서가 한 사람이 쓴 것처럼 맞춰졌어요' },
-    { Title: '회의록 양식', Summary: '결정 · 할 일 · 미결로 나눈 회의록 틀', Category: '양식', WorkArea: ['회의 정리'], Tools: ['Copilot', 'Agent Builder'], Scope: ['사내 업무용', '고객 프로젝트용'],
+    { Title: '회의록 양식', Summary: '결정 · 할 일 · 미결로 나눈 회의록 틀', Category: '양식', WorkArea: ['프로젝트·사내 업무 하기'], Tools: ['Copilot', 'Agent Builder'], Scope: ['사내 업무용', '고객 프로젝트용'],
       Does: '회의록 형식을 팀 전체가 똑같이 맞추고 싶을 때', Usage: 'Copilot 대화에 첨부하고 "이 양식으로 정리해줘"라고 말해요.', Releases: rel([['1.0', '처음 공유', 10]]),
       file: ['meeting.md', '# 회의록\n## 결정 사항\n## 할 일 (담당자 | 할 일 | 기한)\n## 미결 쟁점\n'], stars: 4, review: '할 일 표가 깔끔해요' },
-    { Title: '출처 표시 규칙', Summary: '답변 끝에 근거 문서와 위치 표시', Category: '체크리스트', WorkArea: ['규정 확인'], Tools: ['Copilot Studio'], Scope: ['고객 프로젝트용'],
+    { Title: '출처 표시 규칙', Summary: '답변 끝에 근거 문서와 위치 표시', Category: '체크리스트', WorkArea: ['산출물 만들고 다듬기'], Tools: ['Copilot Studio'], Scope: ['고객 프로젝트용'],
       Does: '규정 답변에 근거를 꼭 보여줘야 할 때', Usage: 'Copilot Studio 지침에 붙여요.', Releases: rel([['1.0', '처음 공유', 2]]),
       file: ['source.txt', '답변 끝에 [출처: 문서명 > 조항]을 붙이세요. 근거가 없으면 "근거 없음"이라고 쓰세요.\n'] }
   ];
@@ -76,10 +76,10 @@
   /* ---------- HubContents: HTML ---------- */
   const page = (title, body) => `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:sans-serif;padding:24px}button{padding:8px 14px}</style></head><body><h1>${title}</h1>${body}</body></html>`;
   const htmls = [
-    { Title: '출장비 계산기', Summary: '일수 · 지역만 넣으면 출장비 합계', Category: '계산기', WorkArea: ['데이터 정리'], Tools: ['Claude'], Scope: ['사내 업무용'],
+    { Title: '출장비 계산기', Summary: '일수 · 지역만 넣으면 출장비 합계', Category: '계산기', WorkArea: ['프로젝트·사내 업무 하기'], Tools: ['Claude'], Scope: ['사내 업무용'],
       Does: '출장 일수와 지역으로 일비 · 숙박비를 계산해요.\n합계를 복사할 수 있어요.', MakerNote: '매달 출장 정산 때 엑셀을 열기 귀찮아서 만들었어요.', Output: '출장비 합계', Releases: rel([['0.1', '처음 공유', 6]]),
       file: ['trip.html', page('출장비 계산기', '<label>일수 <input id="d" type="number" value="2"></label> <button onclick="r.textContent=(d.value*80000).toLocaleString()+\'원\'">계산</button><p id="r"></p>')], stars: 4, review: '정산할 때 바로 써요' },
-    { Title: '도구 고르기 도우미', Summary: '질문 3개로 Agent Builder · Copilot Studio 추천', Category: '판단 도우미', WorkArea: ['개발 지원'], Tools: ['ChatGPT', 'Copilot'], Scope: ['사내 업무용', '고객 프로젝트용'],
+    { Title: '도구 고르기 도우미', Summary: '질문 3개로 Agent Builder · Copilot Studio 추천', Category: '판단 도우미', WorkArea: ['고객 업무 이해하고 설계하기'], Tools: ['ChatGPT', 'Copilot'], Scope: ['사내 업무용', '고객 프로젝트용'],
       Does: '질문에 답하면 맞는 도구를 추천해요.', MakerNote: '', Output: '추천 도구', Releases: rel([['0.1', '처음 공유', 12], ['0.2', '질문 1개 추가', 1]]),
       file: ['pick.html', page('도구 고르기 도우미', '<p>외부 시스템에 데이터를 쓰나요?</p><button onclick="r.textContent=\'Copilot Studio\'">예</button> <button onclick="r.textContent=\'Agent Builder\'">아니요</button><p id="r"></p>')] }
   ];

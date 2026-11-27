@@ -162,7 +162,11 @@ Hub가 읽는 열 (배포·심사용 나머지 열은 읽지 않습니다):
 | `Scope` | 선택 여러 개 | 사용 범위 (필터) |
 | `Does` · `Prompts` · `MakerNote` | 여러 줄 텍스트 | 개요 탭 (한 줄에 하나) |
 | `Instructions` | 여러 줄 텍스트 | 상세 정보 탭의 지침 |
-| `Config` | 여러 줄 텍스트 (JSON) | `knowledge` → 참조 지식, `tools` → 사용 도구 |
+| `Config` | 여러 줄 텍스트 (JSON) | `knowledge` → 지식 원본, `tools` → 연결 도구 및 커넥터. (예전 `audience` · `model` · `run`은 아래 4개 열이 비어 있을 때만 읽음) |
+| `TargetUsers` | 한 줄 텍스트 | 사용 대상. 여러 개면 쉼표로 (예: 프로젝트 팀원, 사내 구성원) |
+| `AIModel` | 한 줄 텍스트 | 사용 모델 (예: GPT-4.1) |
+| `RunMode` | 선택 | 실행 방식: 대화형 / 자동 실행. 대화형은 화면에 '대화형 (사용자 요청 시)' |
+| `RunSchedule` | 한 줄 텍스트 | 실행 일시. 자동 실행일 때만 (예: 매일 오전 8시 → '자동 실행 (매일 오전 8시)') |
 | `Releases` | 여러 줄 텍스트 (JSON) | 업데이트 기록 탭 (`[{"v":"1.0.0.3","d":"2026-11-01","n":"변경 내용"}]`) |
 | `Version` | 한 줄 텍스트 | 버전 |
 | `OpenUrl` | 하이퍼링크 | Teams에서 열기 |
@@ -170,6 +174,8 @@ Hub가 읽는 열 (배포·심사용 나머지 열은 읽지 않습니다):
 | `FirstDeployedOn` · `DeployedAt` | 날짜 | 처음 배포 · 최근 업데이트 (없으면 만든 날짜 · 수정한 날짜) |
 | `LinkedAgents` | 조회 여러 개 (AgentList의 AgentName) | 연결된 Agent |
 | `Skills` | 조회 여러 개 (HubContents의 Title) | 연결된 Skill |
+
+> 💡 `TargetUsers` · `AIModel` · `RunMode` · `RunSchedule`은 [scripts/add-agent-config-columns.js](scripts/add-agent-config-columns.js)를 콘솔에서 실행하면 없는 열만 추가합니다. 열이 없어도 Hub는 동작하고, 그동안은 `Config` JSON에 저장합니다.
 
 **썸네일**(`thumb.*`, Marketplace 카드), **프로필**(`icon.*`, 상세 화면 머리의 정사각형 그림 · Agent와 HTML · 없으면 썸네일을 씀)과 **결과 이미지**(`result1.*` 또는 `result-1.*`, `result2.*` 또는 `result-2.*`)는 항목의 **첨부 파일**입니다. 목록 설정 > 고급 설정에서 **첨부 파일**을, 평점 설정에서 **별 등급**을 켜 주세요.
 
@@ -205,9 +211,7 @@ Skill과 HTML 도구를 한 목록에 담고 **구분** 열로 나눕니다. 항
 | `Detail` | 여러 줄 텍스트 | 자세한 내용 (선택) |
 | `Type` | 선택 | 예전 유형(Agent / Skill / HTML / 기타). **Hub는 읽지도 쓰지도 않음** (있어도 되고 지워도 됨) |
 | `Category` | 선택 | 카테고리: 제안과 전략 세우기 / 데이터로 인사이트 찾기 / 고객 업무 이해하고 설계하기 / 산출물 만들고 다듬기 / 교육·확산 프로그램 운영하기 / 프로젝트·사내 업무 하기. 포스트잇 색이 카테고리를 따름 (`IDEA_CATS`) |
-| `ScrapSource` | 여러 줄 텍스트 | 외부에서 스크랩한 아이디어의 원문 주소. 주소 없이 스크랩이면 `외부`, 직접 낸 아이디어는 비움. 값이 있으면 줄 공책 종이 + Scrap 도장 |
-
-> 💡 `Category` · `ScrapSource`는 [scripts/add-idea-columns.js](scripts/add-idea-columns.js)를 콘솔에서 실행하면 없는 열만 추가합니다. 열이 없어도 Hub는 동작하고, 카테고리 · 스크랩만 저장되지 않습니다.
+| `ScrapSource` | 여러 줄 텍스트 | 아이디어 출처. 외부에서 스크랩했으면 원문 주소(주소 없으면 `외부`) → 줄 공책 종이 + Scrap 도장. Case Library의 '이 사례로 아이디어 제안하기'로 올렸으면 `case:사례 번호\|솔루션 이름` → 사례 상세의 '관련 아이디어 n개 보기'와 아이디어 상세의 출처 줄에 쓰임 (따로 열이 필요 없음). 직접 낸 아이디어는 비움 |
 | `Status` | 선택 | 모집 중 / 제작 중 / 완성 / 보관. 새 아이디어는 **모집 중**. 만들기 시작하면 Hub가 **제작 중**으로 바꿈 |
 | `Likers` | 사람 (여러 명) | Hub는 쓰지 않음 (공감은 평점 설정의 좋아요) |
 | `Makers` | 사람 (여러 명) | 함께 만드는 사람. '만들래요'를 누르면 넣고 빼요 |
@@ -219,6 +223,8 @@ Skill과 HTML 도구를 한 목록에 담고 **구분** 열로 나눕니다. 항
 | `Pain` | 여러 줄 텍스트 | 지금 겪는 불편 (선택) |
 | `Frequency` | 선택 | 빈도: 매일 / 매주 / 매월 / 가끔 (선택) |
 | `MinutesPerRun` | 숫자 | 1회 소요 시간(분) (선택). 빈도와 곱해 '한 달에 아끼는 시간'을 보여 줌 |
+
+> 💡 `Category` · `ScrapSource`는 [scripts/add-idea-columns.js](scripts/add-idea-columns.js)를 콘솔에서 실행하면 없는 열만 추가합니다. 열이 없어도 Hub는 동작하고, 카테고리 · 스크랩 · 사례 연결만 저장되지 않습니다.
 
 **탭(모집 중 · 제작 중 · 완성 · 보관함)** 은 아래 순서로 정해집니다.
 1. **완성:** `Status`가 완성이거나 `DoneAt`이 있으면
@@ -257,7 +263,8 @@ Skill · HTML을 올릴 때 **이 아이디어로 만들었어요**에서 내가
 | `ChangeBefore` / `ChangeAfter` | 여러 줄 텍스트 | 업무 변화 Before / After 설명. After의 첫 문장이 목록의 한 줄 설명 |
 | `Process` | 여러 줄 텍스트 | 업무 프로세스. `[Before]` 아래 도입 전 단계, `[After]` 아래 도입 후 단계를 한 줄에 하나. AI가 맡는 After 단계는 끝에 ` [AI]` |
 | `Measure` | 여러 줄 텍스트 | 어떻게 측정했나요 |
-| `Solutions` | 여러 줄 텍스트 | 솔루션. 이름만 있으면 `agent\|이름` 줄, 상세(지침·도구·본문)가 있으면 Hub가 JSON으로 저장 |
+| `Solutions` | 여러 줄 텍스트 | 솔루션 (Case Library 목록의 한 줄). 이름만 있으면 `agent\|이름` 줄, 상세가 있으면 Hub가 JSON으로 저장. JSON 항목: `kind` · `name` · `does`(한 줄 설명) · `use`(활용 방식) · `desc`(개요) · `before`/`after`(활용 목적: 이런 상황에서 / 이런 결과로). Agent는 `ins` · `data`(지식 원본) · `tools`(연결 도구 및 커넥터) · `who` · `model` · `run` · `agents` · `skills` · `ex`(예시 프롬프트 `[{t, q}]`), Skill은 `body`, HTML은 `parts`, Skill · HTML의 `file`(원본 파일 = 항목 첨부 파일 이름) |
+| (첨부 파일) | | 솔루션 원본 파일. `Solutions`의 `file`과 같은 이름. 없으면 상세 화면에 '등록된 원본 파일이 없어요' |
 | `CasePrompts` | 여러 줄 텍스트 | 프롬프트 Use Case 여러 개(이름 · 연결한 After 단계 · 프롬프트). Hub가 JSON으로 저장 |
 | `ApplyPoints` | 여러 줄 텍스트 | 적용 포인트 (선택, 한 줄에 하나. 관리자가 채우면 상세 오른쪽에 보임) |
 
