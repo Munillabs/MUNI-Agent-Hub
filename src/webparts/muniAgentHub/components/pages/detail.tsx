@@ -3,7 +3,7 @@ import * as React from 'react';
 import { IAgent, IHtmlTool, IImage, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
 import { extLabel, first, isEmail, isHttpsUrl, mmdd, splitLines, ymd } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Clamp, Crumb, DetailTabs, Empty, Go, RatingSummary } from '../ui';
+import { Clamp, Crumb, DetailTabs, Empty, Go, OwnerActs, RatingSummary } from '../ui';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
 import { thumbBg } from './market';
@@ -182,7 +182,8 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
   const ib = `hub-a${a.id}`;
   return (
     <div className="wrap mh">
-      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'Agent', view: 'agents' }, { label: a.title }]} />
+      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'Agent', view: 'agents' }, { label: a.title }]}
+        acts={mine ? <OwnerActs what="Agent" onEdit={() => api.openAgentForm(a.id)} onDelete={() => api.deleteAgent(a.id)} /> : undefined} />
       <header className="dp-head">
         {/* 썸네일: AgentList 항목 첨부 파일 thumb.png (없으면 이름 첫 글자) */}
         {a.icon ? <span className="ad-icon dthumb hth icn" aria-hidden="true" style={thumbBg(a.icon.url, a.modified)} />
@@ -274,7 +275,8 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
   const ib = `hub-s${k.id}`;
   return (
     <div id="mv-skillOut" className="wrap mh skillOut">
-      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Skill Store', view: 'skills' }, { label: k.title }]} />
+      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Skill Store', view: 'skills' }, { label: k.title }]}
+        acts={mine ? <OwnerActs what="Skill" onEdit={() => api.openSkillForm(k.id)} onDelete={() => api.deleteSkill(k.id)} /> : undefined} />
       <header className="dp-head">
         {/* Skill 머리는 썸네일 대신 늘 Skill 아이콘 */}
         <span className="ad-icon sk" aria-hidden="true"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z" /></svg></span>
@@ -326,7 +328,8 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
   const ib = `hub-h${h.id}`;
   return (
     <div className="wrap mh">
-      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'HTML', view: 'htools' }, { label: h.title }]} />
+      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Marketplace', view: 'market' }, { label: 'HTML', view: 'htools' }, { label: h.title }]}
+        acts={mine ? <OwnerActs what="HTML" onEdit={() => api.openHtmlForm(h.id)} onDelete={() => api.deleteHtml(h.id)} /> : undefined} />
       <header className="dp-head">
         {h.icon ? <span className="ad-icon dthumb hth icn" aria-hidden="true" style={thumbBg(h.icon.url, h.modified)} />
           : h.thumb ? <span className="ad-icon dthumb hth hcap" aria-hidden="true" style={thumbBg(h.thumb.url, h.modified)} />

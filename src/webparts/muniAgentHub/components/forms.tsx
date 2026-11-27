@@ -4,7 +4,7 @@ import { IAgent, IAgentEdit, ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml
 import {
   CASE_INDUSTRIES, CASE_USES, HTML_KINDS, HTML_MAX_BYTES, IDEA_CATS, IDEA_CAT_DESC, IDEA_FREQS, IDEA_SCRAP, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
   RUN_CHAT_WHEN, RUN_MODES, SKILL_TOOLS, SOLUTION_KINDS,
-  compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions, readFrontMatter,
+  compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions,
   splitLines
 } from '../models/rules';
 
@@ -48,6 +48,10 @@ function Checks(props: { name: string; items: string[]; value: string[]; onChang
     </div>
   );
 }
+/** 썸네일 맞추기가 끝나지 않았으면 오류 문구 (올리기를 눌러도 그냥 올라가지 않게) */
+function cropPending(root: HTMLElement | null): string {
+  return root && root.querySelector('.tcrop') ? '썸네일 맞추기를 먼저 끝내 주세요. 아래 \'다음: 프로필 맞추기\' → \'적용\'을 누르거나, 취소해 주세요.' : '';
+}
 /** 첫 오류 칸으로 이동 */
 function focusFirstError(root: HTMLElement | null): void {
   if (!root) { return; }
@@ -72,52 +76,78 @@ function readAs(fl: Blob, how: 'text' | 'buffer'): Promise<string | ArrayBuffer>
     SharePoint 편집 화면(워크벤치 포함)은 파일을 끌면 문서 단계에서 먼저 가로채 '웹 파트 추가' 등으로 처리합니다.
     그래서 창(window) 단계의 캡처로 먼저 받아, 폼이 열려 있는 동안에는 파일 끌기를 Hub가 처리합니다.
     놓은 위치는 이벤트 대상이 아니라 좌표로 판단합니다(SharePoint가 끌기 중에 덮개를 띄워도 동작하도록). */
+/* ---------- 파일 끌어다 놓기 ----------
+   한 폼에 놓는 칸이 여러 개(HTML 파일 · 썸네일 · 결과 이미지)라도 창 전체 리스너는 하나만 둡니다.
+   예전에는 칸마다 리스너를 달아, 마지막 칸이 '여기 아님(dropEffect none)'으로 덮어써서 다른 칸에 놓아도 브라우저가 거절했어요. */
+interface IDropZone { el: () => HTMLElement | null; setOver: (b: boolean) => void; pick: (f: File) => void }
+const dropZones: IDropZone[] = [];
+let dropOn: IDropZone | undefined;
+const isFileDrag = (e: DragEvent): boolean => !!e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0;
+/** 마우스 아래에 있는 칸 (없으면 undefined) */
+function zoneAt(e: DragEvent): IDropZone | undefined {
+  for (const z of dropZones) {
+    const el = z.el();
+    if (!el) { continue; }
+    const r = el.getBoundingClientRect();
+    if (r.width && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) { return z; }
+  }
+  return undefined;
+}
+function markOver(z: IDropZone | undefined): void {
+  if (dropOn === z) { return; }
+  if (dropOn) { dropOn.setOver(false); }
+  dropOn = z;
+  if (z) { z.setOver(true); }
+}
+function onDropOver(e: DragEvent): void {
+  if (!isFileDrag(e)) { return; }
+  // 칸 밖이어도 기본 동작(브라우저가 파일 열기)은 막고, 놓을 수 있는지만 표시합니다
+  e.preventDefault();
+  const z = zoneAt(e);
+  // 칸 위에서는 이벤트를 여기서 멈춥니다. 그러지 않으면 뒤에 오는 SharePoint 페이지의 끌기 처리기가
+  // '놓을 수 없음(🚫)'으로 다시 바꿔서, 칸이 강조돼도 놓을 수 없었어요
+  if (z) { e.stopPropagation(); }
+  if (e.dataTransfer) { e.dataTransfer.dropEffect = z ? 'copy' : 'none'; }
+  markOver(z);
+}
+function onDropLeave(e: DragEvent): void {
+  // 창 밖으로 나가면(relatedTarget 없음) 표시를 끕니다
+  if (isFileDrag(e) && !e.relatedTarget) { markOver(undefined); }
+}
+function onDropDrop(e: DragEvent): void {
+  if (!isFileDrag(e)) { return; }
+  e.preventDefault();
+  const z = zoneAt(e);
+  markOver(undefined);
+  const f = z && e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : undefined;
+  if (z && f) { e.stopPropagation(); z.pick(f); }
+}
+function addDropZone(z: IDropZone): () => void {
+  if (!dropZones.length) {
+    window.addEventListener('dragenter', onDropOver, true);
+    window.addEventListener('dragover', onDropOver, true);
+    window.addEventListener('dragleave', onDropLeave, true);
+    window.addEventListener('drop', onDropDrop, true);
+  }
+  dropZones.push(z);
+  return () => {
+    const k = dropZones.indexOf(z);
+    if (k >= 0) { dropZones.splice(k, 1); }
+    if (dropOn === z) { dropOn = undefined; }
+    if (!dropZones.length) {
+      window.removeEventListener('dragenter', onDropOver, true);
+      window.removeEventListener('dragover', onDropOver, true);
+      window.removeEventListener('dragleave', onDropLeave, true);
+      window.removeEventListener('drop', onDropDrop, true);
+    }
+  };
+}
 function Drop(props: { id: string; accept: string; has: boolean; title: React.ReactNode; sub: React.ReactNode; onPick: (f: File) => void; children?: React.ReactNode }): JSX.Element {
   const [over, setOver] = React.useState(false);
   const ref = React.useRef<HTMLLabelElement>(null);
   const pick = React.useRef(props.onPick);
   pick.current = props.onPick;
-  React.useEffect(() => {
-    const isFile = (e: DragEvent): boolean => !!e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0;
-    const inside = (e: DragEvent): boolean => {
-      const el = ref.current;
-      if (!el) { return false; }
-      const r = el.getBoundingClientRect();
-      return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-    };
-    const onOver = (e: DragEvent): void => {
-      if (!isFile(e)) { return; }
-      e.preventDefault();
-      e.stopPropagation();
-      const ins = inside(e);
-      if (e.dataTransfer) { e.dataTransfer.dropEffect = ins ? 'copy' : 'none'; }
-      setOver(ins);
-    };
-    const onLeave = (e: DragEvent): void => {
-      if (!isFile(e)) { return; }
-      e.stopPropagation();
-      if (!e.relatedTarget || !inside(e)) { setOver(false); }
-    };
-    const onDrop = (e: DragEvent): void => {
-      if (!isFile(e)) { return; }
-      // 영역 밖에 놓아도 브라우저가 파일을 열어 페이지를 떠나지 않게 막습니다
-      e.preventDefault();
-      e.stopPropagation();
-      setOver(false);
-      const f = inside(e) && e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : undefined;
-      if (f) { pick.current(f); }
-    };
-    window.addEventListener('dragenter', onOver, true);
-    window.addEventListener('dragover', onOver, true);
-    window.addEventListener('dragleave', onLeave, true);
-    window.addEventListener('drop', onDrop, true);
-    return () => {
-      window.removeEventListener('dragenter', onOver, true);
-      window.removeEventListener('dragover', onOver, true);
-      window.removeEventListener('dragleave', onLeave, true);
-      window.removeEventListener('drop', onDrop, true);
-    };
-  }, []);
+  React.useEffect(() => addDropZone({ el: () => ref.current, setOver, pick: f => pick.current(f) }), []);
   return (
     <label ref={ref} className={'drop' + (props.has ? ' has' : '') + (over ? ' over' : '')} htmlFor={props.id}>
       <input type="file" id={props.id} accept={props.accept} className="sr" onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) { props.onPick(f); } }} />
@@ -372,6 +402,12 @@ function ThumbCropper(props: { file: File; src: string; onCancel: () => void; on
       .then(([thumb, icon]) => props.onDone({ thumb, icon }), (e: Error) => { setBusy(false); props.onError(e.message); });
   };
   const H4: CropMode[] = ['nw', 'ne', 'sw', 'se'];
+  // 단계 단추(다음 · 적용)가 폼 아래 고정 단추(취소 · 올리기)에 가려지지 않게, 이미지를 읽은 뒤와 단계가 바뀔 때 보이는 곳으로 내립니다
+  const actRef = React.useRef<HTMLDivElement>(null);
+  const ready = !!box;
+  React.useEffect(() => {
+    if (ready && actRef.current) { actRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  }, [ready, stage]);
   return (
     <div className="tcrop" role="group" aria-label="썸네일 자르기">
       <ol className="tcrop-steps" aria-label="단계"><li className={isIcon ? 'done' : 'on'}><b>1</b>카드에 보일 부분</li><li className={isIcon ? 'on' : ''}><b>2</b>프로필에 보일 부분</li></ol>
@@ -397,10 +433,10 @@ function ThumbCropper(props: { file: File; src: string; onCancel: () => void; on
         ))}
       </div>
       {isIcon ? (
-        <div className="tcrop-act"><button type="button" className="btn sm tcrop-skip" disabled={busy} onClick={() => { if (cardRect) { finish(squareIn(cardRect)); } }}>건너뛰기 (카드 가운데로)</button>
+        <div className="tcrop-act" ref={actRef}><button type="button" className="btn sm tcrop-skip" disabled={busy} onClick={() => { if (cardRect) { finish(squareIn(cardRect)); } }}>건너뛰기 (카드 가운데로)</button>
           <button type="button" className="btn sm" onClick={back} disabled={busy}>이전</button><button type="button" className="btn sm pri" onClick={() => finish(all && box ? full(box) : rect)} disabled={busy || !box}>{busy ? '만드는 중…' : '적용'}</button></div>
       ) : (
-        <div className="tcrop-act"><button type="button" className="btn sm" onClick={props.onCancel} disabled={busy}>취소</button><button type="button" className="btn sm pri" onClick={next} disabled={busy || !box}>다음: 프로필 맞추기</button></div>
+        <div className="tcrop-act" ref={actRef}><button type="button" className="btn sm" onClick={props.onCancel} disabled={busy}>취소</button><button type="button" className="btn sm pri" onClick={next} disabled={busy || !box}>다음: 프로필 맞추기</button></div>
       )}
     </div>
   );
@@ -528,12 +564,9 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
       setErrors(e => { const n = { ...e }; delete n.file; return n; });
       if (ext === 'docx') { setFile({ name: fl.name, data: r as ArrayBuffer, size: fl.size }); return; }
       const text = String(r);
+      // 이름 · 한 줄 소개는 파일에서 자동으로 채우지 않고 사용자가 직접 적습니다
       setFile({ name: fl.name, text, size: fl.size });
-      // Claude Skill 형식(--- name / description ---)이면 빈 칸을 채워 줍니다
-      const fm = readFrontMatter(text);
-      if (!f.title && fm.name) { set('title', fm.name.slice(0, 24)); }
-      if (!f.summary && fm.description) { set('summary', fm.description.slice(0, 40)); }
-    }, () => fileErr('파일을 읽지 못했어요. 다시 골라 주세요.'));
+    },() => fileErr('파일을 읽지 못했어요. 다시 골라 주세요.'));
   };
   const secret = !!file && !!file.text && looksLikeSecret(file.text);
 
@@ -650,6 +683,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
     else if (cur && file && compareVersion(v, cur.version) <= 0) { e.version = `파일을 바꾸면 버전을 올려 주세요. 지금 버전은 ${cur.version}이에요.`; }
     if (cur && compareVersion(v, cur.version) !== 0 && !f.changeNote.trim()) { e.changeNote = '무엇이 바뀌었는지 적어 주세요.'; }
     if (errors.thumb) { e.thumb = errors.thumb; }
+    if (cropPending(ref.current)) { e.thumb = cropPending(ref.current); }
     if (errors.shots) { e.shots = errors.shots; }
     setErrors(e);
     if (Object.keys(e).length) { focusFirstError(ref.current); return; }
@@ -728,6 +762,7 @@ export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () 
     if (!splitLines(f.does).length) { e.does = '이 Agent가 하는 일을 한 줄 이상 적어 주세요.'; }
     if (!splitLines(f.prompts).length) { e.prompts = '예시 질문을 한 줄 이상 적어 주세요.'; }
     if (errors.thumb) { e.thumb = errors.thumb; }
+    if (cropPending(ref.current)) { e.thumb = cropPending(ref.current); }
     if (errors.shots) { e.shots = errors.shots; }
     setErrors(e);
     if (Object.keys(e).length) { focusFirstError(ref.current); return; }

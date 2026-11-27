@@ -442,3 +442,64 @@ html{background:var(--bg,#fff)}
 :root[data-theme=dark] .cf-gaps button{background:transparent;border-color:rgba(233,194,90,.5)}
 :root[data-theme=dark] .field.fempty input,:root[data-theme=dark] .field.fempty textarea,:root[data-theme=dark] .field.fempty select{border-color:rgba(233,194,90,.6)!important;background-color:rgba(233,194,90,.06)!important}
 :root[data-theme=dark] .field.fempty>label::after{background:rgba(233,194,90,.18);color:#f3d27a}
+
+/* Idea Board: 카테고리 선택창과 보드 사이를 살짝 띄웁니다 */
+.ib3-flt{margin-bottom:14px}
+
+/* 썸네일 맞추기: 단계 단추가 폼 아래 고정 단추(취소 · 올리기)에 가려지지 않게 위로 띄워 멈춥니다 */
+.tcrop-act{scroll-margin-bottom:110px}
+/* 다크 모드에서 '카드 맞춤 · 프로필 맞춤' 글자가 배경에 묻히지 않게 */
+:root[data-theme=dark] .tcrop-opts button.on{color:#9fd0f0}
+:root[data-theme=dark] .tcrop-steps li.on{color:#9fd0f0;box-shadow:0 0 0 1.5px #9fd0f0}
+
+/* 제작자 결과 이미지: 두 칸을 똑같은 크기(반반 폭 × 높이 220px, 시안 180px보다 조금 길게)로 고정하고, 이미지로 꽉 채웁니다 (여백 없음, 칸과 비율이 다르면 가장자리가 잘림) */
+.mnote .mimgs{display:grid!important;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.mimgs .shot{min-width:0;aspect-ratio:auto!important;height:220px!important;background:none!important}
+.mimgs .shot > a{height:100%}
+/* 넘치는 부분은 아래쪽만 잘리게: 이미지 맨 위(가운데 정렬)부터 보여 줍니다 */
+.mimgs .shot img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center top!important}
+@container hub (max-width:600px){.mnote .mimgs{grid-template-columns:1fr}
+}
+:root[data-theme=dark] .mimgs .shot{background:none!important}
+
+/* Case Library → Idea Board에 올리기: 포스트잇을 정사각형으로 크게 (Idea Board의 포스트잇 크기와 맞춤) + 오른쪽 아래 접힌 귀퉁이 */
+.ci-post{align-self:stretch;display:flex;align-items:center;justify-content:center;padding:18px 20px}
+.ci-post .ci-note{position:relative;width:100%;aspect-ratio:1/1;box-sizing:border-box;padding:22px 20px 16px;gap:12px}
+.ci-post .ci-note textarea{flex:1;min-height:0}
+.ci-post .ci-note::after{content:'';position:absolute;right:0;bottom:0;width:22px;height:22px;background:linear-gradient(135deg,rgba(0,0,0,.10) 0,rgba(0,0,0,.04) 50%,#f3f6f8 50%);border-top-left-radius:4px;box-shadow:-1px -1px 2px rgba(0,0,0,.06)}
+.ci-post .ci-note .ci-cnt{margin-right:14px}
+:root[data-theme=dark] .ci-post .ci-note::after{background:linear-gradient(135deg,rgba(0,0,0,.18) 0,rgba(0,0,0,.08) 50%,#24384b 50%)}
+
+/* 아이디어 상세 포스트잇: 시안 크기(폭 220px)에서 머리 줄이 한 줄로 들어가게 (카테고리는 말줄임, '○일 뒤 보관'은 줄바꿈 없이) */
+#idea .ib3d .pn-row{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0}
+#idea .ib3d .pn-row .ib3-k{flex:0 1 auto;min-width:0}
+#idea .ib3d .pn-row .pn-old{flex:none;margin-left:auto;white-space:nowrap}
+
+/* 상세 화면 경로 줄 오른쪽: 내가 올린 게시물의 수정 · 삭제 (Agent · Skill · HTML · 아이디어) */
+.crumb-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.crumb-row .crumb{flex:1 1 auto;min-width:0}
+.crumb-acts{flex:none;margin-left:auto}
+.own-acts{display:flex;align-items:center;gap:4px}
+.own-b{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 12px;border:1px solid var(--line,#d6e1e9);border-radius:999px;background:var(--bg,#fff);font:inherit;font-size:13px;font-weight:600;color:var(--ink2,#5b5b5b);cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.own-b:hover{border-color:#004772;color:#004772}
+.own-b:focus-visible{outline:2px solid #004772;outline-offset:2px}
+.own-b[disabled]{opacity:.5;cursor:default}
+.own-b.del{border-color:#c0392b;background:#c0392b;color:#fff}
+.own-b.del:hover{background:#a93226;border-color:#a93226;color:#fff}
+.own-q{margin-right:4px;font-size:13px;font-weight:600;color:#c0392b}
+:root[data-theme=dark] .own-b{background:transparent;border-color:rgba(255,255,255,.2);color:var(--ink2)}
+:root[data-theme=dark] .own-b:hover{border-color:#9fd0f0;color:#9fd0f0}
+:root[data-theme=dark] .own-b.del{background:#c0392b;border-color:#c0392b;color:#fff}
+:root[data-theme=dark] .own-q{color:#ff9b8f}
+/* 아이디어 상세 포스트잇: 시안의 제목 초기화(#idea .idboard>.pn .c31-t)가 Hub에서는 포스트잇을 감싼 .ib3-sh 때문에 걸리지 않아
+   제목이 브라우저 기본 h1 여백으로 커졌어요. 감싼 구조에서도 시안과 같은 값이 걸리게 합니다 (값은 시안 그대로) */
+#idea .idboard>.ib3-sh>.pn{position:relative;box-sizing:border-box;min-height:200px}
+#idea .idboard>.ib3-sh>.pn .c31-t{margin:0;font:inherit}
+#idea .idboard>.ib3-sh>.pn .c31-t b{display:block}
+
+/* 홈 '최근 올라온 아이디어' 포스트잇: 시안(넓은 화면) 크기로 고정 — 폭 236px × 최소 높이 176px, 2열
+   (시안은 두 칸 배치(1fr 1fr, 간격 120px)의 오른쪽 칸 안에서 2열이라 한 장이 약 236px. Hub는 웹파트 폭이 좁아 한 칸으로 쌓이면 포스트잇이 넓어져서 폭을 고정합니다) */
+#home .c14-notes{grid-template-columns:repeat(2,236px);justify-content:start}
+#home .c14-notes .c14-pn{min-height:176px;box-sizing:border-box}
+@container hub (max-width:560px){#home .c14-notes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container hub (max-width:420px){#home .c14-notes{grid-template-columns:1fr}}

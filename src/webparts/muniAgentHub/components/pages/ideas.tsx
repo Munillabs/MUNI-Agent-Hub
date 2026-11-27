@@ -3,7 +3,7 @@ import * as React from 'react';
 import { IIdea, IPerson, IReaction } from '../../models/types';
 import { IDEA_ARCHIVE_DAYS, IDEA_CATS, IDEA_CAT_DESC, IDEA_CAT_PAL, IDEA_LIKE_GOAL, IDEA_SCRAP, daysSince, daysToArchive, first, ideaStart, isEmail, mmdd } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Avatar, Crumb, Empty, Go, ListError } from '../ui';
+import { Avatar, Crumb, Empty, Go, ListError, OwnerActs } from '../ui';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
 
@@ -379,7 +379,6 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
   const [busy, setBusy] = React.useState(false);
   const [doneAsk, setDoneAsk] = React.useState(false);
   const [stopAsk, setStopAsk] = React.useState(false);
-  const [delAsk, setDelAsk] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [eTitle, setETitle] = React.useState('');
   const [eCat, setECat] = React.useState('');
@@ -435,7 +434,8 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
   };
   return (
     <div className="wrap">
-      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Idea Board', view: 'ideas' }, { label: '아이디어' }]} />
+      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Idea Board', view: 'ideas' }, { label: '아이디어' }]}
+        acts={mine ? <OwnerActs what="아이디어" onEdit={() => api.openIdeaForm(i.id)} onDelete={() => api.deleteIdea(i.id).then(ok => { if (ok) { api.go('ideas'); } return ok; })} /> : undefined} />
       <div className="idw"><div>
         <div className="idboard">
           {/* 시안 c31: 보드 포스트잇과 같은 모양. 수정은 포스트잇에서 바로 (c42). 시안 ib3: 카테고리 색, 스크랩은 줄 공책 + 도장 */}
@@ -445,11 +445,6 @@ export function IdeaPage(props: { api: IHubApi; idea?: IIdea }): JSX.Element {
               {editing ? <select className="c42-ty" aria-label="카테고리" value={eCat} onChange={e => setECat(e.target.value)}>{eCat ? null : <option value="">카테고리 선택</option>}{ideaCats(api).map(x => <option key={x} value={x}>{x}</option>)}</select>
                 : <span className="pn-ty ib3-k">{catLabel(i)}</span>}
               {st === 'live' && !makers.length ? <span className="pn-old" title="3개월 동안 만들 사람이 없으면 보관함으로 옮겨져요">{daysToArchive(i, api.now)}일 뒤 보관</span> : null}
-              {mine && !editing ? <>
-                <button type="button" className="idedit" onClick={() => { setETitle(i.title); setECat(i.category); setEditing(true); }}>수정</button>
-                {delAsk ? <span className="cact"><button type="button" onClick={() => { api.deleteIdea(i.id).then(ok => { if (ok) { api.go('ideas'); } else { setDelAsk(false); } }, () => setDelAsk(false)); }}>삭제할까요? 삭제</button><button type="button" onClick={() => setDelAsk(false)}>취소</button></span>
-                  : <button type="button" className="idedit" onClick={() => setDelAsk(true)}>삭제</button>}
-              </> : null}
             </div>
             {editing ? (
               <textarea className="c42-in" maxLength={60} rows={3} aria-label="아이디어" autoFocus value={eTitle} onChange={e => setETitle(e.target.value.replace(/[\r\n]+/g, ' '))}

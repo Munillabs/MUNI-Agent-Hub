@@ -305,17 +305,6 @@ export function storedSkillName(original: string): string {
 export function originalSkillName(stored: string): string {
   return stored.replace(/^\d{13}_/, '');
 }
-/** .md 앞부분의 name·description(Claude Skill 형식)을 읽어 이름·소개 칸을 채우는 데 씁니다. */
-export function readFrontMatter(text: string): { name?: string; description?: string } {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
-  if (!m) { return {}; }
-  const out: { name?: string; description?: string } = {};
-  m[1].split(/\r?\n/).forEach(line => {
-    const kv = /^(name|description)\s*:\s*(.+)$/.exec(line.trim());
-    if (kv) { out[kv[1] as 'name' | 'description'] = kv[2].replace(/^["']|["']$/g, '').trim(); }
-  });
-  return out;
-}
 /** API 키·비밀번호처럼 보이는 줄이 있는지 (경고만 하고 막지는 않습니다) */
 export function looksLikeSecret(text: string): boolean {
   return /(api[_-]?key|secret|token|password|passwd|비밀번호)\s*[:=]\s*\S{6,}/i.test(text) || /\b(sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16})\b/.test(text);

@@ -79,13 +79,39 @@ export function Go(props: { go: (v: HubView, id?: number, sub?: number) => void;
 }
 
 /** 현재 위치: Home › Marketplace › Agent */
-export function Crumb(props: { items: { label: string; view?: HubView; id?: number }[]; go: (v: HubView, id?: number) => void }): JSX.Element {
-  return (
+/** acts: 경로 줄 오른쪽 끝에 놓을 단추 (내 게시물의 수정 · 삭제 등) */
+export function Crumb(props: { items: { label: string; view?: HubView; id?: number }[]; go: (v: HubView, id?: number) => void; acts?: React.ReactNode }): JSX.Element {
+  const nav = (
     <nav className="crumb" aria-label="현재 위치">
       {props.items.map((it, k) => k < props.items.length - 1 && it.view
         ? <React.Fragment key={k}><Go go={props.go} view={it.view} id={it.id}>{it.label}</Go>›</React.Fragment>
         : <span key={k} aria-current="page">{it.label}</span>)}
     </nav>
+  );
+  return props.acts ? <div className="crumb-row">{nav}<div className="crumb-acts">{props.acts}</div></div> : nav;
+}
+
+const PEN_IC = <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg>;
+const TRASH_IC = <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>;
+/** 내가 올린 게시물의 수정 · 삭제 단추 (상세 화면 경로 줄 오른쪽). 삭제는 한 번 더 물어봅니다 */
+export function OwnerActs(props: { what: string; onEdit: () => void; onDelete: () => Promise<boolean> }): JSX.Element {
+  const [ask, setAsk] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const del = (): void => {
+    setBusy(true);
+    props.onDelete().then(ok => { setBusy(false); if (!ok) { setAsk(false); } }, () => { setBusy(false); setAsk(false); });
+  };
+  return ask ? (
+    <span className="own-acts" role="group" aria-label={`${props.what} 삭제 확인`}>
+      <span className="own-q">이 {props.what}을(를) 삭제할까요?</span>
+      <button type="button" className="own-b del" onClick={del} disabled={busy}>{busy ? '삭제 중…' : '삭제'}</button>
+      <button type="button" className="own-b" onClick={() => setAsk(false)} disabled={busy}>취소</button>
+    </span>
+  ) : (
+    <span className="own-acts">
+      <button type="button" className="own-b" onClick={props.onEdit}>{PEN_IC}수정</button>
+      <button type="button" className="own-b" onClick={() => setAsk(true)}>{TRASH_IC}삭제</button>
+    </span>
   );
 }
 

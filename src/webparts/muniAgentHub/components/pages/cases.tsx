@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ICase, IIdea, ISolution, SolutionKind } from '../../models/types';
 import { CASE_INDUSTRIES, contains, first, newestFirst, runLabel } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Clamp, Crumb, Empty, Go, ListError } from '../ui';
+import { Clamp, Crumb, Empty, Go, ListError, OwnerActs } from '../ui';
 import { Person } from '../persona';
 import { Mag } from '../mv';
 import { AskBtn, MpdGroup, MpdValue, NameLine } from './detail';
@@ -157,12 +157,15 @@ export function CasePage(props: { api: IHubApi; item?: ICase; sol?: number }): J
   const s = c.solutions[k];
   const owner = c.contactPerson || c.author;
   const related = ideasFromSol(api.data.ideas, c.id, s.name);
+  // 내가 올린 사례면 경로 줄 오른쪽에 수정 · 삭제 (나의 작업공간과 같은 기준: 올린 사람)
+  const mine = !!(c.author && c.author.id === api.me.id);
   // 예전 사례(솔루션별 활용 목적이 없음)는 사례의 업무 변화 Before/After를 씁니다
   const before = s.before || c.beforeText;
   const after = s.after || c.afterText;
   return (
     <div id="mv-caseOut" className="wrap caseOut sc-out">
-      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: s.name }]} />
+      <Crumb go={api.go} items={[{ label: 'Home', view: 'home' }, { label: 'Case Library', view: 'cases' }, { label: s.name }]}
+        acts={mine ? <OwnerActs what="사례" onEdit={() => api.openCaseForm(c.id)} onDelete={() => api.deleteCase(c.id).then(ok => { if (ok) { api.go('cases'); } return ok; })} /> : undefined} />
       {/* 머리: 연한 파란 판. 오른쪽 '이 사례로 아이디어 제안하기 →' + 이미 올린 아이디어가 있으면 '관련 아이디어 n개 보기' */}
       <div className={'cd-head sc-head' + (related.length ? ' ci-has' : '')}>
         <div className="sc-htx">
