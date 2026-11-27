@@ -224,6 +224,7 @@ function CaseIdeaDialog(props: { api: IHubApi; c: ICase; s: ISolution; related: 
   const picker = useCatPicker(cats, cat, setCat);
   const txRef = React.useRef<HTMLTextAreaElement>(null);
   const last = React.useRef<Element | null>(null);
+  const close = (): void => { props.onClose(); const l = last.current as HTMLElement | null; if (l && l.focus) { l.focus(); } };
   React.useEffect(() => {
     last.current = document.activeElement;
     if (txRef.current) { const t = txRef.current; t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
@@ -235,8 +236,7 @@ function CaseIdeaDialog(props: { api: IHubApi; c: ICase; s: ISolution; related: 
     };
     document.addEventListener('keydown', esc);
     return () => document.removeEventListener('keydown', esc);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const close = (): void => { props.onClose(); const l = last.current as HTMLElement | null; if (l && l.focus) { l.focus(); } };
+  }, []);
   const ok = !!cat && !!text.trim();
   const need = !cat ? '카테고리를 고르면 게시할 수 있어요' : '아이디어를 한 줄 써 주세요';
   const post = async (e?: React.FormEvent): Promise<void> => {
