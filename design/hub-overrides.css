@@ -503,3 +503,83 @@ html{background:var(--bg,#fff)}
 #home .c14-notes .c14-pn{min-height:176px;box-sizing:border-box}
 @container hub (max-width:560px){#home .c14-notes{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container hub (max-width:420px){#home .c14-notes{grid-template-columns:1fr}}
+/* 아이디어 상세 포스트잇: 시안 상세 화면 크기(폭 220px × 높이 약 240px)와 제목 크기 · 줄 간격에 맞춤 */
+#idea .idboard>.ib3-sh>.pn{min-height:240px}
+#idea .idboard>.ib3-sh>.pn .c31-t{margin:4px 0 2px}
+#idea .idboard>.ib3-sh>.pn .c31-t b{font-size:17px;font-weight:800;line-height:28px}
+#idea .idboard>.ib3-sh>.pn .acts{margin-top:auto}
+/* 아이디어 상세 포스트잇 조금 크게: 폭 220 → 260px, 높이 최소 260px (시안의 !important 값보다 우선하도록 선택자를 더 구체적으로) */
+#idea .idboard>.ib3-sh.c31-pn{width:260px!important;flex:0 0 260px!important}
+#idea .idboard>.ib3-sh.c31-pn>.pn.ib3d{min-height:260px!important;padding:24px 20px 16px!important;gap:8px!important}
+#idea .idboard>.ib3-sh.c31-pn>.pn.ib3d .c31-t b{font-size:18px!important;line-height:30px!important}
+@container hub (max-width:600px){#idea .idboard>.ib3-sh.c31-pn{width:100%!important;max-width:280px;flex:none!important;margin:0 auto}}
+
+/* 홈 '최근 고객 사례': 열 순서 업종 · 종류 · 솔루션. 업종 칸은 글자가 종류와 겹치지 않게 넉넉히(120px),
+   종류 칸은 줄마다 같은 76px(알약은 글자를 감쌀 만큼만), 솔루션이 나머지 */
+#home .c18-cases .cb-row{grid-template-columns:120px 76px minmax(0,1fr)!important;column-gap:20px!important}
+#home .c18-cases .cb-c1{min-width:0}
+#home .c18-cases .cb-c1 .ct-ind{display:inline-block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+#home .c18-cases .cb-c4{justify-self:start}
+#home .c18-cases .cb-c4 .cb-hash{display:inline-flex!important;width:auto!important;min-width:0!important;padding:3px 10px!important;white-space:nowrap}
+@container hub (max-width:600px){#home .c18-cases .cb-row{grid-template-columns:1fr!important}}
+
+/* 제작자 결과 이미지 1장: 한 칸으로 (가로 3:2로 아래로 조금 더 길게, 최대 640px), 이미지로 꽉 채우고 위쪽부터 보여 줍니다 */
+.mnote .mimgs{grid-template-columns:minmax(0,640px)!important}
+.mimgs .shot{height:auto!important;aspect-ratio:3/2!important}
+/* 수정 폼의 결과 이미지: 올린 이미지를 보여 주고 오른쪽 위에 연필(바꾸기) · 휴지통(빼기) */
+.shot1{position:relative;max-width:480px;border:1px solid var(--line,#d6e1e9);border-radius:10px;overflow:hidden;background:#f3f6f8}
+.shot1 img{display:block;width:100%;height:auto;max-height:320px;object-fit:contain}
+.shot1-act{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+.shot1-b{display:grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:8px;background:rgba(15,23,42,.72);color:#fff;cursor:pointer;backdrop-filter:blur(4px);transition:background .15s}
+.shot1-b:hover{background:rgba(15,23,42,.9)}
+.shot1-b:focus-within,.shot1-b:focus-visible{outline:2px solid #fff;outline-offset:1px;box-shadow:0 0 0 4px #004772}
+:root[data-theme=dark] .shot1{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.16)}
+
+/* 결과 이미지: 누르면 화면 안에서 크게 보기 (오른쪽 위 ✕ · Esc · 바깥 누르기로 닫기) */
+.mimgs .shot .shot-zoom{display:block;width:100%;height:100%;margin:0;padding:0;border:0;background:none;cursor:zoom-in}
+.mimgs .shot .shot-zoom:focus-visible{outline:2px solid #004772;outline-offset:2px}
+.izoom{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:56px 24px 24px;box-sizing:border-box;background:rgba(8,16,28,.82)}
+.izoom img{display:block;max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.4);background:#fff}
+.izoom-x{position:absolute;top:14px;right:16px;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;transition:background .15s}
+.izoom-x:hover{background:rgba(255,255,255,.28)}
+.izoom-x:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* 정보 박스: 항목 이름 칸을 넓혀 '연결된 아이디어'가 한 줄로 들어가게, 연결된 아이디어는 한 줄(넘치면 …) + 밑줄 링크 */
+.dp-side .kv{table-layout:fixed}
+.dp-side .kv th{width:116px;white-space:nowrap}
+.dp-side .kv tr.kv-idea td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dp-side .kv .kv-link{color:var(--brand,#004772);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.dp-side .kv .kv-link:hover{text-decoration-thickness:2px}
+:root[data-theme=dark] .dp-side .kv .kv-link{color:#9fd0f0}
+/* 수정 · 삭제 단추: 알약 대신 테두리 · 배경 없는 '아이콘 + 글자'. 마우스를 올리면 옅은 배경 (삭제 확인의 빨간 '삭제'는 그대로) */
+.own-acts{gap:2px}
+.own-b:not(.del){height:30px;padding:0 8px;border:0!important;border-radius:6px;background:none!important;color:var(--ink2,#5b5b5b)}
+.own-b:not(.del):hover{background:rgba(0,71,114,.07)!important;color:#004772}
+.own-b.del{height:30px;border-radius:6px}
+:root[data-theme=dark] .own-b:not(.del){background:none!important;color:var(--ink2)}
+:root[data-theme=dark] .own-b:not(.del):hover{background:rgba(255,255,255,.08)!important;color:#9fd0f0}
+
+/* 결과 이미지 칸 크기 고정 (이미지 크기와 상관없이 같은 칸, 이미지는 칸을 꽉 채우고 위쪽부터)
+   Skill · HTML(1장): 한 칸, 최대 640px × 3:2 / Agent(2장): 두 칸 나란히, 칸마다 3:2로 같은 크기 */
+.mnote .mimgs.n1{grid-template-columns:minmax(0,640px)!important}
+.mnote .mimgs.n2{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px}
+.mnote .mimgs .shot{height:auto!important;aspect-ratio:3/2!important}
+@container hub (max-width:600px){.mnote .mimgs.n2{grid-template-columns:minmax(0,1fr)!important}}
+/* 수정 폼: 결과 이미지 칸도 같은 비율(3:2)로 고정, Agent는 두 칸 나란히 */
+.shotgrid{display:grid;gap:12px}
+.shotgrid.n1{grid-template-columns:minmax(0,480px)}
+.shotgrid.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.shotgrid .shot1{max-width:none;aspect-ratio:3/2}
+.shotgrid .shot1 img{width:100%;height:100%;max-height:none;object-fit:cover;object-position:center top}
+.shotgrid .drop{min-height:0;aspect-ratio:3/2;box-sizing:border-box;margin:0}
+.shotgrid.n1 .drop{aspect-ratio:auto}
+@container hub (max-width:600px){.shotgrid.n2{grid-template-columns:minmax(0,1fr)}}
+/* 홈 '최근 고객 사례': 업종 글자 살짝 작게, 종류 알약은 줄마다 칸 왼쪽 끝 · 세로 가운데로 맞춰 한 줄로 */
+#home .c18-cases .cb-c1 .ct-ind{font-size:13px;padding:1px 8px}
+#home .c18-cases .cb-c4{display:flex!important;align-items:center;justify-content:flex-start!important;justify-self:stretch!important;text-align:left!important;margin:0!important;padding:0!important}
+#home .c18-cases .cb-c4 .cb-hash{margin:0!important;transform:none!important}
+#home .c18-cases .cb-head>span:nth-child(2){text-align:left!important}
+
+/* 수정 폼: 이미 연결된 아이디어 안내 (아이디어 연결 칸 위) */
+.field .idlk-now{display:block;margin:0 0 6px;color:var(--ink2,#5b5b5b)}
+.field .idlk-now b{color:var(--ink,#2b2b2b);font-weight:700}

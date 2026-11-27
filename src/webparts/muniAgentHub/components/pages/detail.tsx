@@ -3,7 +3,7 @@ import * as React from 'react';
 import { IAgent, IHtmlTool, IImage, IPerson, ISkill, IVersion, TargetType } from '../../models/types';
 import { extLabel, first, isEmail, isHttpsUrl, mmdd, splitLines, ymd } from '../../models/rules';
 import { IHubApi } from '../api';
-import { Clamp, Crumb, DetailTabs, Empty, Go, OwnerActs, RatingSummary } from '../ui';
+import { Clamp, Crumb, DetailTabs, Empty, Go, OwnerActs, RatingSummary, useViewportPin } from '../ui';
 import { Person } from '../persona';
 import { BadgeMedal } from '../badge';
 import { thumbBg } from './market';
@@ -45,8 +45,32 @@ export function MpdGroup(props: { title: string; items: JSX.Element[] }): JSX.El
 }
 /** '제작자는 이렇게 썼어요': 글 + 이미지 최대 2장 (첨부 파일 result1.* · result2.*).
     올린 이미지만 칸 크기에 맞춰 보여 줍니다(넣지 않았으면 이미지 칸 없음). 이미지 넣기 · 바꾸기 · 빼기는 '나의 작업공간'의 수정 창에서 합니다. */
-function MakerNote(props: { text: string; images?: IImage[]; stamp?: string }): JSX.Element | null {
-  const images = (props.images || []).slice().sort((a, b) => a.slot - b.slot);
+/** 결과 이미지 크게 보기: 어두운 배경 위에 이미지, 오른쪽 위 ✕ · Esc · 바깥 누르기로 닫아요 */
+function ImageZoom(props: { src: string; alt: string; onClose: () => void }): JSX.Element {
+  const ov = React.useRef<HTMLDivElement>(null);
+  const xb = React.useRef<HTMLButtonElement>(null);
+  useViewportPin(ov, true);
+  React.useEffect(() => {
+    const last = document.activeElement as HTMLElement | null;
+    if (xb.current) { xb.current.focus(); }
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { props.onClose(); } };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); if (last && last.focus) { last.focus(); } };
+  }, []);
+  return (
+    <div ref={ov} className="izoom" role="dialog" aria-modal="true" aria-label={props.alt + ' 크게 보기'} onMouseDown={e => { if (e.target === e.currentTarget) { props.onClose(); } }}>
+      <button ref={xb} type="button" className="izoom-x" aria-label="닫기" title="닫기 (Esc)" onClick={props.onClose}>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+      <img src={props.src} alt={props.alt} />
+    </div>
+  );
+}
+function MakerNote(props: { text: string; images?: IImage[]; stamp?: string; max?: number }): JSX.Element | null {
+  // 결과 이미지: Agent 2장, Skill · HTML 1장 (칸마다 한 장)
+  const max = props.max || 1;
+  const images: IImage[] = [];
+  (props.images || []).forEach(im => { if (im.slot >= 1 && im.slot <= max && !images.some(x => x.slot === im.slot)) { images.push(im); } });
+  const [zoom, setZoom] = React.useState('');
   if (!props.text.trim() && !images.length) { return null; }
   // 같은 이름으로 바꾸면 브라우저가 예전 그림을 보여 줘서, 수정한 때를 주소 끝에 붙입니다
   const urlOf = (im: IImage): string => `${im.url}?v=${encodeURIComponent(props.stamp || '')}`;
@@ -54,12 +78,25 @@ function MakerNote(props: { text: string; images?: IImage[]; stamp?: string }): 
     <section className="dsec"><h2>제작자는 이렇게 썼어요</h2>
       <article className="mnote">
         {props.text.split(/\r?\n/).filter(x => !!x.trim()).map((p, k) => <p key={k}>{p}</p>)}
-        {images.length ? <div className="mimgs">{images.map(im => (
+        {images.length ? <div className={'mimgs n' + max}>{images.map(im => (
           <div key={im.slot} className="shot">
-            <a href={urlOf(im)} target="_blank" rel="noopener noreferrer" title="원본 크기로 보기"><img src={urlOf(im)} alt={`결과 이미지 ${im.slot}`} /></a>
+            <button type="button" className="shot-zoom" title="크게 보기" onClick={() => setZoom(urlOf(im))}><img src={urlOf(im)} alt={`결과 이미지 ${im.slot}`} /></button>
           </div>
         ))}</div> : null}
+        {zoom ? <ImageZoom src={zoom} alt="결과 이미지" onClose={() => setZoom('')} /> : null}
       </article></section>
+  );
+}
+
+/** 정보 박스 '연결된 아이디어': 올릴 때 '이 아이디어로 만들었어요'로 고른 아이디어 (아이디어의 ResultRef가 agent:3 · skill:12 · html:7, 예전 방식은 같은 이름).
+    한 줄로 보이고, 누르면 그 아이디어로 갑니다 */
+function LinkedIdeaRow(props: { api: IHubApi; kind: 'agent' | 'skill' | 'html'; id: number; title: string }): JSX.Element {
+  const key = `${props.kind}:${props.id}`;
+  const name = props.title.trim().toLowerCase();
+  const ideas = props.api.data.ideas.filter(i => { const r = (i.resultRef || '').trim().toLowerCase(); return !!r && (r === key || r === name); });
+  return (
+    <tr className="kv-idea"><th>연결된 아이디어</th>
+      <td title={ideas.map(i => i.title).join(', ')}>{ideas.length ? ideas.map((i, k) => <React.Fragment key={i.id}>{k ? ', ' : ''}<Go go={props.api.go} view="idea" id={i.id} className="kv-link">{i.title}</Go></React.Fragment>) : '—'}</td></tr>
   );
 }
 
@@ -213,7 +250,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
           <div>
             <section><h2 className="dph">이런 일을 해요</h2>{a.does.length ? <ul className="does">{a.does.map((x, k) => <li key={k}>{x}</li>)}</ul> : <p className="note">아직 소개가 없어요.</p>}</section>
             {/* 결과 이미지: AgentList 항목 첨부 파일 result1.* · result2.* (Owner는 여기서 넣기 · 바꾸기 · 빼기) */}
-            <MakerNote text={a.makerNote} images={a.images} stamp={a.modified} />
+            <MakerNote text={a.makerNote} images={a.images} stamp={a.stamp || a.modified} max={2} />
             {a.prompts.length ? (
               <section className="dsec"><h2>이렇게 말해 보세요</h2>
                 <ul className="pex">{a.prompts.map((p, k) => <li key={k}>{a.workTypes[0] ? <span className="ptag">{a.workTypes[0]}</span> : null}<p>{p}</p><button className="btn sm" type="button" onClick={() => api.copy(p, '복사했어요')}>복사</button></li>)}</ul></section>
@@ -225,6 +262,7 @@ export function AgentPage(props: { api: IHubApi; agent?: IAgent }): JSX.Element 
               <tr><th>Owner</th><td><Person p={a.owner} /></td></tr>
               <tr><th>Sponsor</th><td>{a.sponsor ? <Person p={a.sponsor} /> : '—'}</td></tr>
               <tr><th>처음 등록</th><td>{ymd(a.created)}</td></tr>
+              <LinkedIdeaRow api={api} kind="agent" id={a.id} title={a.title} />
             </tbody></table>
             <AskBtn api={api} who={[a.owner, a.sponsor]} label="담당자에게 Teams로 문의하기" tip={a.sponsor ? 'Owner, Sponsor에게 Teams 채팅을 열어요' : 'Owner에게 Teams 채팅을 열어요'} /></div></aside>
         </div></section>
@@ -307,6 +345,7 @@ export function SkillPage(props: { api: IHubApi; skill?: ISkill }): JSX.Element 
             <tr><th>활용 도구</th><td>{k.tools.map((t, i) => <React.Fragment key={t}>{i ? <br /> : null}{t}</React.Fragment>)}</td></tr>
             <tr><th>등록자</th><td><Person p={k.author} /></td></tr>
             <tr><th>처음 등록</th><td>{ymd(k.created)}</td></tr>
+            <LinkedIdeaRow api={api} kind="skill" id={k.id} title={k.title} />
           </tbody></table>
           <AskBtn api={api} who={[k.author]} label="담당자에게 Teams로 문의하기" tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
         </div></section>
@@ -358,6 +397,7 @@ export function HtmlPage(props: { api: IHubApi; tool?: IHtmlTool }): JSX.Element
             <tr><th>제작 도구</th><td>{h.madeWith || '—'}</td></tr>
             <tr><th>등록자</th><td><Person p={h.author} /></td></tr>
             <tr><th>처음 등록</th><td>{ymd(h.created)}</td></tr>
+            <LinkedIdeaRow api={api} kind="html" id={h.id} title={h.title} />
           </tbody></table>
           <AskBtn api={api} who={[h.author]} label="담당자에게 Teams로 문의하기" tip="등록자에게 Teams 채팅을 열어요" /></div></aside>
         </div></section>

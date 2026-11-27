@@ -327,7 +327,7 @@ export class HubService {
         images: this.images(r.AttachmentFiles), thumb: this.thumbOf(r.AttachmentFiles), icon: this.thumbOf(r.AttachmentFiles, 'icon'),
         owner: person(r.Owner), sponsor: person(r.Sponsor),
         // '새로 나온 Agent'는 처음 배포일 기준 (없으면 항목을 만든 날)
-        created: str(r.FirstDeployedOn) || str(r.DeployedAt) || str(r.Created), modified: str(r.DeployedAt) || str(r.Modified)
+        created: str(r.FirstDeployedOn) || str(r.DeployedAt) || str(r.Created), modified: str(r.DeployedAt) || str(r.Modified), stamp: str(r.Modified)
       };
     });
   }
@@ -914,7 +914,14 @@ export class HubService {
     const list = t === 'Agent' ? this.lists.agents : this.lists.contents;
     const at = (slot: number): IImage | undefined => old.filter(x => x.slot === slot)[0];
     for (const s of add) {
-      await this.replaceAttachment(list, id, at(s.slot), `result${s.slot}.${s.ext}`, s.data);
+      const name = `result${s.slot}.${s.ext}`;
+      // 같은 칸의 예전 파일 중 이름이 같은 것을 기준으로 바꾸고, 나머지(확장자가 다른 예전 파일 · 남아 있던 중복)는 모두 지워 한 칸에 파일 하나만 남깁니다
+      const olds = old.filter(x => x.slot === s.slot);
+      const same = olds.filter(x => x.name.toLowerCase() === name.toLowerCase())[0];
+      await this.replaceAttachment(list, id, same || olds[0], name, s.data);
+      for (const o of olds) {
+        if (o !== same && o !== olds[0] && o.name.toLowerCase() !== name.toLowerCase()) { await this.removeAttachment(list, id, o.name).catch(() => undefined); }
+      }
     }
     for (const slot of drop) {
       const o = at(slot);

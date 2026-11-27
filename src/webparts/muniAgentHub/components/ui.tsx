@@ -277,9 +277,41 @@ export function CommentRow(props: { r: IReaction; onEdit?: (body: string) => Pro
   );
 }
 
+/** 화면 고정(position:fixed) 레이어를 실제 보이는 화면에 맞춥니다.
+    Hub 루트(.mv-root)는 컨테이너 쿼리용 컨테이너라, 그 안의 fixed 요소는 화면이 아니라 Hub 영역 전체를 기준으로 놓여요.
+    그래서 페이지를 내린 상태에서 열면 창의 위쪽이 화면 밖으로 잘렸어요. 보이는 화면의 위치를 계산해 그 자리에 놓습니다. */
+export function useViewportPin(ref: React.RefObject<HTMLElement>, on: boolean): void {
+  React.useEffect(() => {
+    if (!on) { return undefined; }
+    const place = (): void => {
+      const el = ref.current;
+      if (!el) { return; }
+      // 0,0에 놓아 보고 실제로 화면 어디에 놓이는지 잰 뒤, 그만큼 되돌려 화면 왼쪽 위에 맞춥니다
+      // (Hub 영역 기준이든 화면 기준이든 같은 계산으로 맞아요)
+      el.style.position = 'fixed';
+      el.style.top = '0px';
+      el.style.left = '0px';
+      const r = el.getBoundingClientRect();
+      el.style.top = `${-r.top}px`;
+      el.style.left = `${-r.left}px`;
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.width = `${window.innerWidth}px`;
+      el.style.height = `${window.innerHeight}px`;
+    };
+    place();
+    window.addEventListener('resize', place);
+    // SharePoint는 창이 아니라 페이지 안쪽 영역이 스크롤돼서, 모든 스크롤을 잡습니다
+    document.addEventListener('scroll', place, true);
+    return () => { window.removeEventListener('resize', place); document.removeEventListener('scroll', place, true); };
+  }, [on]);
+}
+
 /* ---------- 모달 (시안: .modal.on > .mbox > .mhead + .mbody) ---------- */
 export function Modal(props: { open: boolean; title: string; sub?: React.ReactNode; width?: number; onClose: () => void; children: React.ReactNode }): JSX.Element | null {
   const ref = React.useRef<HTMLDivElement>(null);
+  const ov = React.useRef<HTMLDivElement>(null);
+  useViewportPin(ov, props.open);
   const last = React.useRef<Element | null>(null);
   React.useEffect(() => {
     if (!props.open) { return undefined; }
@@ -299,7 +331,7 @@ export function Modal(props: { open: boolean; title: string; sub?: React.ReactNo
   }, [props.open]);
   if (!props.open) { return null; }
   return (
-    <div className="modal on" role="dialog" aria-modal="true" aria-labelledby="hub-m-title" onMouseDown={e => { if (e.target === e.currentTarget) { props.onClose(); } }}>
+    <div ref={ov} className="modal on" role="dialog" aria-modal="true" aria-labelledby="hub-m-title" onMouseDown={e => { if (e.target === e.currentTarget) { props.onClose(); } }}>
       <div className="mbox" ref={ref} style={props.width ? { width: `min(${props.width}px,100%)` } : undefined}>
         <div className="mhead"><div><h2 id="hub-m-title">{props.title}</h2>{props.sub ? <p>{props.sub}</p> : null}</div>
           <button type="button" className="mclose" aria-label={`${props.title} 닫기`} onClick={props.onClose}>✕</button></div>

@@ -79,6 +79,8 @@ export interface IAgent {
   created: string;
   /** 배포 일시 (없으면 항목 수정한 날) */
   modified: string;
+  /** 항목을 마지막으로 고친 때 (이미지 주소 뒤에 붙여, 바꾼 이미지가 예전 그림으로 보이지 않게) */
+  stamp?: string;
 }
 
 export interface IImage {

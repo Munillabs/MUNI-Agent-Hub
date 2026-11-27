@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { IAgent, IAgentEdit, ICase, IHtmlTool, IIdea, IImage, INewCase, INewHtml, INewIdea, INewShot, INewSkill, IReportTarget, ISkill, ISolution, SolutionKind } from '../models/types';
 import {
-  CASE_INDUSTRIES, CASE_USES, HTML_KINDS, HTML_MAX_BYTES, IDEA_CATS, IDEA_CAT_DESC, IDEA_FREQS, IDEA_SCRAP, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
+  CASE_INDUSTRIES, CASE_USES, HTML_KINDS, HTML_MAX_BYTES, IDEA_CATS, IDEA_CAT_DESC, IDEA_SCRAP, MADE_WITH, REPORT_KINDS, SCOPES, SKILL_AREAS, SKILL_EXTS, SKILL_KINDS, SKILL_MAX_BYTES,
   RUN_CHAT_WHEN, RUN_MODES, SKILL_TOOLS, SOLUTION_KINDS,
   compareVersion, extOf, fileSize, first, isEmail, isVersion, looksLikeSecret, nextVersion, periodOptions,
   splitLines
@@ -230,20 +230,22 @@ const HTML_COLS = ['Kind', 'Summary', 'Category', 'WorkArea', 'Tools', 'Scope', 
 
 /** 제작 중 아이디어 연결 칸: 고르면 올린 뒤 그 아이디어가 '완성'이 되고 결과물로 이어집니다
     (내가 함께 만드는 제작 중 아이디어 전부. 앞에 [종류]를 붙이고, 올리는 것과 같은 종류를 위에) */
-function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML'; ideas: IIdea[]; value: string; onChange: (v: string) => void }): JSX.Element | null {
+function IdeaLinkField(props: { id: string; kind: 'Skill' | 'HTML' | 'Agent'; ideas: IIdea[]; value: string; onChange: (v: string) => void; linked?: IIdea[] }): JSX.Element | null {
   const list = props.ideas.slice();
+  // 고칠 때: 이미 이 게시물과 연결된 아이디어를 위에 알려 줍니다
+  const now = props.linked && props.linked.length ? <span className="hint idlk-now">지금 연결된 아이디어: <b>{props.linked.map(i => i.title).join(', ')}</b></span> : null;
   // 연결할 아이디어가 없어도 칸은 보여 주고, 왜 비었는지 알려 줍니다
   if (!list.length) {
     return (
       <Field id={props.id} label="이 아이디어로 만들었어요" hint="Idea Board에서 '함께해요'를 누르고 '만들기 시작하기'를 한 아이디어가 여기에 나와요">
-        <select id={props.id} value="" disabled={true}><option value="">연결할 제작 중 아이디어가 없어요</option></select>
+        {now}<select id={props.id} value="" disabled={true}><option value="">연결할 제작 중 아이디어가 없어요</option></select>
       </Field>
     );
   }
   return (
     <Field id={props.id} label="이 아이디어로 만들었어요" hint={`고르면 올릴 때 Idea Board의 아이디어가 '완성'으로 바뀌고, 이 ${props.kind}이 결과물로 연결돼요`}>
-      <select id={props.id} value={props.value} onChange={e => props.onChange(e.target.value)}>
-        <option value="">연결하지 않음</option>
+      {now}<select id={props.id} value={props.value} onChange={e => props.onChange(e.target.value)}>
+        <option value="">{now ? '그대로 두기' : '연결하지 않음'}</option>
         {list.map(i => <option key={i.id} value={String(i.id)}>[{i.category || '카테고리 없음'}] {i.title}</option>)}
       </select>
     </Field>
@@ -490,41 +492,53 @@ function thumbOut(t: IThumbState): { thumb?: { ext: string; data: ArrayBuffer };
   return t.drop ? { dropThumb: true, dropIcon: true } : {};
 }
 
-/* ---------- '제작자는 이렇게 썼어요' 이미지 (선택, 최대 2장): 첨부 파일 result1.<ext> · result2.<ext> ---------- */
+/* ---------- '제작자는 이렇게 썼어요' 이미지 (선택, Agent 2장 · Skill · HTML 1장): 첨부 파일 result1.<ext> · result2.<ext> ----------
+   올린 이미지가 있으면 그 이미지를 보여 주고, 오른쪽 위 연필(바꾸기) · 휴지통(빼기) 아이콘으로 고칩니다. 없으면 놓는 칸만 보여요. */
 const SHOT_MAX_BYTES = 3 * 1024 * 1024;
-const SHOT_SLOTS = [1, 2];
-function useShots(): [IThumbState[], (slot: number, v: IThumbState) => void] {
-  const [s, setS] = React.useState<IThumbState[]>([{ drop: false }, { drop: false }]);
+const SHOT_PEN = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg>;
+const SHOT_TRASH = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>;
+/** n: 칸 수 (Agent 2장, Skill · HTML 1장) */
+function useShots(n: number = 1): [IThumbState[], (slot: number, v: IThumbState) => void] {
+  const [s, setS] = React.useState<IThumbState[]>(() => Array.apply(undefined, Array(n)).map(() => ({ drop: false })));
   // 미리보기 주소 정리
   const urls = s.map(x => x.file ? x.file.url : '').join('|');
   React.useEffect(() => () => { s.forEach(x => { if (x.file) { URL.revokeObjectURL(x.file.url); } }); }, [urls]);
   return [s, (slot, v) => setS(all => all.map((x, i) => i === slot - 1 ? v : x))];
 }
+/** 결과 이미지 칸들. 칸마다 올린 이미지가 있으면 고정 크기 미리보기 + 오른쪽 위 연필(바꾸기) · 휴지통(빼기), 없으면 놓는 칸 */
 function ShotsField(props: { id: string; current?: IImage[]; value: IThumbState[]; onChange: (slot: number, v: IThumbState) => void; errors: Errors; setErrors: React.Dispatch<React.SetStateAction<Errors>> }): JSX.Element {
+  const n = props.value.length;
   const bad = (m: string): void => props.setErrors(e => ({ ...e, shots: m }));
   const take = (slot: number, fl: File): void => {
     const ext = extOf(fl.name);
     if (THUMB_EXTS.indexOf(ext) < 0) { bad('.png · .jpg · .gif · .webp 이미지만 올릴 수 있어요.'); return; }
     if (fl.size > SHOT_MAX_BYTES) { bad('3MB 이하 이미지만 올릴 수 있어요.'); return; }
     readAs(fl, 'buffer').then(r => {
-      props.setErrors(e => { const n = { ...e }; delete n.shots; return n; });
+      props.setErrors(e => { const x = { ...e }; delete x.shots; return x; });
       props.onChange(slot, { file: { ext: ext === 'jpeg' ? 'jpg' : ext, data: r as ArrayBuffer, url: URL.createObjectURL(fl), name: fl.name, size: fl.size }, drop: false });
     }, () => bad('이미지를 읽지 못했어요. 다시 골라 주세요.'));
   };
   return (
-    <Field k="shots" label="결과 이미지 (선택, 최대 2장)" hint="상세 화면의 '제작자는 이렇게 썼어요' 아래에 나란히 보여요. 이미지 전체가 칸 크기에 맞춰 들어가요. 넣지 않으면 이미지 칸이 보이지 않아요." errors={props.errors}>
-      <div className="shotpick">
-        {SHOT_SLOTS.map(slot => {
-          const v = props.value[slot - 1];
+    <Field k="shots" label={n > 1 ? `결과 이미지 (선택, 최대 ${n}장)` : '결과 이미지 (선택)'} hint="상세 화면의 '제작자는 이렇게 썼어요' 아래에 같은 크기의 칸으로 보여요. 넣지 않으면 이미지 칸이 보이지 않아요." errors={props.errors}>
+      <div className={'shotgrid n' + n}>
+        {props.value.map((v, i) => {
+          const slot = i + 1;
           const cur = first(props.current || [], x => x.slot === slot);
           const shown = v.file ? v.file.url : (!v.drop && cur && cur.url) || '';
-          return (
-            <div key={slot} className="shotslot">
-              {shown ? <div className="thumbprev" style={{ backgroundImage: `url("${shown}")` }} role="img" aria-label={`결과 이미지 ${slot} 미리보기`} /> : null}
-              <Drop id={`${props.id}-${slot}`} accept=".png,.jpg,.jpeg,.gif,.webp" has={!!v.file} title={v.file ? v.file.name : shown ? `이미지 ${slot} 바꾸기` : `이미지 ${slot}`}
-                sub={v.file ? `${fileSize(v.file.size)} · 다시 고르려면 누르세요` : '끌어다 놓거나 눌러서 고르세요 · 3MB 이하'} onPick={fl => take(slot, fl)} />
-              {shown ? <button type="button" className="btn sm thumbdel" onClick={() => props.onChange(slot, { drop: !!cur })}>빼기</button> : null}
+          const inputId = `${props.id}-${slot}`;
+          const what = n > 1 ? `이미지 ${slot}` : '이미지';
+          return shown ? (
+            <div key={slot} className="shot1">
+              <img src={shown} alt={`결과 ${what} 미리보기`} />
+              <span className="shot1-act">
+                {/* 연필: 파일 고르기 창을 열어 바꿉니다 */}
+                <label className="shot1-b" htmlFor={inputId} title={`${what} 바꾸기`} aria-label={`${what} 바꾸기`}>{SHOT_PEN}
+                  <input type="file" id={inputId} accept=".png,.jpg,.jpeg,.gif,.webp" className="sr" onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) { take(slot, f); } }} /></label>
+                <button type="button" className="shot1-b" title={`${what} 빼기`} aria-label={`${what} 빼기`} onClick={() => props.onChange(slot, { drop: !!cur })}>{SHOT_TRASH}</button>
+              </span>
             </div>
+          ) : (
+            <Drop key={slot} id={inputId} accept=".png,.jpg,.jpeg,.gif,.webp" has={false} title={n > 1 ? `${what} 끌어다 놓거나 눌러서 고르세요` : '이미지를 끌어다 놓거나 눌러서 고르세요'} sub=".png · .jpg · .gif · .webp · 3MB 이하" onPick={f => take(slot, f)} />
           );
         })}
       </div>
@@ -539,7 +553,7 @@ function shotsOut(s: IThumbState[]): { shots?: INewShot[]; dropShots?: number[] 
 }
 
 /** onSubmit 은 실패하면 오류를 던집니다. 폼이 받아 버튼 위에 안내를 띄웁니다. ideaId: 함께 완성할 제작 중 아이디어 */
-export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; libName: string; ideas: IIdea[]; onCancel: () => void; onSubmit: (s: INewSkill, ideaId?: number) => Promise<void> }): JSX.Element {
+export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; libName: string; ideas: IIdea[]; linked?: IIdea[]; onCancel: () => void; onSubmit: (s: INewSkill, ideaId?: number) => Promise<void> }): JSX.Element {
   const cur = props.skill;
   const editing = !!cur;
   const ref = React.useRef<HTMLFormElement>(null);
@@ -579,7 +593,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
     if (!f.summary.trim()) { e.desc = '한 줄 소개를 적어 주세요.'; }
     if (!f.tools.length) { e.tools = '하나 이상 골라 주세요.'; }
     if (!f.purpose.trim()) { e.purpose = '어떤 때 쓰는지 적어 주세요.'; }
-    if (!f.usage.trim()) { e.usage = '활용 방법을 적어 주세요.'; }
+    if (!f.usage.trim()) { e.usage = '제작자는 이렇게 썼어요를 적어 주세요.'; }
     const v = f.version.trim();
     if (!isVersion(v)) { e.version = '버전은 1.0처럼 숫자와 점으로 적어 주세요.'; }
     else if (cur && file && compareVersion(v, cur.version) <= 0) { e.version = `파일을 바꾸면 버전을 올려 주세요. 지금 버전은 ${cur.version}이에요.`; }
@@ -623,13 +637,13 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
         </div>
         <Field id="hub-sk-area" label="카테고리" hint={f.area ? IDEA_CAT_DESC[f.area] : '하는 일에 가장 가까운 카테고리를 골라 주세요'}><select id="hub-sk-area" value={f.area} onChange={e => set('area', e.target.value)}><option value="">선택 (선택 사항)</option>{SKILL_AREAS.map(x => <option key={x}>{x}</option>)}</select></Field>
         <Field id="hub-sk-when" k="purpose" label="이럴 때 써요" hint="여러 개는 Enter로 줄을 바꿔 한 줄에 하나씩 적어 주세요" req={true} errors={errors}><textarea id="hub-sk-when" rows={4} placeholder={'예: 규정 답변에 근거를 꼭 보여줘야 할 때\n고객사 미팅 자료를 준비할 때'} value={f.purpose} onChange={e => set('purpose', e.target.value)} {...inv(errors, 'purpose')} /></Field>
-        <Field id="hub-sk-usage" k="usage" label="활용 방법" req={true} hint="상세 화면의 '제작자는 이렇게 썼어요'에 보여요" errors={errors}><textarea id="hub-sk-usage" placeholder="예: 지침 맨 아래에 붙여 두면 어떤 Agent든 같은 규칙으로 답해요. 처음에는 Cowork 대화에 파일만 첨부해서 확인해 보세요." value={f.usage} onChange={e => set('usage', e.target.value)} {...inv(errors, 'usage')} /></Field>
+        <Field id="hub-sk-usage" k="usage" label="제작자는 이렇게 썼어요" req={true} errors={errors}><textarea id="hub-sk-usage" placeholder="예: 지침 맨 아래에 붙여 두면 어떤 Agent든 같은 규칙으로 답해요. 처음에는 Cowork 대화에 파일만 첨부해서 확인해 보세요." value={f.usage} onChange={e => set('usage', e.target.value)} {...inv(errors, 'usage')} /></Field>
         <ShotsField id="hub-sk-shot" current={cur ? cur.images : undefined} value={shots} onChange={setShot} errors={errors} setErrors={setErrors} />
         <div className="row2">
           <Field id="hub-sk-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-sk-ver" placeholder="1.0" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-sk-chg" k="changeNote" label="변경 내용" hint={editing ? '버전을 올리면 꼭 적어 주세요' : undefined} errors={errors}><input id="hub-sk-chg" maxLength={120} placeholder={editing ? '예: 오래된 문서 표시 규칙 추가' : '처음 공유'} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
         </div>
-        <IdeaLinkField id="hub-sk-idea" kind="Skill" ideas={props.ideas} value={ideaId} onChange={setIdeaId} />
+        <IdeaLinkField id="hub-sk-idea" kind="Skill" ideas={props.ideas} linked={props.linked} value={ideaId} onChange={setIdeaId} />
         <UploadError f={failure} />
         <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>
@@ -640,7 +654,7 @@ export function SkillForm(props: { skill?: ISkill; existingTitles: string[]; lib
 }
 
 /* ================= HTML 올리기 · 새 버전 (모달 본문) ================= */
-export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; libName: string; ideas: IIdea[]; onCancel: () => void; onSubmit: (h: INewHtml, ideaId?: number) => Promise<void> }): JSX.Element {
+export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; libName: string; ideas: IIdea[]; linked?: IIdea[]; onCancel: () => void; onSubmit: (h: INewHtml, ideaId?: number) => Promise<void> }): JSX.Element {
   const cur = props.tool;
   const editing = !!cur;
   const ref = React.useRef<HTMLFormElement>(null);
@@ -731,7 +745,7 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
           <Field id="hub-ht-ver" k="version" label="버전" hint={editing ? `지금 ${cur!.version}` : undefined} errors={errors}><input id="hub-ht-ver" value={f.version} onChange={e => set('version', e.target.value)} {...inv(errors, 'version')} /></Field>
           <Field id="hub-ht-chg" k="changeNote" label="변경 내용" errors={errors}><input id="hub-ht-chg" maxLength={120} value={f.changeNote} onChange={e => set('changeNote', e.target.value)} {...inv(errors, 'changeNote')} /></Field>
         </div>
-        <IdeaLinkField id="hub-ht-idea" kind="HTML" ideas={props.ideas} value={ideaId} onChange={setIdeaId} />
+        <IdeaLinkField id="hub-ht-idea" kind="HTML" ideas={props.ideas} linked={props.linked} value={ideaId} onChange={setIdeaId} />
         <UploadError f={failure} />
         <Act busy={busy} label={editing ? '저장' : '올리기'} onCancel={props.onCancel} errors={errors} />
       </form>
@@ -746,13 +760,14 @@ export function HtmlForm(props: { tool?: IHtmlTool; existingTitles: string[]; li
 const AGENT_COLS = ['Summary', 'Does', 'Prompts', 'MakerNote', 'Config', 'TargetUsers', 'AIModel', 'RunMode', 'RunSchedule'];
 /** "A, B" → ['A', 'B'] */
 const commaList = (v: string): string[] => v.split(/\s*,\s*/).map(x => x.trim()).filter(x => !!x);
-export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () => void; onSubmit: (e: IAgentEdit) => Promise<void> }): JSX.Element {
+export function AgentForm(props: { agent: IAgent; libName: string; ideas: IIdea[]; linked?: IIdea[]; onCancel: () => void; onSubmit: (e: IAgentEdit, ideaId?: number) => Promise<void> }): JSX.Element {
   const cur = props.agent;
   const ref = React.useRef<HTMLFormElement>(null);
   const [f, set, errors, setErrors] = useForm({ summary: cur.summary, does: cur.does.join('\n'), prompts: cur.prompts.join('\n'), makerNote: cur.makerNote,
     audience: cur.audience.join(', '), model: cur.model.join(', '), runMode: cur.run[0] || '', runWhen: cur.run[0] && cur.run[0] !== RUN_MODES[0] ? (cur.run[1] || '') : '' });
   const [thumb, setThumb] = useThumb();
-  const [shots, setShot] = useShots();
+  const [shots, setShot] = useShots(2);
+  const [ideaId, setIdeaId] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [failure, setFailure] = React.useState<IUploadFailure | undefined>(undefined);
   const submit = async (ev: React.FormEvent): Promise<void> => {
@@ -772,7 +787,7 @@ export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () 
       await props.onSubmit({ summary: f.summary.trim(), does: splitLines(f.does), prompts: splitLines(f.prompts), makerNote: f.makerNote.trim(),
         audience: commaList(f.audience), model: commaList(f.model), // 대화형은 늘 '사용자 요청 시', 자동 실행만 일시를 적어요
         run: f.runMode ? (f.runMode === RUN_MODES[0] ? [f.runMode, RUN_CHAT_WHEN] : [f.runMode, f.runWhen.trim()]) : [],
-        ...thumbOut(thumb), ...shotsOut(shots) });
+        ...thumbOut(thumb), ...shotsOut(shots) }, ideaId ? Number(ideaId) : undefined);
     } catch (err) {
       setFailure(uploadFailure(err, props.libName, AGENT_COLS));
     }
@@ -802,6 +817,7 @@ export function AgentForm(props: { agent: IAgent; libName: string; onCancel: () 
             ? <Field id="hub-ag-when" label="실행 일시" hint="상세 화면에 '자동 실행 (매일 오전 8시)'처럼 괄호 안에 보여요"><input id="hub-ag-when" maxLength={40} placeholder="예: 매일 오전 8시, 통화 종료 시" value={f.runWhen} onChange={e => set('runWhen', e.target.value)} /></Field>
             : <Field id="hub-ag-when" label="실행 일시" hint={f.runMode ? `'${RUN_MODES[0]} (${RUN_CHAT_WHEN})'로 보여요` : '자동 실행을 고르면 적을 수 있어요'}><input id="hub-ag-when" disabled={true} value={f.runMode ? RUN_CHAT_WHEN : ''} readOnly={true} /></Field>}
         </div>
+        <IdeaLinkField id="hub-ag-idea" kind="Agent" ideas={props.ideas} linked={props.linked} value={ideaId} onChange={setIdeaId} />
         <UploadError f={failure} />
         <Act busy={busy} label="저장" onCancel={props.onCancel} errors={errors} />
       </form>
@@ -1009,14 +1025,11 @@ export function CaseForm(props: { now: Date; item?: ICase; onCancel: () => void;
 
 /* ================= 아이디어 고치기 (모달 본문, 시안 ideaedit) ================= */
 export function IdeaEditForm(props: { idea: IIdea; cats?: string[]; onCancel: () => void; onSubmit: (idea: INewIdea) => Promise<boolean> }): JSX.Element {
+  // 고칠 수 있는 칸: 카테고리 · 아이디어 · 외부 스크랩 (자세한 설명 · 불편 · 빈도 · 시간은 폼에서 뺐고, 저장된 값은 그대로 둡니다)
   const [title, setTitle] = React.useState(props.idea.title);
-  const [detail, setDetail] = React.useState(props.idea.detail);
   const [cat, setCat] = React.useState(props.idea.category);
   const [scrap, setScrap] = React.useState(!!props.idea.source);
   const [link, setLink] = React.useState(/^https?:\/\//i.test(props.idea.source) ? props.idea.source : '');
-  const [pain, setPain] = React.useState(props.idea.pain);
-  const [freq, setFreq] = React.useState(props.idea.frequency);
-  const [mins, setMins] = React.useState(typeof props.idea.minutes === 'number' ? String(props.idea.minutes) : '');
   const [err, setErr] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const submit = async (e: React.FormEvent): Promise<void> => {
@@ -1025,23 +1038,19 @@ export function IdeaEditForm(props: { idea: IIdea; cats?: string[]; onCancel: ()
     setBusy(true);
     const l = link.trim();
     const source = scrap ? (l ? (/^https?:\/\//i.test(l) ? l : 'https://' + l) : IDEA_SCRAP) : '';
+    const i = props.idea;
     // 사례에서 온 아이디어는 고쳐도 사례 연결을 그대로 둡니다 (외부 스크랩으로 바꾸면 그 주소가 출처가 됩니다)
-    await props.onSubmit({ title: title.trim(), category: cat, source, detail: detail.trim(), pain: pain.trim(), frequency: freq, minutes: mins.trim() ? Number(mins) : undefined, caseRef: props.idea.caseRef });
+    await props.onSubmit({ title: title.trim(), category: cat, source, detail: i.detail, pain: i.pain, frequency: i.frequency, minutes: i.minutes, caseRef: i.caseRef });
     setBusy(false);
   };
   return (
     <form id="mv-ieForm" className="ieForm" noValidate={true} onSubmit={e => { submit(e).catch(() => undefined); }}>
-      <div className={'field' + (err ? ' bad' : '')}><label htmlFor="hub-ie-title">아이디어<Req /></label><input id="hub-ie-title" maxLength={60} value={title} onChange={e => { setTitle(e.target.value); setErr(''); }} aria-invalid={!!err} /><span className="err">{err}</span></div>
-      <div className="field"><label htmlFor="hub-ie-desc">자세한 설명</label><textarea id="hub-ie-desc" rows={4} placeholder="어떤 일에서 불편한지, 있으면 무엇이 좋아지는지 적어 주세요." value={detail} onChange={e => setDetail(e.target.value)} /></div>
       <div className="field"><label htmlFor="hub-ie-cat">카테고리</label>
         <select id="hub-ie-cat" value={cat} onChange={e => setCat(e.target.value)}>{cat ? null : <option value="">카테고리 선택</option>}{(props.cats && props.cats.length ? props.cats : IDEA_CATS).map(x => <option key={x} value={x}>{x}</option>)}</select>
         {cat && IDEA_CAT_DESC[cat] ? <span className="hint ib4-hint">{IDEA_CAT_DESC[cat]}</span> : null}</div>
+      <div className={'field' + (err ? ' bad' : '')}><label htmlFor="hub-ie-title">아이디어<Req /></label><input id="hub-ie-title" maxLength={60} value={title} onChange={e => { setTitle(e.target.value); setErr(''); }} aria-invalid={!!err} /><span className="err">{err}</span></div>
       <div className="field"><label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}><input type="checkbox" checked={scrap} onChange={e => setScrap(e.target.checked)} /> 🔭 외부에서 스크랩했어요</label>
         {scrap ? <input id="hub-ie-link" type="url" inputMode="url" aria-label="원문 링크 (선택)" placeholder="원문 링크 붙여 넣기 (선택)" value={link} onChange={e => setLink(e.target.value)} /> : null}</div>
-      <div className="field"><label htmlFor="hub-ie-pain">지금 겪는 불편</label><textarea id="hub-ie-pain" rows={3} placeholder="지금은 어떻게 하고 있고, 무엇이 번거로운지 적어 주세요." value={pain} onChange={e => setPain(e.target.value)} /></div>
-      <div className="field"><label htmlFor="hub-ie-freq">얼마나 자주 하나요</label>
-        <select id="hub-ie-freq" value={freq} onChange={e => setFreq(e.target.value)}><option value="">고르지 않음</option>{IDEA_FREQS.map(x => <option key={x}>{x}</option>)}</select></div>
-      <div className="field"><label htmlFor="hub-ie-min">한 번에 걸리는 시간(분)</label><input id="hub-ie-min" type="number" min={0} step={1} inputMode="numeric" value={mins} onChange={e => setMins(e.target.value.replace(/[^\d]/g, ''))} /></div>
       <div className="mact"><button className="btn pri" type="submit" disabled={busy}>{busy ? '저장하는 중…' : '수정 저장'}</button><button type="button" className="btn" onClick={props.onCancel}>취소</button></div>
     </form>
   );

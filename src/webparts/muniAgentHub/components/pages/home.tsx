@@ -229,12 +229,13 @@ export function HomeView(props: { api: IHubApi; dark?: boolean; rootRef?: React.
             <div className="zside rv" style={{ '--d': '140ms' } as React.CSSProperties}><p className="zlead rv">최근 고객 사례</p>
               {recentSols.length ? (
                 <div className="zcases c18-cases" role="table" aria-label="최근 고객 사례">
-                  <div className="cb-row cb-head" role="row"><span role="columnheader">업종</span><span role="columnheader">솔루션</span><span role="columnheader">종류</span></div>
+                  <div className="cb-row cb-head" role="row"><span role="columnheader">업종</span><span role="columnheader">종류</span><span role="columnheader">솔루션</span></div>
                   {recentSols.map(({ c, k }) => { const s = c.solutions[k]; return (
                     <Go key={c.id + ':' + k} go={api.go} view="case" id={c.id} sub={k || undefined} className="cb-row">
                       <span className="cb-c1" role="cell"><span className="cc-dept ct-ind">{c.industry || '기타'}</span></span>
-                      <span className="cb-c2" role="cell"><b className="cb-ttl">{s.name}</b>{s.does ? <small className="cb-chg">{s.does}</small> : null}</span>
+                      {/* 순서: 업종 · 종류 · 솔루션 */}
                       <span className="cb-c4" role="cell"><span className={'cb-hash h-' + s.kind}>#{SOL_LABEL[s.kind]}</span></span>
+                      <span className="cb-c2" role="cell"><b className="cb-ttl">{s.name}</b>{s.does ? <small className="cb-chg">{s.does}</small> : null}</span>
                     </Go>
                   ); })}
                 </div>

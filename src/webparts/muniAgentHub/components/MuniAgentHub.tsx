@@ -426,6 +426,11 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
   // Skill·HTML 올리기는 실패하면 오류를 던집니다. 폼이 받아서 버튼 위에 자세한 안내를 띄웁니다.
   // Skill·HTML 올리기 화면의 '이 아이디어로 만들었어요' 후보: 내가 함께 만드는 제작 중 아이디어
   const myMaking = me ? data.ideas.filter(i => ideaStage(i, now) === 'making' && i.makers.some(p => p.id === me.id)) : [];
+  /** 이 게시물과 이미 연결된 아이디어 (아이디어 ResultRef가 agent:3 · skill:12 · html:7, 예전 방식은 같은 이름) */
+  const linkedIdeas = (k: 'agent' | 'skill' | 'html', id: number, title: string): IIdea[] => {
+    const key = `${k}:${id}`, name = title.trim().toLowerCase();
+    return data.ideas.filter(i => { const r = (i.resultRef || '').trim().toLowerCase(); return !!r && (r === key || r === name); });
+  };
   /** 올린 Skill·HTML로 아이디어를 완성합니다. 결과물은 번호(skill:12)로 남겨 이름이 바뀌어도 이어집니다. 실패해도 올리기는 성공으로 둡니다 */
   const finishWith = async (ideaId: number | undefined, ref: string): Promise<string> => {
     if (!ideaId) { return ''; }
@@ -445,14 +450,15 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     go('skill', id);
     toast((cur ? `저장했어요. 지금 버전은 v${s.version}이에요.` : 'Skill을 올렸어요.') + idea);
   };
-  const submitAgent = async (a: IAgent, e: IAgentEdit): Promise<void> => {
+  const submitAgent = async (a: IAgent, e: IAgentEdit, ideaId?: number): Promise<void> => {
     await service.updateAgent(a, e);
+    const idea = await finishWith(ideaId, `agent:${a.id}`);
     // 저장은 끝났으니, 목록 새로 읽기가 실패해도 성공으로 봅니다
     const agents = await service.getAgents().catch(() => undefined);
     if (agents) { setData(d => ({ ...d, agents, agentsError: undefined })); }
     setModal(undefined);
     go('agent', a.id);
-    toast('Agent 소개를 고쳤어요.');
+    toast('Agent 소개를 고쳤어요.' + idea);
   };
   const submitHtml = async (h: INewHtml, editId?: number, ideaId?: number): Promise<void> => {
     const cur = editId ? first(data.htmls, x => x.id === editId) : undefined;
@@ -566,7 +572,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       } catch (e) { fail(e); return false; }
     },
     deleteIdea: async id => {
-      try { await service.deleteIdea(id); setData(d => ({ ...d, ideas: d.ideas.filter(i => i.id !== id) })); toast('아이디어를 지웠어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
+      try { await service.deleteIdea(id); setData(d => ({ ...d, ideas: d.ideas.filter(i => i.id !== id) })); toast('삭제되었습니다'); return true; } catch (e) { fail(e); return false; }
     },
     editComment: async (rid, body) => {
       const old = first(data.reactions, x => x.id === rid);
@@ -580,7 +586,7 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       } catch (e) { fail(e); return false; }
     },
     deleteCase: async id => {
-      try { await service.deleteCase(id); setData(d => ({ ...d, cases: d.cases.filter(c => c.id !== id) })); toast('사례를 지웠어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
+      try { await service.deleteCase(id); setData(d => ({ ...d, cases: d.cases.filter(c => c.id !== id) })); toast('삭제되었습니다'); return true; } catch (e) { fail(e); return false; }
     },
     toggleMake: id => {
       const i = first(data.ideas, x => x.id === id);
@@ -629,18 +635,19 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
     openHtml,
     deleteAgent: async id => {
       try {
-        const to = await service.retireAgent(id);
+        // 삭제 후 안내는 '삭제되었습니다' 한 줄만 (실패하면 오류는 그대로 알려요)
+        await service.retireAgent(id);
         setData(d => ({ ...d, agents: d.agents.filter(x => x.id !== id) }));
         go('agents');
-        toast(`Hub에서 내렸어요. AgentList 운영 상태가 '${to}'(으)로 바뀌었고, 되돌리면 다시 보여요`);
+        toast('삭제되었습니다');
         return true;
       } catch (e) { fail(e); return false; }
     },
     deleteSkill: async id => {
-      try { await service.deleteSkill(id); setData(d => ({ ...d, skills: d.skills.filter(x => x.id !== id) })); go('skills'); toast('삭제했어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
+      try { await service.deleteSkill(id); setData(d => ({ ...d, skills: d.skills.filter(x => x.id !== id) })); go('skills'); toast('삭제되었습니다'); return true; } catch (e) { fail(e); return false; }
     },
     deleteHtml: async id => {
-      try { await service.deleteHtml(id); setData(d => ({ ...d, htmls: d.htmls.filter(x => x.id !== id) })); go('htools'); toast('삭제했어요. 사이트 휴지통에서 되살릴 수 있어요'); return true; } catch (e) { fail(e); return false; }
+      try { await service.deleteHtml(id); setData(d => ({ ...d, htmls: d.htmls.filter(x => x.id !== id) })); go('htools'); toast('삭제되었습니다'); return true; } catch (e) { fail(e); return false; }
     },
     loadFileText: ref => service.getFileText(ref),
     loadVersions: (t, id): Promise<IVersion[]> => t === 'Agent' ? service.getAgentVersions(id) : t === 'Skill' ? service.getSkillVersions(id) : service.getHtmlVersions(id),
@@ -754,17 +761,17 @@ export default function MuniAgentHub(props: IMuniAgentHubProps): JSX.Element {
       const cur = first(data.agents, x => x.id === modal.id);
       modalTitle = 'Agent 소개 고치기';
       modalSub = cur ? cur.title : undefined;
-      modalBody = cur ? <AgentForm key={cur.id} agent={cur} libName={service.listName('agents')} onCancel={closeModal} onSubmit={e => submitAgent(cur, e)} /> : null;
+      modalBody = cur ? <AgentForm key={cur.id} agent={cur} libName={service.listName('agents')} ideas={myMaking} linked={linkedIdeas('agent', cur.id, cur.title)} onCancel={closeModal} onSubmit={(e, ideaId) => submitAgent(cur, e, ideaId)} /> : null;
     } else if (modal.kind === 'skill') {
       const cur = modal.id ? first(data.skills, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'Skill 새 버전 올리기' : 'Skill 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
-      modalBody = <SkillForm key={modal.id || 0} skill={cur} existingTitles={data.skills.map(s => s.title)} libName={service.listName('contents')} ideas={myMaking} onCancel={closeModal} onSubmit={(s, ideaId) => submitSkill(s, cur ? cur.id : undefined, ideaId)} />;
+      modalBody = <SkillForm key={modal.id || 0} skill={cur} existingTitles={data.skills.map(s => s.title)} libName={service.listName('contents')} ideas={myMaking} linked={cur ? linkedIdeas('skill', cur.id, cur.title) : undefined} onCancel={closeModal} onSubmit={(s, ideaId) => submitSkill(s, cur ? cur.id : undefined, ideaId)} />;
     } else if (modal.kind === 'html') {
       const cur = modal.id ? first(data.htmls, x => x.id === modal.id) : undefined;
       modalTitle = cur ? 'HTML 새 버전 올리기' : 'HTML 올리기';
       modalSub = cur ? `${cur.title} · 지금 v${cur.version}` : undefined;
-      modalBody = <HtmlForm key={modal.id || 0} tool={cur} existingTitles={data.htmls.map(h => h.title)} libName={service.listName('contents')} ideas={myMaking} onCancel={closeModal} onSubmit={(h, ideaId) => submitHtml(h, cur ? cur.id : undefined, ideaId)} />;
+      modalBody = <HtmlForm key={modal.id || 0} tool={cur} existingTitles={data.htmls.map(h => h.title)} libName={service.listName('contents')} ideas={myMaking} linked={cur ? linkedIdeas('html', cur.id, cur.title) : undefined} onCancel={closeModal} onSubmit={(h, ideaId) => submitHtml(h, cur ? cur.id : undefined, ideaId)} />;
     } else if (modal.kind === 'case') {
       const cur = modal.id ? first(data.cases, x => x.id === modal.id) : undefined;
       modalTitle = cur ? '사례 고치기' : '사례 올리기';

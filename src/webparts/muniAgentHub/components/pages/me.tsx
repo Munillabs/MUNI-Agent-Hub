@@ -94,7 +94,6 @@ export function MyWorkspace(props: { api: IHubApi }): JSX.Element {
               <a href="#skills" onClick={e => { e.preventDefault(); setAdd(false); api.openSkillForm(); }}>Skill</a>
               <a href="#htools" onClick={e => { e.preventDefault(); setAdd(false); api.openHtmlForm(); }}>HTML</a>
               <Go go={api.go} view="ideas">아이디어</Go>
-              <Go go={api.go} view="maker">Agent는 Maker Lab에서</Go>
             </div></div></div>
         <div className="dstats" aria-label="나의 콘텐츠 수">
           {(['a', 's', 'h', 'c', 'i'] as K[]).map(k => <button key={k} type="button" className="dstat" aria-pressed={tab === k} onClick={() => choose(k)}><span className={'dic t-' + k}>{ICON[k]}</span><span className="dl">{KL[k]}</span><b>{cnt(k)}</b></button>)}
